@@ -14,7 +14,7 @@ export class TransactionRepository {
     filters?: {
       startDate?: Date;
       endDate?: Date;
-      accountId?: number; // MUDANÇA: number
+      accountId?: number;
       categoryId?: number;
       type?: 'INCOME' | 'EXPENSE';
     }
@@ -48,7 +48,11 @@ export class TransactionRepository {
     return await prisma.transaction.findMany({
       where: {
         workspace: {
-          userId: userId
+          members: {
+            some: {
+              userId: userId
+            }
+          }
         }
       },
       orderBy: { date: 'desc' },

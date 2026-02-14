@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Dashboard Home Screen - WSP Finance</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+    <script>tailwind.config = {darkMode: "class", theme: {extend: {colors: {primary: "#1978e5", secondary: "#3B82F6", "background-light": "#f6f7f8", "background-dark": "#111821", "card-dark": "rgba(255, 255, 255, 0.08)", "card-light": "#FFFFFF", success: "#10B981", danger: "#EF4444", warning: "#F59E0B"}, fontFamily: {display: "Inter"}, backgroundImage: {"gradient-radial": "radial-gradient(var(--tw-gradient-stops))", "brand-gradient": "linear-gradient(to right, #D946EF, #8B5CF6, #3B82F6)", "brand-gradient-hover": "linear-gradient(to right, #C026D3, #7C3AED, #2563EB)"}, borderRadius: {DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px"}}}};</script>
+    <style>.no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+    <style>
+        body {
+          min-height: max(884px, 100dvh);
+        }
+    </style>
+    <style>
+        body {
+          min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-white antialiased transition-colors duration-200">
+<div class="max-w-md mx-auto min-h-screen relative overflow-hidden bg-white dark:bg-[#11051f]">
+    <div class="absolute inset-0 pointer-events-none opacity-0 dark:opacity-100 transition-opacity duration-500 z-0">
+        <div class="absolute top-[-10%] left-[-20%] w-[140%] h-[60%] bg-gradient-to-b from-[#4c1d95] via-[#2e1065] to-transparent rounded-full blur-[100px] opacity-60"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[80%] h-[50%] bg-gradient-to-t from-[#1e3a8a] to-transparent rounded-full blur-[80px] opacity-40"></div>
+    </div>
+    <div class="relative z-10 flex flex-col h-full pb-24">
+        <header class="px-6 pt-12 pb-6 flex items-center justify-between">
+            <div class="flex flex-col">
+                <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Bom dia,</span>
+                <h1 class="text-2xl font-bold text-slate-800 dark:text-white">Usuário</h1>
+            </div>
+            <div class="flex bg-slate-100 dark:bg-white/10 rounded-full p-1 mx-4">
+                <button class="px-3 py-1 bg-white dark:bg-white/20 rounded-full shadow-sm text-xs font-semibold text-slate-800 dark:text-white transition-all">
+                    Pessoal
+                </button>
+                <button class="px-3 py-1 text-xs font-medium text-slate-500 dark:text-slate-300 hover:text-slate-700 dark:hover:text-white transition-all">
+                    Empresa
+                </button>
+            </div>
+            <button class="relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 transition-colors group">
+                <span class="material-symbols-rounded text-slate-600 dark:text-white group-hover:scale-110 transition-transform">notifications</span>
+                <span class="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-[#1a0b2e]"></span>
+            </button>
+        </header>
+        <section class="px-6 mb-8">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Saldo Total</span>
+                <button class="text-slate-400 dark:text-slate-500 hover:text-primary transition-colors">
+                    <span class="material-symbols-rounded text-xl">visibility</span>
+                </button>
+            </div>
+            <div class="flex items-end gap-1">
+                <span class="text-slate-500 dark:text-slate-400 text-xl font-bold mb-1">R$</span>
+                <span class="text-4xl font-bold text-slate-800 dark:text-white tracking-tight">12.450,80</span>
+            </div>
+        </section>
+        <section class="px-6 mb-6 grid grid-cols-2 gap-4">
+            <div class="bg-white dark:bg-card-dark backdrop-blur-md border border-slate-100 dark:border-white/10 rounded-2xl p-4 shadow-sm">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-8 h-8 rounded-full bg-green-100 dark:bg-green-500/20 flex items-center justify-center">
+                        <span class="material-symbols-rounded text-success text-sm font-bold">arrow_downward</span>
+                    </div>
+                    <span class="text-slate-500 dark:text-slate-300 text-sm font-medium">Entradas</span>
+                </div>
+                <p class="text-lg font-bold text-slate-800 dark:text-white">R$ 4.250</p>
+            </div>
+            <div class="bg-white dark:bg-card-dark backdrop-blur-md border border-slate-100 dark:border-white/10 rounded-2xl p-4 shadow-sm">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
+                        <span class="material-symbols-rounded text-danger text-sm font-bold">arrow_upward</span>
+                    </div>
+                    <span class="text-slate-500 dark:text-slate-300 text-sm font-medium">Saídas</span>
+                </div>
+                <p class="text-lg font-bold text-slate-800 dark:text-white mb-2">R$ 3.100</p>
+                <div class="w-full bg-slate-100 dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
+                    <div class="bg-gradient-to-r from-red-400 to-red-600 h-1.5 rounded-full" style="width: 72%"></div>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-1 text-right">72% do orçamento</p>
+            </div>
+        </section>
+        <section class="px-6 mb-8">
+            <div class="bg-warning/10 dark:bg-warning/10 border border-warning/20 rounded-xl p-4 flex items-start gap-3">
+                <span class="material-symbols-rounded text-warning shrink-0">warning</span>
+                <div>
+                    <h3 class="text-warning font-semibold text-sm mb-0.5">Atenção</h3>
+                    <p class="text-slate-600 dark:text-warning/80 text-xs leading-relaxed">Previsão de saldo negativo para o dia 25/11. Revise seus agendamentos.</p>
+                </div>
+            </div>
+        </section>
+        <section class="px-6 mb-8">
+            <h2 class="text-slate-800 dark:text-white font-semibold text-lg mb-4">Ações Rápidas</h2>
+            <div class="flex justify-between items-start">
+                <button class="flex flex-col items-center gap-2 group w-1/4">
+                    <div class="w-14 h-14 rounded-2xl bg-brand-gradient shadow-lg shadow-purple-500/20 flex items-center justify-center group-active:scale-95 transition-transform">
+                        <span class="material-symbols-rounded text-white text-2xl">add</span>
+                    </div>
+                    <span class="text-xs font-medium text-slate-600 dark:text-slate-300 text-center">Nova<br/>Transação</span>
+                </button>
+                <button class="flex flex-col items-center gap-2 group w-1/4">
+                    <div class="w-14 h-14 rounded-2xl bg-white dark:bg-white/10 border border-slate-100 dark:border-white/5 flex items-center justify-center group-active:scale-95 transition-transform">
+                        <span class="material-symbols-rounded text-slate-600 dark:text-white text-2xl">payments</span>
+                    </div>
+                    <span class="text-xs font-medium text-slate-600 dark:text-slate-300 text-center">Pagar<br/>Contas</span>
+                </button>
+                <button class="flex flex-col items-center gap-2 group w-1/4">
+                    <div class="w-14 h-14 rounded-2xl bg-white dark:bg-white/10 border border-slate-100 dark:border-white/5 flex items-center justify-center group-active:scale-95 transition-transform">
+                        <span class="material-symbols-rounded text-slate-600 dark:text-white text-2xl">swap_horiz</span>
+                    </div>
+                    <span class="text-xs font-medium text-slate-600 dark:text-slate-300 text-center">Transferir</span>
+                </button>
+                <button class="flex flex-col items-center gap-2 group w-1/4">
+                    <div class="w-14 h-14 rounded-2xl bg-white dark:bg-white/10 border border-slate-100 dark:border-white/5 flex items-center justify-center group-active:scale-95 transition-transform">
+                        <span class="material-symbols-rounded text-slate-600 dark:text-white text-2xl">more_horiz</span>
+                    </div>
+                    <span class="text-xs font-medium text-slate-600 dark:text-slate-300 text-center">Mais</span>
+                </button>
+            </div>
+        </section>
+        <section class="px-6 flex-1">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-slate-800 dark:text-white font-semibold text-lg">Atividade Recente</h2>
+                <a class="text-sm text-primary dark:text-primary font-medium hover:underline" href="#">Ver tudo</a>
+            </div>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-xl">
+                            🛒
+                        </div>
+                        <div>
+                            <p class="text-slate-800 dark:text-white font-medium text-sm">Supermercado Silva</p>
+                            <p class="text-slate-500 dark:text-slate-400 text-xs">Hoje, 14:30 • Alimentação</p>
+                        </div>
+                    </div>
+                    <span class="text-slate-800 dark:text-white font-bold text-sm">- R$ 432,90</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-xl">
+                            🎬
+                        </div>
+                        <div>
+                            <p class="text-slate-800 dark:text-white font-medium text-sm">Netflix Assinatura</p>
+                            <p class="text-slate-500 dark:text-slate-400 text-xs">Ontem • Lazer</p>
+                        </div>
+                    </div>
+                    <span class="text-slate-800 dark:text-white font-bold text-sm">- R$ 55,90</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-xl">
+                            💼
+                        </div>
+                        <div>
+                            <p class="text-slate-800 dark:text-white font-medium text-sm">Salário Mensal</p>
+                            <p class="text-slate-500 dark:text-slate-400 text-xs">05 Nov • Receita</p>
+                        </div>
+                    </div>
+                    <span class="text-success font-bold text-sm">+ R$ 8.500,00</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-xl">
+                            ⛽
+                        </div>
+                        <div>
+                            <p class="text-slate-800 dark:text-white font-medium text-sm">Posto Shell</p>
+                            <p class="text-slate-500 dark:text-slate-400 text-xs">03 Nov • Transporte</p>
+                        </div>
+                    </div>
+                    <span class="text-slate-800 dark:text-white font-bold text-sm">- R$ 250,00</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-xl">
+                            💊
+                        </div>
+                        <div>
+                            <p class="text-slate-800 dark:text-white font-medium text-sm">Farmácia Popular</p>
+                            <p class="text-slate-500 dark:text-slate-400 text-xs">01 Nov • Saúde</p>
+                        </div>
+                    </div>
+                    <span class="text-slate-800 dark:text-white font-bold text-sm">- R$ 89,45</span>
+                </div>
+            </div>
+        </section>
+    </div>
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-[#1a0b2e]/90 backdrop-blur-lg border-t border-slate-200 dark:border-white/5 z-50">
+        <div class="max-w-md mx-auto px-6 h-[80px] flex items-center justify-between relative">
+            <button class="flex flex-col items-center gap-1 w-12 text-primary">
+                <span class="material-symbols-rounded text-2xl">home</span>
+                <span class="text-[10px] font-medium">Home</span>
+            </button>
+            <button class="flex flex-col items-center gap-1 w-12 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                <span class="material-symbols-rounded text-2xl">receipt_long</span>
+                <span class="text-[10px] font-medium">Extrato</span>
+            </button>
+            <div class="relative -top-6">
+                <button class="w-14 h-14 rounded-full bg-brand-gradient shadow-lg shadow-purple-500/30 flex items-center justify-center text-white transform hover:scale-105 transition-transform">
+                    <span class="material-symbols-rounded text-3xl">add</span>
+                </button>
+            </div>
+            <button class="flex flex-col items-center gap-1 w-12 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                <span class="material-symbols-rounded text-2xl">monitoring</span>
+                <span class="text-[10px] font-medium">Análises</span>
+            </button>
+            <button class="flex flex-col items-center gap-1 w-12 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                <span class="material-symbols-rounded text-2xl">person</span>
+                <span class="text-[10px] font-medium">Perfil</span>
+            </button>
+        </div>
+        <div class="h-1 w-1/3 bg-slate-300 dark:bg-white/20 rounded-full mx-auto mb-2"></div>
+    </nav>
+</div>
+</body></html>

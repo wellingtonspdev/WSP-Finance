@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --color-wsp-bg-start: #1e0b36;
+  --color-wsp-bg-end: #1a225a;
+  --color-glass-bg: rgba(255, 255, 255, 0.08);
+  --color-glass-border: rgba(255, 255, 255, 0.1);
+  --color-btn-start: #ec4899;
+  --color-btn-end: #3b82f6;
+  
+  --animate-blob: blob 10s infinite;
+  --animate-fade-in-up: fadeInUp 0.8s ease-out forwards;
+
+  @keyframes blob {
+    0% { transform: translate(0px, 0px) scale(1); }
+    33% { transform: translate(30px, -50px) scale(1.1); }
+    66% { transform: translate(-20px, 20px) scale(0.9); }
+    100% { transform: translate(0px, 0px) scale(1); }
+  }
+
+  @keyframes fadeInUp {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@layer base {
+  body {
+    @apply font-sans text-white min-h-screen overflow-x-hidden bg-wsp-bg-start;
+    /* Gradiente Base */
+    background: linear-gradient(to bottom, #1e1b4b, #312e81);
+  }
+  
+  .custom-placeholder::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* Noise Texture (Sutil) */
+.bg-noise {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Aurora Blobs */
+.blob {
+  position: absolute;
+  filter: blur(80px);
+  z-index: 0;
+  opacity: 0.4;
+  border-radius: 50%;
+  animation: blob 10s infinite;
+}
+
+.blob-1 { top: -10%; left: -10%; width: 500px; height: 500px; background: #4c1d95; animation-delay: 0s; }
+.blob-2 { bottom: -10%; right: -10%; width: 400px; height: 400px; background: #1e40af; animation-delay: 2s; }
+.blob-3 { top: 40%; left: 40%; width: 300px; height: 300px; background: #be185d; animation-delay: 4s; opacity: 0.2; }

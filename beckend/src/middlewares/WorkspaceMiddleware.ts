@@ -4,7 +4,6 @@ import { prisma } from '../lib/prisma';
 export async function WorkspaceMiddleware(req: Request, res: Response, next: NextFunction) {
   const workspaceIdHeader = req.headers['x-workspace-id'];
 
-  // 1. Validação de presença do Header
   if (!workspaceIdHeader) {
     return res.status(400).json({ message: 'Workspace ID header (x-workspace-id) is required' });
   }
@@ -16,26 +15,29 @@ export async function WorkspaceMiddleware(req: Request, res: Response, next: Nex
     return res.status(400).json({ message: 'Workspace ID must be a number' });
   }
 
-  // O AuthMiddleware já deve ter rodado antes e injetado o req.user
   if (!req.user || !req.user.id) {
     return res.status(401).json({ message: 'User authentication required for workspace access' });
   }
 
   try {
-    // 2. Validação de Pertencimento (Isolamento)
-    const workspace = await prisma.workspace.findFirst({
+    // Validação de Pertencimento via Tabela de Membros
+    const membership = await prisma.workspaceMember.findUnique({
       where: {
-        id: workspaceId, // Agora é number
-        userId: req.user.id,
+        userId_workspaceId: {
+          userId: req.user.id,
+          workspaceId: workspaceId,
+        },
       },
     });
 
-    if (!workspace) {
+    if (!membership) {
       return res.status(403).json({ message: 'Access to this workspace is denied' });
     }
 
-    // 3. Injeção de Contexto
-    req.workspaceId = workspace.id;
+    // Injeção de Contexto
+    req.workspaceId = workspaceId;
+    // Opcional: Injetar a role também se quiser usar no controller
+    // (req as any).userRole = membership.role;
 
     return next();
   } catch (err) {

@@ -1,3 +1,4 @@
+import { prisma } from '../lib/prisma';
 import { WorkspaceRepository } from '../repositories/WorkspaceRepository';
 import { WorkspaceType } from '@prisma/client';
 
@@ -11,10 +12,24 @@ export class WorkspaceService {
   async create(name: string, type: WorkspaceType, userId: number) {
     if (!name) throw new Error('Name is required');
 
-    const workspace = await this.workspaceRepository.create({
-      name,
-      type,
-      user: { connect: { id: userId } } // Vínculo automático
+    // Transação para criar workspace e vincular membro
+    const workspace = await prisma.$transaction(async (tx) => {
+      const ws = await tx.workspace.create({
+        data: {
+          name,
+          type,
+        }
+      });
+
+      await tx.workspaceMember.create({
+        data: {
+          userId,
+          workspaceId: ws.id,
+          role: 'OWNER'
+        }
+      });
+
+      return ws;
     });
 
     return workspace;

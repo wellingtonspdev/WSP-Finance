@@ -6,17 +6,34 @@ export class UserRepository {
   async createWithWorkspace(data: Prisma.UserCreateInput): Promise<User> {
     try {
       return await prisma.$transaction(async (tx) => {
+        // 1. Cria o usuário
         const user = await tx.user.create({
           data: {
-            ...data,
-            workspaces: {
-              create: {
-                name: 'Meu Workspace Pessoal',
-                type: 'PERSONAL'
-              }
-            }
+            name: data.name,
+            email: data.email,
+            passwordHash: data.passwordHash,
+            // Não criamos o workspace aninhado aqui mais, pois a relação mudou
           }
         });
+
+        // 2. Cria o Workspace Pessoal
+        const workspace = await tx.workspace.create({
+          data: {
+            name: 'Meu Workspace Pessoal',
+            type: 'PERSONAL',
+            // Sem userId direto
+          }
+        });
+
+        // 3. Cria o vínculo de Membro (OWNER)
+        await tx.workspaceMember.create({
+          data: {
+            userId: user.id,
+            workspaceId: workspace.id,
+            role: 'OWNER'
+          }
+        });
+
         return user;
       });
     } catch (error) {

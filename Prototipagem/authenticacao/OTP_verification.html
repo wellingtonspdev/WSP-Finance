@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>G Financeiro - Verificação de Conta</title>
+  <!-- Tailwind CSS v3 with Plugins -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <!-- Font Awesome for Icons -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+  <!-- Tailwind Configuration -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            // Approximating the gradient colors from the mockup
+            'gf-dark-blue': '#0f0c29',
+            'gf-purple': '#302b63',
+            'gf-magenta': '#24243e',
+            // Specific gradient stops
+            'grad-start': '#1e1b4b', // Dark navy/indigo
+            'grad-mid': '#4c1d95',   // Deep purple
+            'grad-end': '#be185d',   // Pinkish magenta
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Custom CSS for gradients and glassmorphism -->
+  <style data-purpose="custom-styling">
+    /* Global Background Gradient */
+    body {
+      background: linear-gradient(to top right, #5b106f 0%, #1e1b4b 100%);
+      min-height: 100vh;
+      color: white;
+    }
+
+    /* Glassmorphism Effect for Inputs */
+    .glass-input {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      color: white;
+      text-align: center;
+      font-size: 1.5rem;
+      border-radius: 0.75rem;
+    }
+
+    /* Button Gradient */
+    .btn-gradient {
+      background: linear-gradient(90deg, #d946ef 0%, #3b82f6 100%);
+    }
+
+    /* Active Input Simulation */
+    .input-active {
+      border-color: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.15);
+      position: relative;
+    }
+
+    /* Cursor simulation for the active input (3) */
+    .cursor-blink::after {
+      content: '|';
+      font-weight: 300;
+      color: rgba(255,255,255,0.8);
+      animation: blink 1s step-end infinite;
+      position: absolute;
+      top: 50%;
+      left: 60%; /* Position slightly to the right of the number */
+      transform: translateY(-50%);
+      font-size: 1.5rem;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+  </style>
+  <style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden font-sans antialiased selection:bg-purple-500 selection:text-white">
+<!-- BEGIN: Header -->
+<!-- Top navigation bar with back button and app title -->
+<header class="flex items-center justify-between px-4 pt-12 pb-4 w-full relative z-10">
+  <button aria-label="Voltar" class="text-white p-2 hover:bg-white/10 rounded-full transition-colors">
+    <i class="fas fa-arrow-left text-xl"></i>
+  </button>
+  <h1 class="text-lg font-medium tracking-wide absolute left-1/2 transform -translate-x-1/2">
+    G Financeiro
+  </h1>
+  <!-- Placeholder div to balance flex spacing if needed, empty here -->
+  <div class="w-8"></div>
+</header>
+<!-- END: Header -->
+<!-- BEGIN: MainContent -->
+<main class="flex-grow flex flex-col items-center justify-start pt-16 px-6 relative z-10 w-full max-w-md mx-auto">
+  <!-- Title Section -->
+  <section class="text-center mb-10">
+    <h2 class="text-2xl font-bold mb-4">Verificação de Conta</h2>
+    <p class="text-gray-300 text-sm leading-relaxed px-4">
+      Enviamos um código de 6 dígitos para o seu número de celular.
+    </p>
+  </section>
+  <!-- OTP Input Section -->
+  <section class="w-full flex flex-col items-center mb-12">
+    <!-- Step Indicator -->
+    <span class="text-sm text-gray-300 mb-8 tracking-wide">Passo 3 de 5</span>
+    <!-- Input Grid -->
+    <div class="flex w-full gap-2 mb-2 justify-center gap-3" data-purpose="otp-container">
+      <!-- Input 1 -->
+      <div class="relative w-12 h-12 sm:w-14 sm:h-14">
+        <input class="glass-input w-full h-full outline-none text-2xl text-center flex items-center justify-center p-0" readonly="" type="text" value=""/>
+      </div>
+      <!-- Input 2 -->
+      <div class="relative w-12 h-12 sm:w-14 sm:h-14">
+        <input class="glass-input w-full h-full outline-none text-2xl text-center flex items-center justify-center p-0" readonly="" type="text" value=""/>
+      </div>
+      <!-- Input 3 (Active) -->
+      <div class="relative w-12 h-12 sm:w-14 sm:h-14 cursor-blink">
+        <input class="glass-input w-full h-full outline-none text-2xl text-center flex items-center justify-center p-0 border-white/60 bg-white/20" readonly="" type="text" value=""/>
+      </div>
+      <!-- Input 4 -->
+      <div class="relative w-12 h-12 sm:w-14 sm:h-14">
+        <input class="glass-input w-full h-full outline-none text-2xl text-center flex items-center justify-center p-0" readonly="" type="text" value=""/>
+      </div>
+      <!-- Input 5 -->
+      <div class="relative w-12 h-12 sm:w-14 sm:h-14">
+        <input class="glass-input w-full h-full outline-none text-2xl text-center flex items-center justify-center p-0" readonly="" type="text" value=""/>
+      </div>
+      <!-- Input 6 -->
+      <div class="relative w-12 h-12 sm:w-14 sm:h-14">
+        <input class="glass-input w-full h-full outline-none text-2xl text-center flex items-center justify-center p-0" readonly="" type="text" value=""/>
+      </div>
+    </div>
+  </section>
+  <!-- Action Section -->
+  <section class="w-full flex flex-col items-center space-y-6">
+    <!-- Primary Action Button -->
+    <button class="w-full btn-gradient text-white font-semibold py-4 rounded-full shadow-lg transform active:scale-95 transition-transform duration-150 text-lg">
+      Verificar e Entrar
+    </button>
+    <!-- Timer / Resend Link -->
+    <div class="flex items-center justify-center gap-2 text-sm text-white/80" data-purpose="resend-timer">
+      <i class="far fa-clock"></i>
+      <span>Reenviar código em 30s</span>
+    </div>
+  </section>
+</main>
+<!-- END: MainContent -->
+</body></html>

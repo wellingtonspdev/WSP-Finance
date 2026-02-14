@@ -4,7 +4,7 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'API Sistema G Financeiro',
+      title: 'API WSP Finance',
       version: '1.0.0',
       description: 'API para gestão financeira híbrida (Pessoal e Empresarial).',
       contact: {

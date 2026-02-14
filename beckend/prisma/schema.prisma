@@ -1,9 +1,8 @@
-// Configuração do Cliente Prisma para gerar tipos TypeScript automaticamente
+// Configuração do Cliente Prisma
 generator client {
   provider = "prisma-client-js"
 }
 
-// O provedor permanece PostgreSQL
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -25,6 +24,27 @@ enum AccountType {
   CASH
   SAVINGS
   INVESTMENT
+  CREDIT_CARD
+}
+
+enum TransactionStatus {
+  PENDING     // Pendente de conciliação/pagamento
+  COMPLETED   // Efetivado
+  RECONCILED  // Conciliado com extrato bancário
+}
+
+enum WorkspaceRole {
+  OWNER   // Acesso total (pode deletar workspace)
+  EDITOR  // Pode criar/editar transações
+  VIEWER  // Somente leitura (Contador)
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  BRIDGE_TRANSFER // Nova ação para auditoria de ponte
 }
 
 // --- MODELOS ---
@@ -36,61 +56,49 @@ model User {
   name            String
   passwordHash    String
   emailVerifiedAt DateTime?
-  workspaces      Workspace[]
+  
+  // Relacionamentos
+  memberships     WorkspaceMember[]         // RBAC: Um usuário pode ser membro de vários workspaces
   refreshTokens   RefreshToken[]
   resetTokens     PasswordResetToken[]
   verifyTokens    AccountVerificationToken[]
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+
   createdAt       DateTime                  @default(now())
   updatedAt       DateTime                  @updatedAt
 }
 
-// RefreshToken
-model RefreshToken {
-  id        String   @id @default(uuid())
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresIn Int
-  createdAt DateTime @default(now())
+// RBAC: Tabela de Associação Usuário <-> Workspace
+model WorkspaceMember {
+  id          Int           @id @default(autoincrement())
+  userId      Int
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId Int
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  role        WorkspaceRole @default(VIEWER)
+  joinedAt    DateTime      @default(now())
 
+  @@unique([userId, workspaceId]) // Um usuário só pode ter um cargo por workspace
   @@index([userId])
-}
-
-// PasswordResetToken
-model PasswordResetToken {
-  id        String   @id @default(uuid())
-  code      String
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-}
-
-// AccountVerificationToken
-model AccountVerificationToken {
-  id        String   @id @default(uuid())
-  code      String
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  @@index([userId])
+  @@index([workspaceId])
 }
 
 // Workspace
 model Workspace {
-  id           Int           @id @default(autoincrement())
+  id           Int               @id @default(autoincrement())
   name         String
-  type         WorkspaceType @default(PERSONAL)
-  userId       Int
-  user         User          @relation(fields: [userId], references: [id])
+  type         WorkspaceType     @default(PERSONAL)
+  taxRate      Decimal           @db.Decimal(5, 2) @default(0) // Taxa de imposto padrão (%)
+  
+  // Relacionamentos
+  members      WorkspaceMember[] // Membros do workspace
   accounts     Account[]
   categories   Category[]
   transactions Transaction[]
-  createdAt    DateTime      @default(now())
+  
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 }
 
 // Categorias
@@ -99,14 +107,16 @@ model Category {
   name        String
   icon        String?
   color       String?
-  workspaceId Int?
+  workspaceId Int?          // Null = Global
   workspace   Workspace?    @relation(fields: [workspaceId], references: [id])
   transactions Transaction[]
+  
+  @@index([workspaceId])
 }
 
-// Contas: Agora com ID Inteiro Sequencial
+// Contas
 model Account {
-  id                Int           @id @default(autoincrement()) // MUDANÇA: Int
+  id                Int           @id @default(autoincrement())
   name              String
   type              AccountType   @default(CHECKING)
   balance           Decimal       @db.Decimal(19, 4) @default(0)
@@ -114,6 +124,7 @@ model Account {
   workspaceId       Int
   workspace         Workspace     @relation(fields: [workspaceId], references: [id])
   transactions      Transaction[]
+  
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -122,35 +133,107 @@ model Account {
 
 // Transações
 model Transaction {
-  id                String          @id @default(uuid())
+  id                String            @id @default(uuid()) // UUID para segurança externa
   description       String
-  amount            Decimal         @db.Decimal(19, 4)
+  amount            Decimal           @db.Decimal(19, 4)
   date              DateTime
+  dueDate           DateTime?         // Data de vencimento (Contas a Pagar/Receber)
   type              TransactionType
+  status            TransactionStatus @default(COMPLETED)
   
-  grossAmount       Decimal?        @db.Decimal(19, 4)
-  marketplaceFee    Decimal?        @db.Decimal(19, 4)
-  shippingCost      Decimal?        @db.Decimal(19, 4)
-  productCost       Decimal?        @db.Decimal(19, 4)
+  // Campos Analíticos de Marketplace
+  grossAmount       Decimal?          @db.Decimal(19, 4)
+  marketplaceFee    Decimal?          @db.Decimal(19, 4)
+  shippingCost      Decimal?          @db.Decimal(19, 4)
+  productCost       Decimal?          @db.Decimal(19, 4)
+  taxAmount         Decimal?          @db.Decimal(19, 4) // Valor reservado para impostos
 
-  isPaid            Boolean         @default(true)
-  isFixed           Boolean         @default(false)
-  isTaxDeductible   Boolean         @default(false)
+  isPaid            Boolean           @default(true)
+  isFixed           Boolean           @default(false)
+  isTaxDeductible   Boolean           @default(false)
 
   attachmentUrl     String?
-  hashDeduplication String?         @unique
+  
+  // Deduplicação OFX
+  fitid             String?           // ID único do banco (Financial Institution Transaction ID)
+  hashDeduplication String?           // Fallback MD5
 
   // Relacionamentos
-  accountId         Int             // MUDANÇA: Int
-  account           Account         @relation(fields: [accountId], references: [id])
+  accountId         Int
+  account           Account           @relation(fields: [accountId], references: [id])
   categoryId        Int
-  category          Category        @relation(fields: [categoryId], references: [id])
+  category          Category          @relation(fields: [categoryId], references: [id])
   workspaceId       Int
-  workspace         Workspace       @relation(fields: [workspaceId], references: [id])
+  workspace         Workspace         @relation(fields: [workspaceId], references: [id])
 
-  createdAt         DateTime        @default(now())
-  deleted_at        DateTime?
+  createdAt         DateTime          @default(now())
+  deletedAt         DateTime?         // Soft Delete (Auditoria)
 
   @@index([workspaceId, date])
   @@index([accountId])
+  @@unique([workspaceId, fitid])    // Garante unicidade do FITID dentro do workspace
+  @@unique([workspaceId, hashDeduplication])
+}
+
+// Auditoria (Governança)
+model AuditLog {
+  id        String      @id @default(uuid())
+  userId    Int
+  user      User        @relation(fields: [userId], references: [id])
+  action    AuditAction
+  entity    String      // Ex: "Transaction", "Account"
+  entityId  String      // ID da entidade afetada (pode ser Int convertido pra String)
+  oldState  Json?       // Estado anterior (para rollback/histórico)
+  newState  Json?       // Novo estado
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime    @default(now())
+
+  @@index([entity, entityId])
+  @@index([userId])
+}
+
+// Notificações (Automação)
+model Notification {
+  id        String   @id @default(uuid())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// --- TABELAS DE SUPORTE (Auth) ---
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresIn Int
+  createdAt DateTime @default(now())
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  code      String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  @@index([userId])
+}
+
+model AccountVerificationToken {
+  id        String   @id @default(uuid())
+  code      String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([userId])
 }
