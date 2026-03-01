@@ -46,6 +46,19 @@ export class UserRepository {
     return await prisma.user.findUnique({ where: { email } });
   }
 
+  async findByEmailWithWorkspaces(email: string) {
+    return await prisma.user.findUnique({
+      where: { email },
+      include: {
+        memberships: {
+          include: {
+            workspace: true
+          }
+        }
+      }
+    });
+  }
+
   async findById(id: number): Promise<User | null> {
     return await prisma.user.findUnique({ where: { id } });
   }
@@ -80,9 +93,9 @@ export class UserRepository {
   }
 
   async deleteRefreshToken(id: string): Promise<void> {
-    await prisma.refreshToken.delete({ where: { id } });
+    await prisma.refreshToken.deleteMany({ where: { id } });
   }
-  
+
   async deleteRefreshTokensByUserId(userId: number): Promise<void> {
     await prisma.refreshToken.deleteMany({ where: { userId } });
   }
@@ -144,7 +157,7 @@ export class UserRepository {
   }
 
   async deleteVerificationToken(tokenId: string): Promise<void> {
-    await prisma.accountVerificationToken.delete({
+    await prisma.accountVerificationToken.deleteMany({
       where: { id: tokenId }
     });
   }

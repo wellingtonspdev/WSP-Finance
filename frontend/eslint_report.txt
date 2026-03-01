@@ -1,0 +1,116 @@
+
+D:\Sistema_G_Financeiro\frontend\src\app\AuthProvider.tsx
+  51:16  error  'error' is defined but never used                                                                                               @typescript-eslint/no-unused-vars
+  88:14  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\Sistema_G_Financeiro\frontend\src\features\transactions\components\PredictiveYieldWidget.tsx
+   8:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  21:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Sistema_G_Financeiro\frontend\src\features\transactions\components\TransactionModal.tsx
+   60:32  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+D:\Sistema_G_Financeiro\frontend\src\features\transactions\components\TransactionModal.tsx:60:32
+  58 |     });
+  59 |
+> 60 |     const watchToWorkspaceId = watch('toWorkspaceId');
+     |                                ^^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  61 |
+  62 |     // Carrega dinamicamente contas banc├írias do workspace DESTINO selecionado
+  63 |     const { data: DestinationAccounts, isLoading: isLoadingDestAccounts } = useAccountsByWorkspace(  react-hooks/incompatible-library
+  105:32  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
+  119:23  error    'err' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  119:28  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
+
+D:\Sistema_G_Financeiro\frontend\src\features\workspaces\components\CreateWorkspaceForm.tsx
+   1:10  error    'useState' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+   1:20  error    'useEffect' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+  32:27  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+D:\Sistema_G_Financeiro\frontend\src\features\workspaces\components\CreateWorkspaceForm.tsx:32:27
+  30 |     });
+  31 |
+> 32 |     const workspaceType = watch('type');
+     |                           ^^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  33 |     const documentType = watch('fiscalIdentity.documentType');
+  34 |
+  35 |     // Trigger CNPJ Auto-Complete  react-hooks/incompatible-library
+  53:22  error    'err' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+  72:22  error    'err' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+  84:28  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-explicit-any
+
+D:\Sistema_G_Financeiro\frontend\src\features\workspaces\context\WorkspaceProvider.tsx
+  23:9   warning  The 'workspaces' logical expression could make the dependencies of useEffect Hook (at line 41) change on every render. To fix this, wrap the initialization of 'workspaces' in its own useMemo() Hook                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       react-hooks/exhaustive-deps
+  31:41  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  36:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\Sistema_G_Financeiro\frontend\src\features\workspaces\context\WorkspaceProvider.tsx:36:7
+  34 |
+  35 |       // Define o workspace inicial
+> 36 |       setActiveWorkspace(target);
+     |       ^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  37 |
+  38 |       // Sync Header Inicial
+  39 |       api.defaults.headers.common['x-workspace-id'] = target.id.toString();  react-hooks/set-state-in-effect
+  45:40  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  78:14  error    Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              react-refresh/only-export-components
+
+D:\Sistema_G_Financeiro\frontend\src\features\workspaces\hooks\useCreateBridge.ts
+  2:33  error  'BridgeTransferDTO' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Sistema_G_Financeiro\frontend\src\shared\components\ui\MoneyInput.tsx
+  23:13  error  'raw' is never reassigned. Use 'const' instead  prefer-const
+
+D:\Sistema_G_Financeiro\frontend\src\shared\components\ui\Toast.tsx
+  16:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\Sistema_G_Financeiro\frontend\src\shared\components\ui\Toast.tsx:16:5
+  14 |
+  15 |   useEffect(() => {
+> 16 |     setIsVisible(true);
+     |     ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  17 |     const timer = setTimeout(() => {
+  18 |       setIsVisible(false);
+  19 |       setTimeout(onClose, 300); // Espera a anima├º├úo de sa├¡da  react-hooks/set-state-in-effect
+
+D:\Sistema_G_Financeiro\frontend\src\shared\context\UIProvider.tsx
+  28:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\Sistema_G_Financeiro\frontend\src\shared\hooks\useToast.tsx
+  37:16  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+D:\Sistema_G_Financeiro\frontend\src\shared\hooks\useToast.tsx:37:16
+  35 |       {toast && (
+  36 |         <Toast
+> 37 |           key={Date.now()} // For├ºa remontagem para reiniciar anima├º├úo
+     |                ^^^^^^^^^^ Cannot call impure function
+  38 |           message={toast.message}
+  39 |           type={toast.type}
+  40 |           onClose={handleClose}  react-hooks/purity
+  47:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    react-refresh/only-export-components
+
+D:\Sistema_G_Financeiro\frontend\src\shared\lib\axios.ts
+  11:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  15:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Ô£û 27 problems (24 errors, 3 warnings)
+  1 error and 0 warnings potentially fixable with the `--fix` option.
+

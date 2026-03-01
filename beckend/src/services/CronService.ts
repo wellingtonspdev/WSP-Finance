@@ -23,14 +23,8 @@ export class CronService {
 
   // Lógica de Verificação
   async checkFinancialHealth() {
-    // Buscar todos os usuários (em produção, faríamos em lotes/paginado)
-    const users = await prisma.user.findMany({
-      include: { workspaces: true } // Traz os workspaces onde ele é dono (via relação antiga ou nova?)
-      // ATENÇÃO: Com a mudança para WorkspaceMember, precisamos ajustar a query.
-      // Vamos buscar usuários e seus memberships OWNER.
-    });
-
-    // Ajuste para o novo schema: Buscar usuários e seus workspaces onde são OWNER
+    // 1. Buscar membros OWNER e seus respectivos Workspaces
+    // O sistema agora segue o modelo multi-tenant via WorkspaceMember
     const owners = await prisma.workspaceMember.findMany({
       where: { role: 'OWNER' },
       include: { user: true, workspace: true }

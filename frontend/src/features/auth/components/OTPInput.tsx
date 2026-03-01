@@ -48,7 +48,7 @@ export function OTPInput({ length = 6, onComplete }: OTPInputProps) {
       newOtp[i] = char;
     });
     setOtp(newOtp);
-    
+
     if (pastedData.length === length) {
       onComplete(pastedData);
     }
@@ -61,7 +61,7 @@ export function OTPInput({ length = 6, onComplete }: OTPInputProps) {
           key={index}
           type="text"
           maxLength={1}
-          ref={(el) => (inputRefs.current[index] = el)}
+          ref={(el) => { inputRefs.current[index] = el; }}
           value={data}
           onChange={(e) => handleChange(index, e.target.value)}
           onKeyDown={(e) => handleKeyDown(index, e)}

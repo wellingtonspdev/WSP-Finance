@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { Toast } from '../components/ui/Toast';
 import type { ToastType } from '../components/ui/Toast'; // MUDANÇA: import type separado
 

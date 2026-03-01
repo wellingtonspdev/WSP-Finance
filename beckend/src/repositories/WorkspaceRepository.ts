@@ -4,7 +4,7 @@ import { Prisma, Workspace } from '@prisma/client';
 export class WorkspaceRepository {
   // Método create removido daqui pois a lógica foi movida para o Service (transação)
   // Mas mantemos para compatibilidade se necessário, embora o Service use prisma direto agora.
-  
+
   async findManyByUserId(userId: number): Promise<Workspace[]> {
     return await prisma.workspace.findMany({
       where: {

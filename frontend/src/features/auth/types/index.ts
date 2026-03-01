@@ -54,6 +54,13 @@ export interface AuthResponse {
     id: number;
     name: string;
     email: string;
+    memberships: {
+      id: number;
+      name: string;
+      type: 'PERSONAL' | 'BUSINESS';
+      role: 'OWNER' | 'VIEWER';
+    }[];
   };
   token: string;
+  refreshToken: string;
 }

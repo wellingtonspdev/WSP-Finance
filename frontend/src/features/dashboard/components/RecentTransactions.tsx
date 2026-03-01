@@ -1,6 +1,10 @@
 import type { Transaction } from '../api/getRecentTransactions';
 import { ListSkeleton } from '../../../shared/components/skeletons/ListSkeleton';
-import { ShoppingCart, ArrowRight } from 'lucide-react';
+import { ShoppingCart, ArrowRight, Paperclip } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useAttachment } from '../../transactions/hooks/useAttachment';
+import { AttachmentPreview } from '../../transactions/components/AttachmentPreview';
 
 interface Props {
   data?: Transaction[];
@@ -8,6 +12,26 @@ interface Props {
 }
 
 export function RecentTransactions({ data, isLoading }: Props) {
+  const navigate = useNavigate();
+  const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
+  const { getSignedUrl, isLoading: isAttachmentLoading, error: attachmentError, clearError } = useAttachment();
+  const [previewData, setPreviewData] = useState<{ url: string, headers?: Record<string, string> } | null>(null);
+
+  const handlePreview = async (txId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const result = await getSignedUrl(txId);
+    if (result) {
+      setPreviewData({ url: result.downloadUrl, headers: result.headers });
+    }
+    setSelectedTxId(txId);
+  };
+
+  const closePreview = () => {
+    setSelectedTxId(null);
+    setPreviewData(null);
+    clearError();
+  };
+
   if (isLoading) {
     return (
       <section className="px-6 lg:px-0 flex-1">
@@ -17,21 +41,24 @@ export function RecentTransactions({ data, isLoading }: Props) {
     );
   }
 
-  const formatCurrency = (value: string) => 
+  const formatCurrency = (value: string) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value));
 
-  const formatDate = (dateString: string) => 
+  const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 
   return (
     <section className="px-6 lg:px-0 flex-1 w-full">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-white font-semibold text-lg lg:text-xl">Atividade Recente</h2>
-        <button className="text-sm text-blue-400 font-medium hover:text-blue-300 flex items-center gap-1 transition-colors">
+        <button
+          onClick={() => navigate('/transactions')}
+          className="text-sm text-blue-400 font-medium hover:text-blue-300 flex items-center gap-1 transition-colors"
+        >
           Ver extrato completo <ArrowRight className="w-4 h-4" />
         </button>
       </div>
-      
+
       {data?.length === 0 && (
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
           <p className="text-slate-400">Nenhuma transação recente.</p>
@@ -41,14 +68,21 @@ export function RecentTransactions({ data, isLoading }: Props) {
       {/* Mobile View (List) */}
       <div className="space-y-4 lg:hidden pb-4">
         {data?.map((tx) => (
-          <div key={tx.id} className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/5 active:scale-[0.98] transition-transform">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
+          <div key={tx.id} className="flex items-start justify-between bg-white/5 p-4 rounded-xl border border-white/5 active:scale-[0.98] transition-transform">
+            <div className="flex items-start gap-3 flex-1">
+              <div className="mt-0.5 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
                 <ShoppingCart className="w-5 h-5" />
               </div>
-              <div className="min-w-0">
-                <p className="text-white font-medium text-sm truncate">{tx.description}</p>
-                <p className="text-slate-400 text-xs truncate">
+              <div className="flex-1 pr-2">
+                <div className="flex items-center gap-2">
+                  <p className="text-white font-medium text-sm break-words hyphens-auto">{tx.description}</p>
+                  {tx.attachmentUrl && (
+                    <button onClick={(e) => handlePreview(tx.id, e)} className="p-1 rounded bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
+                      <Paperclip className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                <p className="text-slate-400 text-xs mt-0.5 break-words">
                   {formatDate(tx.date)} • {tx.category.name}
                 </p>
               </div>
@@ -77,10 +111,15 @@ export function RecentTransactions({ data, isLoading }: Props) {
               <tr key={tx.id} className="hover:bg-white/5 transition-colors cursor-pointer">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white">
+                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
                       <ShoppingCart className="w-4 h-4" />
                     </div>
-                    <span className="text-white font-medium">{tx.description}</span>
+                    <span className="text-white font-medium truncate">{tx.description}</span>
+                    {tx.attachmentUrl && (
+                      <button onClick={(e) => handlePreview(tx.id, e)} className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors shrink-0" title="Ver Comprovante">
+                        <Paperclip className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </td>
                 <td className="px-6 py-4 text-slate-300 text-sm">
@@ -98,6 +137,16 @@ export function RecentTransactions({ data, isLoading }: Props) {
           </tbody>
         </table>
       </div>
+
+      {/* V3.8 Attachment Modal */}
+      <AttachmentPreview
+        isOpen={selectedTxId !== null}
+        onClose={closePreview}
+        downloadUrl={previewData?.url || null}
+        headers={previewData?.headers}
+        isLoadingUrl={isAttachmentLoading}
+        errorUrl={attachmentError}
+      />
     </section>
   );
 }

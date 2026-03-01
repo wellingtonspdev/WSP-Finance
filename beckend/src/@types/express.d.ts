@@ -1,8 +1,12 @@
-declare namespace Express {
-  export interface Request {
-    user: {
-      id: number;
-    };
-    workspaceId?: number; // MUDANÇA: string -> number
+import 'express';
+
+declare global {
+  namespace Express {
+    export interface Request {
+      user: {
+        id: number;
+      };
+      workspaceId?: number;
+    }
   }
 }
