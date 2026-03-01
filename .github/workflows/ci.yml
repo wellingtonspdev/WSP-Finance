@@ -27,9 +27,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
-          cache-dependency-path: |
-            beckend/pnpm-lock.yaml
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v2
@@ -61,7 +58,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ✅ PASSO 3: DEBUG explícito do que o runner está realmente testando
+      # ✅ PASSO 3: DEBUG explícito
       - name: Debug - show commit and key files
         shell: bash
         run: |
@@ -74,7 +71,7 @@ jobs:
           sed -n '1,220p' frontend/vite.config.ts || true
           echo ""
           echo "==== Grep: vitest excludes ===="
-          rg "exclude:\\s*\\[" -n frontend/vite.config.ts || true
+          rg "exclude:\s*\[" -n frontend/vite.config.ts || true
           rg "tests/e2e" -n frontend/vite.config.ts || true
           echo ""
           echo "==== Grep: 403 message ===="
@@ -84,9 +81,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
-          cache-dependency-path: |
-            frontend/pnpm-lock.yaml
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v2
@@ -123,9 +117,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
-          cache-dependency-path: |
-            frontend/pnpm-lock.yaml
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v2
@@ -150,7 +141,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [backend-tests, frontend-tests]
 
-    # Só faz análise Sonar em PRs (seu gatilho já é PR, mas deixo explícito)
     if: ${{ github.event_name == 'pull_request' }}
 
     permissions:
@@ -163,7 +153,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Baixa os artifacts de coverage ao invés de re-rodar testes aqui
       - name: Download backend coverage artifact
         uses: actions/download-artifact@v4
         with:
