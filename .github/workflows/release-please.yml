@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+
+    # Proteção anti-loop primária: não roda se a mensagem contiver "chore: release"
+    if: "!contains(github.event.head_commit.message, 'chore: release')"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run Release Please
+        uses: googleapis/release-please-action@v4
+        with:
+          # Tipo do lançamento: um projeto Node simples versionado na raiz
+          release-type: node
+          # Definir explicitamente versão inicial caso não exista nenhuma tag prévia
+          initial-version: "0.1.0"
+          # O uso nativo do token bloqueia triggers subsequentes em push
+          token: ${{ secrets.GITHUB_TOKEN }}
