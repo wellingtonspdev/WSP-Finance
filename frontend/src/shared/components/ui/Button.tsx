@@ -1,4 +1,4 @@
-import { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { clsx } from 'clsx';
 import { Loader2 } from 'lucide-react';
 
@@ -7,12 +7,12 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   isLoading?: boolean;
 }
 
-export function Button({ 
-  children, 
-  className, 
-  isLoading, 
-  disabled, 
-  ...props 
+export function Button({
+  children,
+  className,
+  isLoading,
+  disabled,
+  ...props
 }: ButtonProps) {
   return (
     <div className="pt-2 w-full">

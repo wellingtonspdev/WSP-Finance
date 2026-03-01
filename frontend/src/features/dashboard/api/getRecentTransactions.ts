@@ -7,6 +7,7 @@ export interface Transaction {
   type: 'INCOME' | 'EXPENSE';
   date: string;
   category: { name: string; icon?: string };
+  attachmentUrl?: string;
 }
 
 export async function getRecentTransactions(): Promise<Transaction[]> {

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+// @ts-ignore
 import { parse } from 'ofx-js';
 import { prisma } from '../lib/prisma';
 import { TransactionRepository } from '../repositories/TransactionRepository';

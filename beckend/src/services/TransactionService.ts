@@ -4,13 +4,14 @@ import { AccountRepository } from '../repositories/AccountRepository';
 import { CategoryRepository } from '../repositories/CategoryRepository';
 import { TransactionType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { UploadService } from './UploadService';
 
 interface CreateTransactionDTO {
   description: string;
   amount: number;
   date: Date;
   type: TransactionType;
-  accountId: string;
+  accountId: number;
   categoryId: number;
   isPaid: boolean;
   workspaceId: number;
@@ -19,6 +20,9 @@ interface CreateTransactionDTO {
   marketplaceFee?: number;
   shippingCost?: number;
   productCost?: number;
+  platformFeeRate?: number;
+  attachmentUrl?: string;
+  attachmentSize?: number;
 }
 
 export class TransactionService {
@@ -44,7 +48,10 @@ export class TransactionService {
     grossAmount,
     marketplaceFee,
     shippingCost,
-    productCost
+    productCost,
+    platformFeeRate,
+    attachmentUrl,
+    attachmentSize
   }: CreateTransactionDTO) {
     // 1. Validações de Pertencimento (Segurança)
     const account = await this.accountRepository.findByIdAndWorkspace(accountId, workspaceId);
@@ -53,35 +60,51 @@ export class TransactionService {
     const category = await this.categoryRepository.findByIdAndWorkspace(categoryId, workspaceId);
     if (!category) throw new Error('Category not found or access denied');
 
-    // 2. Lógica de Cálculo de Marketplace (PACT)
+    // Recupera o Workspace para obter o Linter Fiscal (taxRate)
+    const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
+    if (!workspace) throw new Error('Workspace not found');
+
+    const taxRate = workspace.taxRate; // Prisma lida como Decimal
+
+    // 2. Motor de Cálculo Financeiro: Provisões Tributárias e Plataforma
     let finalAmount = new Decimal(amount);
-    let calculatedGross = grossAmount ? new Decimal(grossAmount) : null;
-    let calculatedFee = marketplaceFee ? new Decimal(marketplaceFee) : null;
-    let calculatedShipping = shippingCost ? new Decimal(shippingCost) : null;
-    let calculatedCost = productCost ? new Decimal(productCost) : null;
+    let calculatedGross = grossAmount !== undefined && grossAmount !== null ? new Decimal(grossAmount) : null;
+    let calculatedFee = marketplaceFee !== undefined && marketplaceFee !== null ? new Decimal(marketplaceFee) : null;
+    let calculatedShipping = shippingCost !== undefined && shippingCost !== null ? new Decimal(shippingCost) : null;
+    let calculatedCost = productCost !== undefined && productCost !== null ? new Decimal(productCost) : null;
+    let calculatedPlatformFeeRate = platformFeeRate !== undefined && platformFeeRate !== null ? new Decimal(platformFeeRate) : null;
 
-    // Se for uma venda de marketplace (tem valor bruto), calculamos o líquido
-    if (grossAmount !== undefined && grossAmount !== null) {
-      const gross = new Decimal(grossAmount);
-      const fee = marketplaceFee ? new Decimal(marketplaceFee) : new Decimal(0);
-      const shipping = shippingCost ? new Decimal(shippingCost) : new Decimal(0);
-      const cost = productCost ? new Decimal(productCost) : new Decimal(0);
+    let computedTaxAmount: Decimal | null = null;
+    let computedNetValue: Decimal | null = null;
 
-      // Fórmula: Líquido = Bruto - (Taxas + Frete + Custo)
-      // Nota: O custo do produto (CMV) reduz o lucro contábil, mas para fluxo de caixa
-      // o que entra na conta é Bruto - (Taxas + Frete).
-      // Se quisermos o "Lucro Líquido Real" no relatório, salvamos o custo.
-      // Mas o saldo da conta aumenta pelo que a plataforma paga (Bruto - Taxas - Frete).
-      
-      // Ajuste PACT: O saldo da conta deve refletir o que "caiu na conta".
-      // O productCost é informativo para análise de margem, mas geralmente já foi pago antes.
-      // Vamos assumir que amount = Bruto - Taxas - Frete.
-      
-      finalAmount = gross.minus(fee).minus(shipping);
-      
-      // Se o usuário mandou um 'amount' explícito que difere do cálculo,
-      // priorizamos o cálculo para garantir consistência, ou usamos o amount como override?
-      // Pela regra de negócio, o cálculo deve prevalecer se os dados brutos forem enviados.
+    // CENÁRIO A: É uma venda detalhada com Gross Amount (MercadoLivre / Shopee)
+    if (calculatedGross !== null) {
+      // 1. Resolvemos a Fee da plataforma (Se vier Rate, calcula; senão, usa a fixa)
+      let fee = new Decimal(0);
+      if (calculatedPlatformFeeRate !== null) {
+        fee = calculatedGross.mul(calculatedPlatformFeeRate.dividedBy(100));
+        calculatedFee = fee;
+      } else if (calculatedFee !== null) {
+        fee = calculatedFee;
+      }
+
+      const shipping = calculatedShipping !== null ? calculatedShipping : new Decimal(0);
+
+      // 2. Calcula Imposto (DAS incide sobre Faturamento Bruto)
+      computedTaxAmount = calculatedGross.mul(taxRate.dividedBy(100));
+
+      // 3. Calcula o Valor Líquido Real (Recebido - Imposto Retido)
+      computedNetValue = calculatedGross.minus(fee).minus(computedTaxAmount);
+
+      // 4. Saldo Bancário Final (O que fisicamente entra na conta: Bruto - Taxas - Frete)
+      finalAmount = calculatedGross.minus(fee).minus(shipping);
+    }
+    // CENÁRIO B: Entrada manual simples sem Gross (Ex: Honorário direto)
+    else {
+      if (type === 'INCOME') {
+        computedTaxAmount = finalAmount.mul(taxRate.dividedBy(100));
+        computedNetValue = finalAmount.minus(computedTaxAmount);
+      }
     }
 
     // 3. Transação Atômica (Cria Transação + Atualiza Saldo)
@@ -97,6 +120,12 @@ export class TransactionService {
         marketplaceFee: calculatedFee,
         shippingCost: calculatedShipping,
         productCost: calculatedCost,
+        platformFeeRate: calculatedPlatformFeeRate,
+        taxAmount: computedTaxAmount,
+        feeAmount: calculatedFee,
+        netValue: computedNetValue,
+        attachmentUrl,
+        attachmentSize,
         account: { connect: { id: accountId } },
         category: { connect: { id: categoryId } },
         workspace: { connect: { id: workspaceId } }
@@ -118,5 +147,28 @@ export class TransactionService {
 
   async listAllByUser(userId: number) {
     return await this.transactionRepository.findManyByUserId(userId);
+  }
+
+  async delete(id: string, workspaceId: number): Promise<void> {
+    const transaction = await this.transactionRepository.findByIdAndWorkspace(id, workspaceId);
+    if (!transaction) throw new Error('Transaction not found or access denied');
+
+    // 1. Transação Atômica (Reembolsar Saldo + Apagar Registro)
+    await prisma.$transaction(async (tx) => {
+      if (transaction.isPaid && transaction.amount) {
+        // Reverter saldo (Se era ganho, o saldo decresce; se era gasto, retorna ao caixa)
+        const balanceDelta = transaction.type === 'INCOME' ? Number(transaction.amount) * -1 : Number(transaction.amount);
+        await this.accountRepository.updateBalance(transaction.accountId, new Decimal(balanceDelta), tx);
+      }
+      await this.transactionRepository.delete(id, tx);
+    });
+
+    // 2. V3.8 Expurgo Zumbi S3 (Asynchronous e Fora da Trasaction DB para não bloqueio)
+    if (transaction.attachmentUrl && transaction.attachmentUrl.length > 5) {
+      const uploadService = new UploadService();
+      uploadService.deleteRemoteFile(transaction.attachmentUrl).catch((err) => {
+        console.error('[R2 GC] Falha não-bloqueante ao apagar arquivo S3 Atrelado:', err);
+      });
+    }
   }
 }

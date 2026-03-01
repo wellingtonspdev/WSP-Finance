@@ -41,7 +41,7 @@ api.interceptors.request.use((config) => {
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
-  
+
   // Injeta o Workspace ID (Este pode ficar no localStorage pois é preferência de UI, não credencial)
   const workspaceId = localStorage.getItem('wsp_workspace_id');
   if (workspaceId) {
@@ -56,6 +56,11 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+    // Evita interceptação se for na própria rota de login ou refresh
+    if (originalRequest.url?.includes('/auth/refresh') || originalRequest.url?.includes('/auth/session')) {
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       // Se já houver um refresh em andamento, entra na fila
@@ -74,20 +79,29 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       return new Promise((resolve, reject) => {
-        // Chama a rota de refresh (o cookie vai automaticamente)
-        api.patch<{ token: string }>('/auth/refresh')
+        const storedRefreshToken = localStorage.getItem('wsp_refresh_token');
+        if (!storedRefreshToken) {
+          processQueue(error, null);
+          setApiToken(null);
+          window.location.href = '/login';
+          return reject(error);
+        }
+
+        // Chama a rota de refresh passando o payload Zod corretamente
+        api.patch<{ token: string, refreshToken: string }>('/auth/refresh', { refreshToken: storedRefreshToken })
           .then(({ data }) => {
             const newToken = data.token;
-            
-            // Atualiza a memória local do Axios
+
+            // Atualiza a memória local do Axios e a persistência
             setApiToken(newToken);
-            
+            localStorage.setItem('wsp_refresh_token', data.refreshToken);
+
             // Atualiza o header da requisição original
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            
+
             // Libera a fila com o novo token
             processQueue(null, newToken);
-            
+
             // Reenvia a requisição original
             resolve(api(originalRequest));
           })
@@ -97,7 +111,7 @@ api.interceptors.response.use(
             setApiToken(null);
             // O AuthProvider deve ouvir esse evento ou checar o estado para redirecionar
             // Como estamos fora do React, podemos disparar um evento customizado ou redirecionar direto
-            window.location.href = '/login'; 
+            window.location.href = '/login';
             reject(err);
           })
           .finally(() => {

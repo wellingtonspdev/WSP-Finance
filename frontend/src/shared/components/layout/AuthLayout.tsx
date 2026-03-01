@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import logo from '../../../assets/wsp_finance_sem_fundo.svg';
 
 interface AuthLayoutProps {
@@ -19,9 +19,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         {/* Logo Section */}
         <header className="flex flex-col items-center justify-center mb-4">
           <div className="flex flex-col items-center justify-center">
-            <img 
-              src={logo} 
-              alt="WSP Finance Logo" 
+            <img
+              src={logo}
+              alt="WSP Finance Logo"
               className="h-40 w-auto object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-500"
             />
           </div>

@@ -77,6 +77,7 @@ export class BridgeService {
           amount: amountDecimal,
           description: dto.description || `Transferência para Workspace ${dto.toWorkspaceId}`,
           isPaid: true,
+          date: dto.date || new Date(),
           fitid: `BRIDGE_OUT_${bridgeId}` // Rastreabilidade
         }
       });
@@ -91,6 +92,7 @@ export class BridgeService {
           amount: amountDecimal,
           description: dto.description || `Recebimento do Workspace ${dto.fromWorkspaceId}`,
           isPaid: true,
+          date: dto.date || new Date(),
           fitid: `BRIDGE_IN_${bridgeId}`
         }
       });
@@ -123,9 +125,10 @@ export class BridgeService {
           },
           newState: {
             fromAccount: { id: dto.fromAccountId, balance: fromBalanceBefore - dto.amount },
-            toAccount: { id: dto.toAccountId, balance: toBalanceBefore + dto.amount }
-          },
-          details: { bridgeId, amount: dto.amount }
+            toAccount: { id: dto.toAccountId, balance: toBalanceBefore + dto.amount },
+            bridgeId,
+            amount: dto.amount
+          }
         }
       });
 

@@ -1,13 +1,17 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Header } from './Header';
 import { BottomNav } from './BottomNav';
 import { Sidebar } from './Sidebar';
+import { useUI } from '../../context/UIProvider';
+import { TransactionModal } from '../../../features/transactions/components/TransactionModal';
 
 interface AppLayoutProps {
   children: ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const { isTransactionModalOpen, closeTransactionModal } = useUI();
+
   return (
     <div className="flex h-screen bg-[#11051f] text-white font-sans antialiased overflow-hidden relative">
       {/* Background Effects (Aurora) - Fixo no fundo */}
@@ -24,7 +28,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         {/* Container Responsivo */}
         <div className="flex-1 flex flex-col w-full lg:max-w-7xl lg:mx-auto h-full">
           <Header />
-          
+
           {/* Scrollable Area */}
           <main className="flex-1 overflow-y-auto overflow-x-hidden px-0 lg:px-8 pb-32 lg:pb-8 scroll-smooth">
             {children}
@@ -36,6 +40,12 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div className="lg:hidden">
         <BottomNav />
       </div>
+
+      {/* Global Modals */}
+      <TransactionModal
+        isOpen={isTransactionModalOpen}
+        onClose={closeTransactionModal}
+      />
     </div>
   );
 }

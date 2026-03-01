@@ -16,14 +16,18 @@ export class TransactionController {
       amount: z.number().positive(),
       date: z.coerce.date(),
       type: z.nativeEnum(TransactionType),
-      accountId: z.string().uuid(),
-      categoryId: z.number(),
+      accountId: z.number().int().positive(),
+      categoryId: z.number().int().positive(),
       isPaid: z.boolean().default(true),
       // Campos Opcionais de Marketplace
-      grossAmount: z.number().positive().optional(),
+      grossAmount: z.number().min(0).optional(),
       marketplaceFee: z.number().min(0).optional(),
       shippingCost: z.number().min(0).optional(),
       productCost: z.number().min(0).optional(),
+      platformFeeRate: z.number().min(0).max(100).optional(),
+      // Arquivo bypass R2 (V3.8 Governança)
+      attachmentUrl: z.string().optional(),
+      attachmentSize: z.number().int().min(0).optional(),
     });
 
     const data = createTransactionSchema.parse(req.body);
@@ -63,5 +67,20 @@ export class TransactionController {
     const userId = req.user.id;
     const transactions = await this.transactionService.listAllByUser(userId);
     return res.status(200).json(transactions);
+  }
+
+  async delete(req: Request, res: Response) {
+    const { id } = req.params;
+    const workspaceId = req.workspaceId!;
+
+    try {
+      await this.transactionService.delete(id, workspaceId);
+      return res.status(204).send();
+    } catch (err: any) {
+      if (err.message.includes('not found') || err.message.includes('access denied')) {
+        return res.status(400).json({ message: err.message });
+      }
+      throw err;
+    }
   }
 }

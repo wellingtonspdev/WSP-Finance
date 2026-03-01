@@ -2,10 +2,14 @@ import { useAuth } from '../../../app/AuthProvider';
 import { useWorkspace } from '../../../features/workspaces/context/WorkspaceProvider';
 import { Bell } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useLocation } from 'react-router-dom';
 
 export function Header() {
   const { user } = useAuth();
   const { activeWorkspace, workspaces, switchWorkspace } = useWorkspace();
+  const location = useLocation();
+
+  const isExtratoRoute = location.pathname.startsWith('/transactions');
 
   return (
     <header className="px-6 pt-12 pb-6 flex items-center justify-between bg-transparent z-10 relative">
@@ -17,22 +21,24 @@ export function Header() {
       </div>
 
       {/* Workspace Selector (Pill) */}
-      <div className="flex bg-white/10 rounded-full p-1 mx-2 backdrop-blur-md border border-white/5">
-        {workspaces.map((ws) => (
-          <button
-            key={ws.id}
-            onClick={() => switchWorkspace(ws.id)}
-            className={clsx(
-              "px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200",
-              activeWorkspace?.id === ws.id
-                ? "bg-white/20 text-white shadow-sm"
-                : "text-slate-400 hover:text-white"
-            )}
-          >
-            {ws.type === 'PERSONAL' ? 'Pessoal' : 'Empresa'}
-          </button>
-        ))}
-      </div>
+      {!isExtratoRoute && (
+        <div className="flex bg-white/10 rounded-full p-1 mx-2 backdrop-blur-md border border-white/5">
+          {workspaces.map((ws) => (
+            <button
+              key={ws.id}
+              onClick={() => switchWorkspace(ws.id)}
+              className={clsx(
+                "px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200",
+                activeWorkspace?.id === ws.id
+                  ? "bg-white/20 text-white shadow-sm"
+                  : "text-slate-400 hover:text-white"
+              )}
+            >
+              {ws.type === 'PERSONAL' ? 'Pessoal' : 'Empresa'}
+            </button>
+          ))}
+        </div>
+      )}
 
       <button className="relative p-2 rounded-full hover:bg-white/10 transition-colors group">
         <Bell className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { WorkspaceService } from '../services/WorkspaceService';
-import { WorkspaceType } from '@prisma/client';
+import { WorkspaceType, DocumentType } from '@prisma/client';
 
 export class WorkspaceController {
   private workspaceService: WorkspaceService;
@@ -14,15 +14,30 @@ export class WorkspaceController {
     const createWorkspaceSchema = z.object({
       name: z.string().min(1),
       type: z.nativeEnum(WorkspaceType).default('PERSONAL'),
+      fiscalIdentity: z.object({
+        documentType: z.nativeEnum(DocumentType),
+        document: z.string(),
+        cnae: z.string().nullable().optional()
+      }).optional(),
+      address: z.object({
+        zipCode: z.string().optional(),
+        street: z.string().optional(),
+        number: z.string().optional(),
+        complement: z.string().optional(),
+        neighborhood: z.string().optional(),
+        city: z.string().optional(),
+        state: z.string().optional(),
+      }).optional()
     });
 
-    const { name, type } = createWorkspaceSchema.parse(req.body);
-    const userId = req.user.id; // Vem do AuthMiddleware
-
     try {
-      const workspace = await this.workspaceService.create(name, type, userId);
+      const parsedData = createWorkspaceSchema.parse(req.body);
+      const userId = req.user.id; // Vem do AuthMiddleware
+
+      const workspace = await this.workspaceService.create(parsedData, userId);
       return res.status(201).json(workspace);
     } catch (err: any) {
+      console.error(err);
       return res.status(400).json({ message: err.message });
     }
   }
@@ -58,23 +73,23 @@ export class WorkspaceController {
       // Ajuste rápido: O service update atual espera obrigatórios. Vamos passar undefined e deixar o prisma ignorar?
       // Não, o Prisma não ignora undefined em update direto.
       // Melhor: O controller deve garantir que passamos algo válido.
-      
+
       // Vamos assumir que o frontend manda tudo ou ajustamos o service.
       // Para manter simples e robusto, vou ajustar o service para aceitar parciais agora mesmo.
       // Mas como não posso editar o service agora sem pedir, vou assumir que o frontend manda o que quer mudar.
-      
+
       // CORREÇÃO: Vou instanciar o service e chamar update. Se der erro de tipo, corrijo.
       // O service update(id, name, type, userId) exige todos.
       // Vou passar 'undefined' e o Prisma vai reclamar? Sim.
       // Então vou fazer o update apenas com o que veio.
-      
+
       // Como não posso editar o service agora (já escrevi), vou fazer uma pequena lógica aqui:
       // Se o usuário não mandou type, eu não posso adivinhar.
       // Vou retornar erro 400 se não mandar tudo, ou (melhor) assumir que o service será ajustado na próxima iteração.
       // Para não travar, vou exigir name E type no update por enquanto.
-      
+
       if (!name || !type) {
-         return res.status(400).json({ message: 'Name and Type are required for update' });
+        return res.status(400).json({ message: 'Name and Type are required for update' });
       }
 
       const workspace = await this.workspaceService.update(id, name, type, userId);

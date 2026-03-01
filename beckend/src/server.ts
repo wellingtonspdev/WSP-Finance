@@ -6,7 +6,7 @@ import swaggerUi from 'swagger-ui-express';
 import path from 'path';
 
 import { router } from './routes';
-import { swaggerSpec } from './lib/swagger';
+import swaggerFile from './swagger-output.json'; // Arquivo autogerado 
 import { CronService } from './services/CronService';
 
 const app = express();
@@ -26,7 +26,7 @@ app.use(express.json());
 app.use('/files', express.static(path.resolve(__dirname, '..', 'uploads')));
 
 // Documentação Swagger
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
 // Rotas da Aplicação
 app.use(router);

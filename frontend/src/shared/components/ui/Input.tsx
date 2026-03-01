@@ -1,4 +1,5 @@
-import { InputHTMLAttributes, forwardRef, ReactNode } from 'react';
+import { forwardRef } from 'react';
+import type { InputHTMLAttributes, ReactNode } from 'react';
 import { clsx } from 'clsx';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -23,7 +24,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               {icon}
             </div>
           )}
-          
+
           <input
             ref={ref}
             className={clsx(
