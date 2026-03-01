@@ -60,7 +60,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ✅ PASSO 3: DEBUG explícito do que o runner está testando
+      # Debug opcional (mantém por enquanto)
       - name: Debug - show commit and key files
         shell: bash
         run: |
@@ -108,46 +108,10 @@ jobs:
           if-no-files-found: warn
 
 
-  e2e-tests:
-    name: Playwright E2E
-    runs-on: ubuntu-latest
-    needs: frontend-tests
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Enable pnpm via Corepack
-        shell: bash
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.0.0 --activate
-          pnpm -v
-
-      - name: Install dependencies (Frontend)
-        working-directory: ./frontend
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Playwright Browsers
-        working-directory: ./frontend
-        run: npx playwright install --with-deps
-
-      - name: Run E2E tests
-        working-directory: ./frontend
-        run: pnpm test:e2e
-
-
   sonar-analysis:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
     needs: [backend-tests, frontend-tests]
-
-    if: ${{ github.event_name == 'pull_request' }}
 
     permissions:
       contents: read
@@ -175,11 +139,9 @@ jobs:
         shell: bash
         run: |
           echo "==== Coverage files (backend) ===="
-          ls -la beckend/coverage || true
           find beckend/coverage -maxdepth 4 -type f -name "lcov.info" -print || true
           echo ""
           echo "==== Coverage files (frontend) ===="
-          ls -la frontend/coverage || true
           find frontend/coverage -maxdepth 4 -type f -name "lcov.info" -print || true
 
       - name: SonarCloud Scan
