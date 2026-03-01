@@ -21,6 +21,8 @@ export function useAttachment() {
             console.error('Falha ao obter URL assinada:', err);
             if (err.response?.status === 404) {
                 setError('Anexo não encontrado ou sem permissão.');
+            } else if (err.response?.status === 403) {
+                setError('Acesso negado ou anexo indisponível.');
             } else {
                 setError('Link expirado ou indisponível.');
             }
