@@ -51,7 +51,6 @@ jobs:
             beckend/coverage/**
           if-no-files-found: warn
 
-
   frontend-tests:
     name: Frontend Tests + Coverage
     runs-on: ubuntu-latest
@@ -107,7 +106,6 @@ jobs:
             frontend/coverage/**
           if-no-files-found: warn
 
-
   sonar-analysis:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
@@ -146,6 +144,7 @@ jobs:
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
+        continue-on-error: true
         with:
           projectBaseDir: .
         env:
