@@ -28,10 +28,12 @@ jobs:
         with:
           node-version: 20
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
+      - name: Enable pnpm via Corepack
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.0.0 --activate
+          pnpm -v
 
       - name: Install dependencies (Backend)
         working-directory: ./beckend
@@ -58,7 +60,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ✅ PASSO 3: DEBUG explícito
+      # ✅ PASSO 3: DEBUG explícito do que o runner está testando
       - name: Debug - show commit and key files
         shell: bash
         run: |
@@ -82,10 +84,12 @@ jobs:
         with:
           node-version: 20
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
+      - name: Enable pnpm via Corepack
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.0.0 --activate
+          pnpm -v
 
       - name: Install dependencies (Frontend)
         working-directory: ./frontend
@@ -118,10 +122,12 @@ jobs:
         with:
           node-version: 20
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
+      - name: Enable pnpm via Corepack
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.0.0 --activate
+          pnpm -v
 
       - name: Install dependencies (Frontend)
         working-directory: ./frontend
@@ -170,11 +176,11 @@ jobs:
         run: |
           echo "==== Coverage files (backend) ===="
           ls -la beckend/coverage || true
-          find beckend/coverage -maxdepth 3 -type f -name "lcov.info" -print || true
+          find beckend/coverage -maxdepth 4 -type f -name "lcov.info" -print || true
           echo ""
           echo "==== Coverage files (frontend) ===="
           ls -la frontend/coverage || true
-          find frontend/coverage -maxdepth 3 -type f -name "lcov.info" -print || true
+          find frontend/coverage -maxdepth 4 -type f -name "lcov.info" -print || true
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
