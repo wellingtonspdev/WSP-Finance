@@ -19,9 +19,9 @@ export class LocalStorageProvider implements IStorageProvider {
   async generateUploadUrl(filename: string, contentType: string): Promise<{ uploadUrl: string; publicUrl: string; headers?: Record<string, string> }> {
     // No modo local, a "uploadUrl" é uma rota do nosso próprio servidor que aceita o arquivo
     // O frontend fará um PUT para http://localhost:3333/uploads/filename
-    
+
     const uniqueName = `${Date.now()}-${filename}`;
-    
+
     return {
       uploadUrl: `${this.baseUrl}/uploads/${uniqueName}`,
       publicUrl: `${this.baseUrl}/files/${uniqueName}`, // Rota estática para ver o arquivo
@@ -40,5 +40,14 @@ export class LocalStorageProvider implements IStorageProvider {
     }
 
     await fs.promises.unlink(filePath);
+  }
+
+  async getSignedDownloadUrl(url: string, isCertificate?: boolean): Promise<{
+    downloadUrl: string;
+    headers?: Record<string, string>;
+  }> {
+    return {
+      downloadUrl: url,
+    };
   }
 }

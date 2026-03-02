@@ -2,10 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { WorkspaceRole } from '@prisma/client';
 
-// Hierarquia de permissões: OWNER > EDITOR > VIEWER
+// Hierarquia de permissões: OWNER > ACCOUNTANT > EDITOR > VIEWER
 const roleHierarchy: Record<WorkspaceRole, number> = {
   VIEWER: 1,
   EDITOR: 2,
+  ACCOUNTANT: 2.5,
   OWNER: 3,
 };
 
@@ -14,7 +15,7 @@ export function RbacMiddleware(requiredRole: WorkspaceRole) {
     const userId = req.user?.id;
     // O workspaceId pode vir do header (padrão) ou injetado por outro middleware
     const workspaceIdHeader = req.headers['x-workspace-id'];
-    const workspaceId = workspaceIdHeader 
+    const workspaceId = workspaceIdHeader
       ? Number(Array.isArray(workspaceIdHeader) ? workspaceIdHeader[0] : workspaceIdHeader)
       : req.workspaceId; // Fallback se já foi injetado
 
@@ -42,8 +43,8 @@ export function RbacMiddleware(requiredRole: WorkspaceRole) {
       const requiredRoleLevel = roleHierarchy[requiredRole];
 
       if (userRoleLevel < requiredRoleLevel) {
-        return res.status(403).json({ 
-          message: `Permissão insuficiente. Necessário: ${requiredRole}, Atual: ${membership.role}` 
+        return res.status(403).json({
+          message: `Permissão insuficiente. Necessário: ${requiredRole}, Atual: ${membership.role}`
         });
       }
 
