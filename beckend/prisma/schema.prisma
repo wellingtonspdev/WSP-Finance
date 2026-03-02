@@ -42,6 +42,7 @@ enum WorkspaceRole {
   OWNER // Acesso total (pode deletar workspace)
   EDITOR // Pode criar/editar transações
   VIEWER // Somente leitura (Contador)
+  ACCOUNTANT // Conta de Contador B2B2C
 }
 
 enum AuditAction {
@@ -50,6 +51,8 @@ enum AuditAction {
   DELETE
   LOGIN
   BRIDGE_TRANSFER // Nova ação para auditoria de ponte
+  ATTACHMENT_VIEW // Fase C: Auditoria de visualização de anexo
+  CATEGORY_UPDATE // Fase C: Auditoria de alteração de categoria
 }
 
 // --- MODELOS ---
@@ -212,20 +215,22 @@ model Transaction {
 
 // Auditoria (Governança)
 model AuditLog {
-  id        String      @id @default(uuid())
-  userId    Int
-  user      User        @relation(fields: [userId], references: [id])
-  action    AuditAction
-  entity    String // Ex: "Transaction", "Account"
-  entityId  String // ID da entidade afetada (pode ser Int convertido pra String)
-  oldState  Json? // Estado anterior (para rollback/histórico)
-  newState  Json? // Novo estado
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime    @default(now())
+  id          String      @id @default(uuid())
+  userId      Int
+  user        User        @relation(fields: [userId], references: [id])
+  workspaceId Int?
+  action      AuditAction
+  entity      String // Ex: "Transaction", "Account"
+  entityId    String // ID da entidade afetada (pode ser Int convertido pra String)
+  oldState    Json? // Estado anterior (para rollback/histórico)
+  newState    Json? // Novo estado
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime    @default(now())
 
   @@index([entity, entityId])
   @@index([userId])
+  @@index([workspaceId])
 }
 
 // Notificações (Automação)

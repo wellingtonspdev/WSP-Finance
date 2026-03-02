@@ -62,7 +62,7 @@ export class UploadController {
     const workspaceId = req.workspaceId!;
 
     try {
-      const result = await this.uploadService.getAttachmentSignedUrl(id, workspaceId);
+      const result = await this.uploadService.getAttachmentSignedUrl(id, workspaceId, req.user!.id);
       return res.status(200).json(result);
     } catch (err: any) {
       if (err.message.includes('não encontrada') || err.message.includes('não possui')) {

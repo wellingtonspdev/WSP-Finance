@@ -82,7 +82,7 @@ export class UploadService {
     await this.storageProvider.deleteFile(url);
   }
 
-  async getAttachmentSignedUrl(transactionId: string, workspaceId: number): Promise<{ downloadUrl: string; headers?: Record<string, string> }> {
+  async getAttachmentSignedUrl(transactionId: string, workspaceId: number, userId: number): Promise<{ downloadUrl: string; headers?: Record<string, string> }> {
     // 1. Validar posse da transação: O Segurança
     const transaction = await prisma.transaction.findFirst({
       where: {
@@ -100,7 +100,18 @@ export class UploadService {
       throw new Error('Esta transação não possui nenhum anexo.');
     }
 
-    // 2. Gerar URL temporária
+    // 2. Disparar log de auditoria de forma assíncrona (Fase C)
+    const { AuditLogService } = await import('./AuditLogService');
+    AuditLogService.logAsync({
+      userId,
+      workspaceId,
+      action: 'ATTACHMENT_VIEW',
+      entity: 'Transaction',
+      entityId: transactionId,
+      newState: { attachmentUrl: transaction.attachmentUrl }
+    });
+
+    // 3. Gerar URL temporária
     return await this.storageProvider.getSignedDownloadUrl(transaction.attachmentUrl);
   }
 }

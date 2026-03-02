@@ -20,7 +20,7 @@ export async function WorkspaceMiddleware(req: Request, res: Response, next: Nex
   }
 
   try {
-    // Validação de Pertencimento via Tabela de Membros
+    // Validação de Pertencimento via Tabela de Membros com Trava de Isolamento
     const membership = await prisma.workspaceMember.findUnique({
       where: {
         userId_workspaceId: {
@@ -28,10 +28,23 @@ export async function WorkspaceMiddleware(req: Request, res: Response, next: Nex
           workspaceId: workspaceId,
         },
       },
+      include: {
+        workspace: {
+          select: {
+            type: true,
+          }
+        }
+      }
     });
 
     if (!membership) {
       return res.status(403).json({ message: 'Access to this workspace is denied' });
+    }
+
+    // Trava de Isolamento: Contadores nunca podem acessar contas pessoais (CPF)
+    if (membership.role === 'ACCOUNTANT' && membership.workspace.type === 'PERSONAL') {
+      console.warn(`[ZERO TRUST BLOCK] User ${req.user.id} (ACCOUNTANT) tried to access PERSONAL workspace ${workspaceId}`);
+      return res.status(403).json({ message: 'Accountants cannot access personal workspaces.' });
     }
 
     // Injeção de Contexto
