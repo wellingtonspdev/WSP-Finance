@@ -1,11 +1,13 @@
 import { AppLayout } from '../../../shared/components/layout/AppLayout';
+import { TeamManagement } from '../../workspaces/components/TeamManagement';
 import { SummaryCards } from '../components/SummaryCards';
 import { RecentTransactions } from '../components/RecentTransactions';
 import { useDashboard } from '../hooks/useDashboard';
-import { AlertTriangle, Receipt, BarChart2 } from 'lucide-react';
+import { AlertTriangle, Receipt, Users } from 'lucide-react';
 import { useUI } from '../../../shared/context/UIProvider';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCapabilities } from '../../../shared/hooks/useCapabilities';
+import { useState } from 'react';
 
 export function DashboardPage() {
   const { summary, transactions, isLoading } = useDashboard();
@@ -13,6 +15,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const { canEdit } = useCapabilities();
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
 
   return (
     <AppLayout>
@@ -60,16 +63,24 @@ export function DashboardPage() {
             <span className="text-xs font-medium text-slate-300 text-center leading-tight">Extrato<br />Mensal</span>
           </button>
 
-          <button className="flex flex-col items-center gap-2 group w-1/4">
+          <button
+            onClick={() => setIsTeamModalOpen(true)}
+            className="flex flex-col items-center gap-2 group w-1/4"
+          >
             <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center group-active:scale-95 transition-transform hover:bg-white/10">
-              <BarChart2 className="w-6 h-6 text-blue-400" />
+              <Users className="w-6 h-6 text-blue-400" />
             </div>
-            <span className="text-xs font-medium text-slate-300 text-center leading-tight">Análise<br />PACT</span>
+            <span className="text-xs font-medium text-slate-300 text-center leading-tight">Gestão de<br />Contador</span>
           </button>
         </div>
       </section>
 
+      {/* Histórico Recente e Delegação (Ordem de Relevância) */}
       <RecentTransactions data={transactions} isLoading={isLoading} />
+
+      {/* Modal de Delegação e Equipe */}
+      <TeamManagement isOpen={isTeamModalOpen} onClose={() => setIsTeamModalOpen(false)} />
+
     </AppLayout>
   );
 }

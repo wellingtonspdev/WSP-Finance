@@ -67,7 +67,7 @@ export function RecentTransactions({ data, isLoading }: Props) {
 
       {/* Mobile View (List) */}
       <div className="space-y-4 lg:hidden pb-4">
-        {data?.map((tx) => (
+        {data?.slice(0, 6).map((tx) => (
           <div key={tx.id} className="flex items-start justify-between bg-white/5 p-4 rounded-xl border border-white/5 active:scale-[0.98] transition-transform">
             <div className="flex items-start gap-3 flex-1">
               <div className="mt-0.5 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
@@ -107,7 +107,7 @@ export function RecentTransactions({ data, isLoading }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {data?.map((tx) => (
+            {data?.slice(0, 6).map((tx) => (
               <tr key={tx.id} className="hover:bg-white/5 transition-colors cursor-pointer">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
