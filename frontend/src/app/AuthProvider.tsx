@@ -13,6 +13,7 @@ export interface User {
   id: number;
   name: string;
   email: string;
+  type: 'CLIENT' | 'ACCOUNTANT';
   memberships: Membership[];
 }
 

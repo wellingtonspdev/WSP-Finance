@@ -14,7 +14,7 @@ export class AuthService {
   }
 
   // --- Caso de Uso: Registro ---
-  async register(name: string, email: string, password: string) {
+  async register(name: string, email: string, password: string, type: 'CLIENT' | 'ACCOUNTANT' = 'CLIENT') {
     const userExists = await this.userRepository.findByEmail(email);
     if (userExists) {
       throw new Error('User already exists');
@@ -27,6 +27,7 @@ export class AuthService {
       name,
       email,
       passwordHash,
+      type,
     });
 
     // LOG PARA DEBUG mantido fora de workspace legado
@@ -80,6 +81,7 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
+        type: user.type,
         memberships: mappedWorkspaces
       },
       token,

@@ -8,6 +8,10 @@ import { ForgotPasswordPage } from './features/auth/routes/ForgotPasswordPage';
 import { ResetPasswordPage } from './features/auth/routes/ResetPasswordPage';
 import { DashboardPage } from './features/dashboard/routes/DashboardPage';
 import { TransactionHistoryPage } from './features/transactions/pages/TransactionHistoryPage';
+import { WorkspaceGuard } from './shared/components/guards/WorkspaceGuard';
+import { ThemeWrapper } from './shared/components/layout/ThemeWrapper';
+import { InviteLandingPage } from './features/workspaces/routes/InviteLandingPage';
+import { AccountantHubPage } from './features/accountant/routes/AccountantHubPage';
 
 import { UIProvider } from './shared/context/UIProvider';
 
@@ -24,34 +28,44 @@ function PrivateRoute({ children }: { children: ReactNode }) {
 export default function App() {
   return (
     <BrowserRouter>
-      <UIProvider>
-        <Routes>
-          {/* Rotas Públicas */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/verify" element={<VerifyPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <ThemeWrapper>
+        <UIProvider>
+          <Routes>
+            {/* Rotas Públicas */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/verify" element={<VerifyPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-          {/* Rotas Protegidas */}
-          <Route
-            path="/"
-            element={
-              <PrivateRoute>
-                <DashboardPage />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/transactions"
-            element={
-              <PrivateRoute>
-                <TransactionHistoryPage />
-              </PrivateRoute>
-            }
-          />
-        </Routes>
-      </UIProvider>
+            <Route path="/invite/:token" element={<InviteLandingPage />} />
+
+            {/* Rota Global do Hub do Contador */}
+            <Route
+              path="/accountant/hub"
+              element={
+                <PrivateRoute>
+                  <AccountantHubPage />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Rotas Protegidas e Aninhadas sob um Guardião de Contexto (WorkspaceId) */}
+            <Route
+              path="/"
+              element={
+                <PrivateRoute>
+                  <WorkspaceGuard />
+                </PrivateRoute>
+              }
+            >
+              {/* O próprio WorkspaceGuard fará o Replace(/) para o ID persistido */}
+              <Route path=":workspaceId/dashboard" element={<DashboardPage />} />
+              <Route path=":workspaceId/transactions" element={<TransactionHistoryPage />} />
+            </Route>
+          </Routes>
+        </UIProvider>
+      </ThemeWrapper>
     </BrowserRouter>
   );
 }

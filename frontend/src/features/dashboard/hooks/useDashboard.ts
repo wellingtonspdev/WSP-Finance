@@ -1,22 +1,25 @@
 import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'react-router-dom';
 import { getSummary } from '../api/getSummary';
 import { getRecentTransactions } from '../api/getRecentTransactions';
-import { useWorkspace } from '../../workspaces/context/WorkspaceProvider';
+import { queryKeys } from '../../../config/queryKeys';
 
 export function useDashboard() {
-  const { activeWorkspace } = useWorkspace();
-  const workspaceId = activeWorkspace?.id;
+  const { workspaceId } = useParams<{ workspaceId: string }>();
 
   const summary = useQuery({
-    queryKey: ['dashboard-summary', workspaceId],
-    queryFn: getSummary,
+    queryKey: queryKeys.dashboard.metrics(workspaceId || 'null'),
+    queryFn: ({ signal }) => getSummary(signal),
     enabled: !!workspaceId,
+    staleTime: 1000 * 60 * 5, // 5 min
   });
 
   const transactions = useQuery({
-    queryKey: ['recent-transactions', workspaceId],
-    queryFn: getRecentTransactions,
+    // Factory aproveitando o namespace de transações
+    queryKey: [...queryKeys.transactions.all(workspaceId || 'null'), 'recent'],
+    queryFn: ({ signal }) => getRecentTransactions(signal),
     enabled: !!workspaceId,
+    staleTime: 1000 * 60 * 5, // 5 min
   });
 
   return {

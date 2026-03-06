@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { Transaction } from '../types';
 import { formatDecimalToBrl } from '../../../shared/lib/moneyFormat';
-import { ShoppingBag, Pencil, Trash, Clock, Tag, Briefcase, Zap, Home, DollarSign, Wallet, Paperclip } from 'lucide-react';
+import { ShoppingBag, Pencil, Trash, Clock, Tag, Briefcase, Zap, Home, DollarSign, Wallet, Paperclip, Eye } from 'lucide-react';
+import { useCapabilities } from '../../../shared/hooks/useCapabilities';
 
 const ICON_MAP: Record<string, React.ElementType> = {
     'tag': Tag,
@@ -22,6 +23,7 @@ interface TransactionAccordionItemProps {
 
 export function TransactionAccordionItem({ transaction, onEdit, onDelete, onPreviewAttachment }: TransactionAccordionItemProps) {
     const [isExpanded, setIsExpanded] = useState(false);
+    const { canEdit } = useCapabilities();
 
     // We should decide colors based on the data
     const isIncome = transaction.type === 'INCOME';
@@ -145,18 +147,29 @@ export function TransactionAccordionItem({ transaction, onEdit, onDelete, onPrev
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 mt-6">
-                        <button
-                            onClick={() => onEdit && onEdit(transaction.id)}
-                            className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 text-slate-300 text-sm font-medium hover:bg-white/10 transition-colors"
-                        >
-                            <Pencil className="w-4 h-4" /> Editar
-                        </button>
-                        <button
-                            onClick={() => onDelete && onDelete(transaction.id)}
-                            className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/10 transition-colors"
-                        >
-                            <Trash className="w-4 h-4" /> Excluir
-                        </button>
+                        {canEdit ? (
+                            <>
+                                <button
+                                    onClick={() => onEdit && onEdit(transaction.id)}
+                                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 text-slate-300 text-sm font-medium hover:bg-white/10 transition-colors"
+                                >
+                                    <Pencil className="w-4 h-4" /> Editar
+                                </button>
+                                <button
+                                    onClick={() => onDelete && onDelete(transaction.id)}
+                                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/10 transition-colors"
+                                >
+                                    <Trash className="w-4 h-4" /> Excluir
+                                </button>
+                            </>
+                        ) : (
+                            <button
+                                onClick={() => onPreviewAttachment && onPreviewAttachment(transaction.id, {} as any)}
+                                className="col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[#1978e5]/40 text-[#1978e5] text-sm font-medium hover:bg-[#1978e5]/10 transition-colors"
+                            >
+                                <Eye className="w-4 h-4" /> Visualizar Documentos
+                            </button>
+                        )}
                     </div>
                 </div>
             )}

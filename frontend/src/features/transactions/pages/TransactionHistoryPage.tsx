@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTransactions } from '../hooks/useTransactions';
 import { TransactionAccordionItem } from '../components/TransactionAccordionItem';
 import { ArrowLeft, Filter } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAttachment } from '../hooks/useAttachment';
 import { AttachmentPreview } from '../components/AttachmentPreview';
 
@@ -10,6 +10,7 @@ export function TransactionHistoryPage() {
     const [filterMode, setFilterMode] = useState<'ALL' | 'PACT' | 'SERVICES' | 'SUBS'>('ALL');
     const { data: transactions, isLoading, isError } = useTransactions();
     const navigate = useNavigate();
+    const { workspaceId } = useParams<{ workspaceId: string }>();
 
     // Estado do Visualizador
     const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
@@ -78,7 +79,7 @@ export function TransactionHistoryPage() {
                 {/* Header Subido */}
                 <header className="px-6 pt-6 pb-4 flex items-center justify-between z-20 sticky top-0 bg-[#11051f]/60 backdrop-blur-xl border-b border-white/5">
                     <button
-                        onClick={() => navigate('/')}
+                        onClick={() => navigate(`/${workspaceId}/dashboard`)}
                         className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors text-slate-300"
                     >
                         <ArrowLeft className="w-6 h-6" />

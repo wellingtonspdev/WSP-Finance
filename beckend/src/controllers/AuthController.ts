@@ -15,13 +15,14 @@ export class AuthController {
       name: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
       email: z.string().email('E-mail inválido'),
       password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+      type: z.enum(['CLIENT', 'ACCOUNTANT']).optional().default('CLIENT'),
     });
 
-    const { name, email, password } = registerBodySchema.parse(req.body);
+    const { name, email, password, type } = registerBodySchema.parse(req.body);
 
     try {
-      const result = await this.authService.register(name, email, password);
-      
+      const result = await this.authService.register(name, email, password, type);
+
       // Retorna 201 Created com mensagem de instrução
       return res.status(201).json(result);
     } catch (err: any) {

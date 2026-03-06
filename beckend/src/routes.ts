@@ -12,6 +12,7 @@ import { BridgeController } from './controllers/BridgeController';
 import { ImportController } from './controllers/ImportController';
 import { ExternalDataController } from './controllers/ExternalDataController';
 import { UserController } from './controllers/UserController';
+import { InviteController } from './controllers/InviteController';
 
 // Middlewares
 import { AuthMiddleware } from './middlewares/AuthMiddleware';
@@ -41,6 +42,7 @@ const bridgeController = new BridgeController();
 const importController = new ImportController();
 const externalDataController = new ExternalDataController();
 const userController = new UserController();
+const inviteController = new InviteController();
 
 // ==============================================================================
 // AUTENTICAÇÃO & IDENTIDADE
@@ -143,6 +145,28 @@ router.put('/workspaces/:id', AuthMiddleware, (req, res, next) => {
        #swagger.summary = 'Modificar Workspace'
        #swagger.description = 'Edita metadados da instância fiscal.' */
     return workspaceController.update(req, res);
+});
+
+// --- WORKSPACE INVITES (Gerenciamento de Membros) ---
+router.post('/workspaces/:id/invites', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Workspaces']
+       #swagger.summary = 'Gerar Convite (Smart Link)'
+       #swagger.description = 'Cria um convite com Token Criptografado para que um contador ou editor acesse esta empresa. Apenas o OWNER pode executar.' */
+    return inviteController.create(req, res);
+});
+
+router.post('/workspaces/:id/invites/:inviteId/revoke', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Workspaces']
+       #swagger.summary = 'Revogar Convite'
+       #swagger.description = 'Invalida um link de convite previamente gerado, bloqueando o engajamento caso o link tenha vazado.' */
+    return inviteController.revoke(req, res);
+});
+
+router.post('/invites/accept', AuthMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Workspaces']
+       #swagger.summary = 'Aceitar Convite (Double Handshake)'
+       #swagger.description = 'Consome o token do convite. Valida se o email do destinatário bate fisicamente com o email da sessão logada antes de injetar a Role na tabela.' */
+    return inviteController.accept(req, res);
 });
 
 // ==============================================================================

@@ -4,6 +4,11 @@ import { BottomNav } from './BottomNav';
 import { Sidebar } from './Sidebar';
 import { useUI } from '../../context/UIProvider';
 import { TransactionModal } from '../../../features/transactions/components/TransactionModal';
+import { useCapabilities } from '../../hooks/useCapabilities';
+import { AuditBanner } from './AuditBanner';
+import { AccountantSidebar } from '../../../features/accountant/components/AccountantSidebar';
+import { AccountantBottomNav } from '../../../features/accountant/components/AccountantBottomNav';
+import { useAuth } from '../../../app/AuthProvider';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -11,6 +16,10 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const { isTransactionModalOpen, closeTransactionModal } = useUI();
+  const { canViewAuditBanner } = useCapabilities();
+  const { user } = useAuth();
+
+  const isAccountantPersona = user?.type === 'ACCOUNTANT';
 
   return (
     <div className="flex h-screen bg-[#11051f] text-white font-sans antialiased overflow-hidden relative">
@@ -20,17 +29,20 @@ export function AppLayout({ children }: AppLayoutProps) {
         <div className="absolute bottom-[-10%] right-[-10%] w-[80%] h-[50%] bg-gradient-to-t from-[#1e3a8a] to-transparent rounded-full blur-[80px] opacity-40"></div>
       </div>
 
-      {/* Desktop Sidebar (Hidden on Mobile) */}
-      <Sidebar />
+      {/* Sidebar Desktop Condicional baseada na Persona */}
+      {isAccountantPersona ? <AccountantSidebar /> : <Sidebar />}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full relative z-10 w-full overflow-hidden">
-        {/* Container Responsivo */}
-        <div className="flex-1 flex flex-col w-full lg:max-w-7xl lg:mx-auto h-full">
-          <Header />
+        {/* Banner de Auditoria Global (Se Contador) */}
+        {canViewAuditBanner && <AuditBanner />}
+
+        {/* Container Responsivo (Global full width) */}
+        <div className="flex-1 flex flex-col w-full h-full">
+          {!isAccountantPersona && <Header />}
 
           {/* Scrollable Area */}
-          <main className="flex-1 overflow-y-auto overflow-x-hidden px-0 lg:px-8 pb-32 lg:pb-8 scroll-smooth">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 lg:px-8 pb-32 lg:pb-8 scroll-smooth w-full">
             {children}
           </main>
         </div>
@@ -38,7 +50,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       {/* Mobile Nav (Hidden on Desktop) */}
       <div className="lg:hidden">
-        <BottomNav />
+        {isAccountantPersona ? <AccountantBottomNav /> : <BottomNav />}
       </div>
 
       {/* Global Modals */}

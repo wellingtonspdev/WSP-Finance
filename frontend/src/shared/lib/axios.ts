@@ -1,5 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { env } from '../../config/env';
+import { useWorkspaceStore } from '../stores/useWorkspaceStore';
 
 // Estado local do Token (Memória apenas)
 let accessToken: string | null = null;
@@ -36,16 +37,34 @@ export const setApiToken = (token: string | null) => {
   accessToken = token;
 };
 
-// Interceptor de Request: Injeta o Token da Memória
+// Interceptor de Request: Injeta o Token da Memória e o WorkspaceID da URL
 api.interceptors.request.use((config) => {
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
 
-  // Injeta o Workspace ID (Este pode ficar no localStorage pois é preferência de UI, não credencial)
-  const workspaceId = localStorage.getItem('wsp_workspace_id');
-  if (workspaceId) {
-    config.headers['x-workspace-id'] = workspaceId;
+  // Fonte Única da Verdade (V2): URL > Params
+  // Exemplo de pathname: "/15/dashboard" -> ID = 15
+  const pathParts = window.location.pathname.split('/');
+  const possibleWorkspaceId = pathParts[1];
+
+  if (possibleWorkspaceId && !isNaN(parseInt(possibleWorkspaceId, 10))) {
+    config.headers['x-workspace-id'] = possibleWorkspaceId;
+  } else {
+    // Fallback: Se estivermos na raiz ou pagina de perfil genérica, 
+    // tentar pegar da persistência mínima do Zustand (para evitar requests órfãos)
+    const storedState = localStorage.getItem('wsp-workspace-storage');
+    if (storedState) {
+      try {
+        const parsed = JSON.parse(storedState);
+        const persistId = parsed.state?.activeWorkspaceId;
+        if (persistId) {
+          config.headers['x-workspace-id'] = persistId.toString();
+        }
+      } catch (e) {
+        // Silencioso. O Backend devolverá 400/403 se a rota exigir WID.
+      }
+    }
   }
 
   return config;
@@ -56,6 +75,11 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+    // Disparo Global de Acesso Negado
+    if (error.response?.status === 403) {
+      useWorkspaceStore.getState().setForbidden(true);
+    }
 
     // Evita interceptação se for na própria rota de login ou refresh
     if (originalRequest.url?.includes('/auth/refresh') || originalRequest.url?.includes('/auth/session')) {

@@ -7,7 +7,8 @@ import type { RegisterDTO } from '../types';
 import { Input } from '../../../shared/components/ui/Input';
 import { Button } from '../../../shared/components/ui/Button';
 import { useState } from 'react';
-import { User, Mail, Lock, CheckCircle } from 'lucide-react';
+import { User, Mail, Lock, CheckCircle, Store, Briefcase } from 'lucide-react';
+import { clsx } from 'clsx';
 
 export function RegisterForm() {
   const { mutate: registerUser, isPending } = useRegister();
@@ -16,10 +17,17 @@ export function RegisterForm() {
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<RegisterDTO>({
     resolver: zodResolver(registerSchema),
+    defaultValues: {
+      type: 'CLIENT'
+    }
   });
+
+  const selectedType = watch('type');
 
   const onSubmit = (data: RegisterDTO) => {
     setServerError(null);
@@ -42,6 +50,39 @@ export function RegisterForm() {
           {serverError}
         </div>
       )}
+
+      {/* Cards de Persona */}
+      <div className="grid grid-cols-2 gap-4">
+        <button
+          type="button"
+          onClick={() => setValue('type', 'CLIENT')}
+          className={clsx(
+            "p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2",
+            selectedType === 'CLIENT'
+              ? "bg-[#D946EF]/10 border-[#D946EF] text-white"
+              : "bg-white/5 border-transparent text-slate-400 hover:bg-white/10"
+          )}
+        >
+          <Store className={clsx("w-8 h-8", selectedType === 'CLIENT' ? "text-[#D946EF]" : "")} />
+          <span className="font-semibold text-sm">Empreendedor</span>
+          <span className="text-xs text-center opacity-70">Gerenciar meu negócio</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setValue('type', 'ACCOUNTANT')}
+          className={clsx(
+            "p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2",
+            selectedType === 'ACCOUNTANT'
+              ? "bg-blue-500/10 border-blue-500 text-white"
+              : "bg-white/5 border-transparent text-slate-400 hover:bg-white/10"
+          )}
+        >
+          <Briefcase className={clsx("w-8 h-8", selectedType === 'ACCOUNTANT' ? "text-blue-500" : "")} />
+          <span className="font-semibold text-sm">Contador</span>
+          <span className="text-xs text-center opacity-70">Auditar clientes</span>
+        </button>
+      </div>
 
       <div className="space-y-4">
         <Input

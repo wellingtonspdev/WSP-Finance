@@ -9,6 +9,11 @@ datasource db {
 }
 
 // --- ENUMS ---
+enum UserType {
+  CLIENT
+  ACCOUNTANT
+}
+
 enum WorkspaceType {
   PERSONAL
   BUSINESS
@@ -45,6 +50,13 @@ enum WorkspaceRole {
   ACCOUNTANT // Conta de Contador B2B2C
 }
 
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
 enum AuditAction {
   CREATE
   UPDATE
@@ -64,6 +76,7 @@ model User {
   name            String
   passwordHash    String
   emailVerifiedAt DateTime?
+  type            UserType  @default(CLIENT)
 
   // Informações Pessoais & Endereço
   cpf          String? @unique
@@ -83,6 +96,7 @@ model User {
   verifyTokens  AccountVerificationToken[]
   auditLogs     AuditLog[]
   notifications Notification[]
+  invitesSent   WorkspaceInvite[]          @relation("InvitesSent")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -129,6 +143,7 @@ model Workspace {
   accounts     Account[]
   categories   Category[]
   transactions Transaction[]
+  invites      WorkspaceInvite[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -175,13 +190,13 @@ model Transaction {
   status      TransactionStatus @default(COMPLETED)
 
   // Campos Analíticos de Marketplace
-  grossAmount    Decimal? @db.Decimal(19, 4)
-  marketplaceFee Decimal? @db.Decimal(19, 4)
-  shippingCost   Decimal? @db.Decimal(19, 4)
-  productCost    Decimal? @db.Decimal(19, 4)
-  taxAmount      Decimal? @db.Decimal(19, 4) // Valor reservado para impostos
-  netValue       Decimal? @db.Decimal(19, 4) // Valor líquido real recebido
-  feeAmount      Decimal? @db.Decimal(19, 4) // Taxa de gateway / intermediador
+  grossAmount     Decimal? @db.Decimal(19, 4)
+  marketplaceFee  Decimal? @db.Decimal(19, 4)
+  shippingCost    Decimal? @db.Decimal(19, 4)
+  productCost     Decimal? @db.Decimal(19, 4)
+  taxAmount       Decimal? @db.Decimal(19, 4) // Valor reservado para impostos
+  netValue        Decimal? @db.Decimal(19, 4) // Valor líquido real recebido
+  feeAmount       Decimal? @db.Decimal(19, 4) // Taxa de gateway / intermediador
   platformFeeRate Decimal? @db.Decimal(5, 2) // % Taxa da plataforma (Shopee, etc)
 
   isPaid          Boolean @default(true)
@@ -279,4 +294,27 @@ model AccountVerificationToken {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+// Convites Onboarding (Double Handshake)
+model WorkspaceInvite {
+  id     String        @id @default(uuid())
+  email  String
+  role   WorkspaceRole @default(ACCOUNTANT)
+  token  String        @unique
+  status InviteStatus  @default(PENDING)
+
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  inviterId Int
+  inviter   User @relation("InvitesSent", fields: [inviterId], references: [id])
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([token])
+  @@index([workspaceId])
+  @@index([email])
 }

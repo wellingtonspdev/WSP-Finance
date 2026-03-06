@@ -6,7 +6,7 @@ export interface DashboardSummary {
   metrics: { breakEvenPoint: number };
 }
 
-export async function getSummary(): Promise<DashboardSummary> {
-  const response = await api.get('/dashboard/summary');
+export async function getSummary(signal?: AbortSignal): Promise<DashboardSummary> {
+  const response = await api.get('/dashboard/summary', { signal });
   return response.data;
 }

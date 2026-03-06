@@ -10,8 +10,8 @@ export interface Transaction {
   attachmentUrl?: string;
 }
 
-export async function getRecentTransactions(): Promise<Transaction[]> {
+export async function getRecentTransactions(signal?: AbortSignal): Promise<Transaction[]> {
   // Limitando a 5 para o dashboard
-  const response = await api.get('/transactions?limit=5');
+  const response = await api.get('/transactions?limit=5', { signal });
   return response.data;
 }
