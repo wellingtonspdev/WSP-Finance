@@ -6,7 +6,7 @@ import { useAuth } from '../../../app/AuthProvider';
 export function WorkspaceGuard() {
     const { workspaceId: workspaceIdParam } = useParams<{ workspaceId: string }>();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, isLoading: isAuthLoading } = useAuth();
     const {
         activeWorkspaceId,
         setActiveWorkspaceId,
@@ -53,17 +53,25 @@ export function WorkspaceGuard() {
                 }
             } else {
                 // Usuário Normal (CLIENT) no /
+                // Não assume navegação cega. Busca explicitamente seu Personal Workspace.
                 if (!workspaceIdParam && user.memberships?.length > 0) {
-                    const targetId = activeWorkspaceId || user.memberships[0].id || (user.memberships[0] as any).workspaceId;
-                    navigate(`/${targetId}/dashboard`, { replace: true });
+
+                    const personalMembership = user.memberships.find(m => m.type === 'PERSONAL' && m.role === 'OWNER');
+
+                    // Prioriza o PERSONAL, caso corrompido, cai pro primeiro id válido do array mitigado.
+                    const targetId = activeWorkspaceId || personalMembership?.id || user.memberships[0]?.id;
+
+                    if (targetId) {
+                        navigate(`/${targetId}/dashboard`, { replace: true });
+                    }
                 }
             }
         }
     }, [workspaceIdParam, activeWorkspaceId, user, navigate]);
 
 
-    // Estado de carregamento para evitar 'flashes'
-    if (isLoadingMetadata || !workspaceIdParam) {
+    // Estado de carregamento para evitar 'flashes' e Race Conditions
+    if (isLoadingMetadata || isAuthLoading || !workspaceIdParam) {
         return (
             <div className="flex h-screen items-center justify-center bg-[#11051f]">
                 <div className="flex flex-col items-center gap-4">
