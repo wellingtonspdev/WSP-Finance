@@ -23,7 +23,7 @@ export function ActivityFeed({ events }: ActivityFeedProps) {
     };
 
     return (
-        <aside className="w-full xl:w-[320px] bg-transparent xl:bg-white/5 border-none xl:border-solid xl:border border-white/10 overflow-hidden xl:backdrop-blur-md shrink-0 mt-6 xl:mt-0 px-6 xl:px-0 rounded-none xl:rounded-2xl h-fit xl:h-[calc(100vh-2rem)] xl:sticky xl:top-4 flex flex-col">
+        <aside className="w-full xl:w-[320px] bg-white/5 border border-white/10 xl:border-solid overflow-hidden backdrop-blur-[12px] shrink-0 mt-6 xl:mt-0 px-6 xl:px-0 rounded-2xl h-fit xl:h-[calc(100vh-2rem)] xl:sticky xl:top-4 flex flex-col">
             <div className="py-2 xl:p-5 border-none xl:border-solid xl:border-b border-white/10 shrink-0">
                 <h3 className="text-lg xl:text-[15px] font-bold text-white flex items-center gap-2 tracking-tight">
                     <Clock className="w-4 h-4 text-[#1978e5] hidden xl:block" />
@@ -31,7 +31,7 @@ export function ActivityFeed({ events }: ActivityFeedProps) {
                 </h3>
             </div>
 
-            <div className="flex-1 overflow-y-auto py-4 xl:p-6 space-y-6 no-scrollbar pb-24 xl:pb-0">
+            <div className="flex-none xl:flex-1 overflow-visible xl:overflow-y-auto py-4 xl:p-6 space-y-6 no-scrollbar pb-24 xl:pb-0">
                 {events.length === 0 ? (
                     <div className="text-center text-slate-500 text-sm">Nenhuma atividade recente.</div>
                 ) : (

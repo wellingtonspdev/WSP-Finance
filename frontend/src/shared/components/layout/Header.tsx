@@ -11,8 +11,8 @@ export function Header() {
 
   const isDashboardRoute = location.pathname.includes('/dashboard');
 
-  // Só exibir o Seletor no Dashboard para manter telas limpas em extratos/configurações
-  const shouldShowWorkspaceSelector = isDashboardRoute || location.pathname === '/' || location.pathname.split('/').length <= 2;
+  // Hard-Kill: Contadores nunca vêem o seletor, blindando o contexto cruzado.
+  const shouldShowWorkspaceSelector = user?.type !== 'ACCOUNTANT' && (isDashboardRoute || location.pathname === '/' || location.pathname.split('/').length <= 2);
 
   return (
     <header className="px-6 pt-12 pb-6 flex items-center justify-between bg-transparent z-10 relative">

@@ -43,7 +43,7 @@ export function AccountantHubPage() {
     return (
         <AppLayout>
             <div className="flex flex-col xl:grid xl:grid-cols-[1fr_320px] gap-6 xl:gap-8 w-full max-w-full">
-                <div className="flex-1 flex flex-col w-full min-w-0 max-w-full overflow-x-hidden pb-24 lg:pb-8">
+                <div className="flex-1 flex flex-col w-full min-w-0 max-w-full overflow-x-hidden lg:pb-8">
 
                     {/* Header Pessoal exclusivo para Mobile (No desktop o Header fica na Sidebar) */}
                     <AccountantMobileHeader />
@@ -206,7 +206,7 @@ export function AccountantHubPage() {
 
                             <div className="space-y-3">
                                 {clientMemberships.map((membership, index) => (
-                                    <div key={membership.id} className="bg-[#1978e5]/[0.05] backdrop-blur-[12px] border border-white/[0.08] p-4 rounded-2xl flex items-center justify-between group hover:bg-white/5 transition-all">
+                                    <div key={membership.id} className="bg-white/5 backdrop-blur-[12px] border border-white/[0.08] p-4 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-all">
                                         <div className="flex items-center gap-3">
                                             <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#1a0b2e] to-[#1978e5]/20 flex items-center justify-center border border-white/10 shadow-inner shrink-0 text-white font-bold overflow-hidden">
                                                 {membership.name.substring(0, 2).toUpperCase()}

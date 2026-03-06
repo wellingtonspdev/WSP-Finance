@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore';
+import { useAuth } from '../../../app/AuthProvider';
 
 interface ThemeWrapperProps {
     children: React.ReactNode;
@@ -7,11 +8,14 @@ interface ThemeWrapperProps {
 
 export function ThemeWrapper({ children }: ThemeWrapperProps) {
     const { activeMembership } = useWorkspaceStore();
+    const { user } = useAuth();
 
     useEffect(() => {
+        // Regra de Ouro: Contador SEMPRE vê tema business.
+        const isAccountant = user?.type === 'ACCOUNTANT';
         const isBusiness = activeMembership?.type === 'BUSINESS';
 
-        if (isBusiness) {
+        if (isAccountant || isBusiness) {
             document.body.classList.add('theme-business');
         } else {
             document.body.classList.remove('theme-business');
