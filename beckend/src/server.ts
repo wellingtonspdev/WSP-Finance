@@ -34,10 +34,32 @@ app.use(router);
 // Global Error Handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof ZodError) {
+    // Traduz os campos do Zod para mensagens legíveis em PT-BR
+    const fieldLabels: Record<string, string> = {
+      description: 'Descrição',
+      amount: 'Valor',
+      date: 'Data',
+      type: 'Tipo',
+      accountId: 'Conta Bancária',
+      categoryId: 'Categoria',
+      isPaid: 'Status de Pagamento',
+      grossAmount: 'Valor Bruto',
+      marketplaceFee: 'Taxa de Marketplace',
+      shippingCost: 'Custo de Frete',
+      productCost: 'Custo do Produto',
+      platformFeeRate: 'Taxa da Plataforma',
+    };
+
+    const friendlyErrors = err.issues.map(issue => {
+      const field = issue.path.join('.');
+      const label = fieldLabels[field] || field;
+      return `${label}: ${issue.message}`;
+    });
+
     res.status(400).json({
       status: 'validation_error',
-      message: 'Erro de validação nos dados enviados.',
-      issues: err.format(),
+      message: friendlyErrors.join(' | '),
+      issues: err.issues,  // Array flat para parsing programático
     });
     return;
   }

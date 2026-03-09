@@ -14,7 +14,7 @@ export class AuthService {
   }
 
   // --- Caso de Uso: Registro ---
-  async register(name: string, email: string, password: string) {
+  async register(name: string, email: string, password: string, type: 'CLIENT' | 'ACCOUNTANT' = 'CLIENT') {
     const userExists = await this.userRepository.findByEmail(email);
     if (userExists) {
       throw new Error('User already exists');
@@ -27,6 +27,7 @@ export class AuthService {
       name,
       email,
       passwordHash,
+      type,
     });
 
     // LOG PARA DEBUG mantido fora de workspace legado
@@ -80,6 +81,7 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
+        type: user.type,
         memberships: mappedWorkspaces
       },
       token,
@@ -109,6 +111,25 @@ export class AuthService {
     return {
       token: newAccessToken,
       refreshToken: newRefreshToken.id
+    };
+  }
+
+  // --- Caso de Uso: Get Me (Sincronização de Sessão) ---
+  async getMe(userId: number) {
+    const user = await this.userRepository.findByIdWithWorkspaces(userId);
+    if (!user) throw new Error('User not found');
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      type: user.type,
+      memberships: user.memberships.map((m: any) => ({
+        id: m.workspace.id,
+        name: m.workspace.name,
+        type: m.workspace.type,
+        role: m.role
+      }))
     };
   }
 

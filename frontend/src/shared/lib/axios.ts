@@ -1,5 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { env } from '../../config/env';
+import { useWorkspaceStore } from '../stores/useWorkspaceStore';
 
 // Estado local do Token (Memória apenas)
 let accessToken: string | null = null;
@@ -36,16 +37,25 @@ export const setApiToken = (token: string | null) => {
   accessToken = token;
 };
 
-// Interceptor de Request: Injeta o Token da Memória
+// Interceptor de Request: Injeta o Token da Memória e o WorkspaceID da URL
 api.interceptors.request.use((config) => {
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
 
-  // Injeta o Workspace ID (Este pode ficar no localStorage pois é preferência de UI, não credencial)
-  const workspaceId = localStorage.getItem('wsp_workspace_id');
-  if (workspaceId) {
-    config.headers['x-workspace-id'] = workspaceId;
+  // Fonte Única da Verdade (V3): URL é a ÚNICA fonte de workspace ID.
+  // Exemplo de pathname: "/15/dashboard" -> ID = 15
+  // Em rotas como "/accountant/hub", path[1] = "accountant" (não numérico) → sem header.
+  const pathParts = window.location.pathname.split('/');
+  const possibleWorkspaceId = pathParts[1];
+
+  if (possibleWorkspaceId && !isNaN(parseInt(possibleWorkspaceId, 10))) {
+    config.headers['x-workspace-id'] = possibleWorkspaceId;
+  } else {
+    // Em rotas sem workspace (ex: /accountant/*, /login, /profile),
+    // remover o header para evitar poluição de contexto.
+    // O Backend devolverá 400/403 se a rota exigir WID.
+    delete config.headers['x-workspace-id'];
   }
 
   return config;
@@ -56,6 +66,11 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+    // Disparo Global de Acesso Negado
+    if (error.response?.status === 403) {
+      useWorkspaceStore.getState().setForbidden(true);
+    }
 
     // Evita interceptação se for na própria rota de login ou refresh
     if (originalRequest.url?.includes('/auth/refresh') || originalRequest.url?.includes('/auth/session')) {

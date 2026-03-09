@@ -12,6 +12,7 @@ import { BridgeController } from './controllers/BridgeController';
 import { ImportController } from './controllers/ImportController';
 import { ExternalDataController } from './controllers/ExternalDataController';
 import { UserController } from './controllers/UserController';
+import { InviteController } from './controllers/InviteController';
 
 // Middlewares
 import { AuthMiddleware } from './middlewares/AuthMiddleware';
@@ -41,6 +42,7 @@ const bridgeController = new BridgeController();
 const importController = new ImportController();
 const externalDataController = new ExternalDataController();
 const userController = new UserController();
+const inviteController = new InviteController();
 
 // ==============================================================================
 // AUTENTICAÇÃO & IDENTIDADE
@@ -80,6 +82,29 @@ router.post('/auth/resend-verification', (req, res, next) => {
        #swagger.summary = 'Reenviar PIN de Ativação'
        #swagger.description = 'Gera e envia um novo código numérico de validação para o usuário logar.' */
     return verificationController.resend(req, res);
+});
+
+router.get('/auth/me', AuthMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Autenticação']
+       #swagger.summary = 'Obter Perfil do Usuário Autenticado'
+       #swagger.description = 'Retorna o perfil completo do utilizador com as memberships (workspaces) atualizadas. Resolve o problema de sincronização após aceitar convites ou refresh da página (F5).'
+       #swagger.responses[200] = {
+           description: 'Perfil retornado com sucesso',
+           content: { 'application/json': { schema: { type: 'object', properties: {
+               id: { type: 'integer' },
+               name: { type: 'string' },
+               email: { type: 'string' },
+               type: { type: 'string', enum: ['CLIENT', 'ACCOUNTANT'] },
+               memberships: { type: 'array', items: { type: 'object', properties: {
+                   id: { type: 'integer' }, name: { type: 'string' },
+                   type: { type: 'string', enum: ['PERSONAL', 'BUSINESS'] },
+                   role: { type: 'string', enum: ['OWNER', 'EDITOR', 'VIEWER', 'ACCOUNTANT'] }
+               }}}
+           }}}}
+       }
+       #swagger.responses[401] = { description: 'Token inválido ou expirado' }
+       #swagger.responses[404] = { description: 'Usuário não encontrado' } */
+    return authController.me(req, res);
 });
 
 router.post('/password/forgot', (req, res, next) => {
@@ -143,6 +168,105 @@ router.put('/workspaces/:id', AuthMiddleware, (req, res, next) => {
        #swagger.summary = 'Modificar Workspace'
        #swagger.description = 'Edita metadados da instância fiscal.' */
     return workspaceController.update(req, res);
+});
+
+// --- WORKSPACE INVITES (Gerenciamento de Membros) ---
+router.post('/workspaces/:id/invites', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Workspaces']
+       #swagger.summary = 'Gerar Convite (Smart Link)'
+       #swagger.description = 'Cria um convite com Token Criptografado para que um contador ou editor acesse esta empresa. Apenas o OWNER pode executar.' */
+    return inviteController.create(req, res);
+});
+
+router.post('/workspaces/:id/invites/:inviteId/revoke', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Workspaces']
+       #swagger.summary = 'Revogar Convite'
+       #swagger.description = 'Invalida um link de convite previamente gerado, bloqueando o engajamento caso o link tenha vazado.' */
+    return inviteController.revoke(req, res);
+});
+
+router.post('/invites/accept', AuthMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Convites']
+       #swagger.summary = 'Aceitar Convite (Double Handshake)'
+       #swagger.description = 'Consome o token do convite. Valida se o email do destinatário bate fisicamente com o email da sessão logada antes de injetar a Role na tabela.'
+       #swagger.requestBody = { required: true, content: { 'application/json': { schema: { type: 'object', properties: { token: { type: 'string', description: 'Token criptográfico do convite' } }, required: ['token'] } } } }
+       #swagger.responses[200] = { description: 'Convite aceito. WorkspaceMember criado.' }
+       #swagger.responses[403] = { description: 'Email mismatch, convite revogado ou expirado' } */
+    return inviteController.accept(req, res);
+});
+
+router.get('/invites/received', AuthMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Convites']
+       #swagger.summary = 'Listar Convites Recebidos'
+       #swagger.description = 'Retorna todos os convites (qualquer status) onde o email do utilizador logado é o destinatário. Usado na Central de Convites do Contador.'
+       #swagger.responses[200] = {
+           description: 'Lista de convites recebidos',
+           content: { 'application/json': { schema: { type: 'array', items: { type: 'object', properties: {
+               id: { type: 'string', format: 'uuid' },
+               email: { type: 'string' },
+               role: { type: 'string' },
+               status: { type: 'string', enum: ['PENDING', 'ACCEPTED', 'EXPIRED', 'REVOKED', 'REJECTED'] },
+               expiresAt: { type: 'string', format: 'date-time' },
+               workspace: { type: 'object', properties: { id: { type: 'integer' }, name: { type: 'string' }, type: { type: 'string' } } },
+               inviter: { type: 'object', properties: { name: { type: 'string' } } }
+           }}}}}
+       } */
+    return inviteController.listReceived(req, res);
+});
+
+router.post('/invites/:id/reject', AuthMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Convites']
+       #swagger.summary = 'Rejeitar Convite'
+       #swagger.description = 'O destinatário recusa o convite. Altera status para REJECTED. Requer que o email do utilizador logado corresponda ao email do convite (Double Handshake).'
+       #swagger.parameters['id'] = { in: 'path', description: 'UUID do convite', required: true, type: 'string' }
+       #swagger.responses[200] = { description: 'Convite rejeitado com sucesso' }
+       #swagger.responses[403] = { description: 'Email mismatch ou convite não está PENDING' }
+       #swagger.responses[404] = { description: 'Convite não encontrado' } */
+    return inviteController.reject(req, res);
+});
+
+router.get('/workspaces/:id/members', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Convites']
+       #swagger.summary = 'Listar Membros do Workspace'
+       #swagger.description = 'Retorna todos os membros atuais do workspace com nome, email, tipo e role. Requer membership.'
+       #swagger.parameters['id'] = { in: 'path', description: 'ID do workspace', required: true, type: 'integer' }
+       #swagger.responses[200] = {
+           description: 'Lista de membros',
+           content: { 'application/json': { schema: { type: 'array', items: { type: 'object', properties: {
+               userId: { type: 'integer' }, workspaceId: { type: 'integer' },
+               role: { type: 'string', enum: ['OWNER', 'EDITOR', 'VIEWER', 'ACCOUNTANT'] },
+               user: { type: 'object', properties: { id: { type: 'integer' }, name: { type: 'string' }, email: { type: 'string' }, type: { type: 'string' } } }
+           }}}}}
+       } */
+    return inviteController.listMembers(req, res);
+});
+
+router.get('/workspaces/:id/invites', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Convites']
+       #swagger.summary = 'Listar Convites Enviados por Workspace'
+       #swagger.description = 'Retorna o histórico de convites emitidos por este workspace. Requer membership no workspace.'
+       #swagger.parameters['id'] = { in: 'path', description: 'ID do workspace', required: true, type: 'integer' }
+       #swagger.responses[200] = {
+           description: 'Lista de convites enviados',
+           content: { 'application/json': { schema: { type: 'array', items: { type: 'object', properties: {
+               id: { type: 'string' }, email: { type: 'string' }, role: { type: 'string' },
+               status: { type: 'string' }, expiresAt: { type: 'string' },
+               inviter: { type: 'object', properties: { name: { type: 'string' } } }
+           }}}}}
+       } */
+    return inviteController.listSent(req, res);
+});
+
+router.delete('/workspaces/:id/members/:userId', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Convites']
+       #swagger.summary = 'Revogar Acesso de Membro'
+       #swagger.description = 'O OWNER remove um membro do workspace. Não permite auto-remoção. Caso de uso: desligar um contador ou editor.'
+       #swagger.parameters['id'] = { in: 'path', description: 'ID do workspace', required: true, type: 'integer' }
+       #swagger.parameters['userId'] = { in: 'path', description: 'ID do utilizador a ser removido', required: true, type: 'integer' }
+       #swagger.responses[200] = { description: 'Membro removido com sucesso' }
+       #swagger.responses[403] = { description: 'Apenas OWNER pode remover membros / Não pode remover a si mesmo' }
+       #swagger.responses[404] = { description: 'Utilizador alvo não é membro deste workspace' } */
+    return inviteController.removeMember(req, res);
 });
 
 // ==============================================================================

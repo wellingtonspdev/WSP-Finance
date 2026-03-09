@@ -1,7 +1,8 @@
-import { Home, Receipt, Plus, BarChart2, User, LogOut } from 'lucide-react';
+import { Home, Receipt, Plus, BarChart2, User, LogOut, ArrowLeftCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '../../../app/AuthProvider';
 import { useUI } from '../../../shared/context/UIProvider';
+import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../../assets/wsp_finance_sem_fundo.svg';
 
@@ -10,14 +11,20 @@ export function Sidebar() {
   const { openTransactionModal } = useUI();
   const navigate = useNavigate();
   const location = useLocation();
+  const { activeMembership } = useWorkspaceStore();
 
-  const activeTab = location.pathname.includes('/transactions') ? 'extract' : 'home';
+  const activeTab = location.pathname.includes('/transactions')
+    ? 'extract'
+    : location.pathname.includes('/team')
+      ? 'team'
+      : 'home';
+  const isAccountant = activeMembership?.role === 'ACCOUNTANT';
 
   const navItems = [
-    { id: 'home', icon: Home, label: 'Dashboard', action: () => navigate('/') },
-    { id: 'extract', icon: Receipt, label: 'Extrato', action: () => navigate('/transactions') },
+    { id: 'home', icon: Home, label: 'Dashboard', action: () => navigate(`/${activeMembership?.id || ''}/dashboard`) },
+    { id: 'extract', icon: Receipt, label: 'Extrato', action: () => navigate(`/${activeMembership?.id || ''}/transactions`) },
+    { id: 'team', icon: User, label: 'Equipe', action: () => navigate(`/${activeMembership?.id || ''}/team`) },
     { id: 'analytics', icon: BarChart2, label: 'Análises', action: () => { } },
-    { id: 'profile', icon: User, label: 'Perfil', action: () => { } },
   ];
 
   return (
@@ -29,6 +36,16 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-4 space-y-2">
+        {isAccountant && (
+          <button
+            onClick={() => navigate('/accountant/hub')}
+            className="w-full mb-6 py-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 font-semibold transition-all flex items-center justify-center gap-2 group hover:bg-blue-500/20"
+          >
+            <ArrowLeftCircle className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+            Voltar para a Central
+          </button>
+        )}
+
         {/* Botão de Ação Principal */}
         <button
           onClick={openTransactionModal}

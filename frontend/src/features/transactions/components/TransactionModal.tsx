@@ -11,6 +11,7 @@ import { useTransactionMutation, type TransCategory } from '../hooks/useTransact
 import { MoneyInput } from '../../../shared/components/ui/MoneyInput';
 import { Input } from '../../../shared/components/ui/Input';
 import { Button } from '../../../shared/components/ui/Button';
+import { CustomSelect } from '../../../shared/components/ui/CustomSelect';
 import { useToast } from '../../../shared/hooks/useToast';
 import imageCompression from 'browser-image-compression';
 import { useEffect } from 'react';
@@ -186,10 +187,11 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
                                 {transCategory !== 'BRIDGE' && (
                                     <div>
                                         <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Status</label>
-                                        <select {...register('isPaid')} className="w-full bg-white/5 border border-white/10 rounded-xl text-white px-3 py-2.5 outline-none focus:ring-1 focus:ring-purple-500">
+                                        <select {...register('isPaid', { setValueAs: (v: string) => v === 'true' })} className={`w-full bg-white/5 border rounded-xl text-white px-3 py-2.5 outline-none focus:ring-1 focus:ring-purple-500 ${errors.isPaid ? 'border-red-500' : 'border-white/10'}`}>
                                             <option value="true" className="text-black">Pago / Recebido</option>
                                             <option value="false" className="text-black">Pendente</option>
                                         </select>
+                                        {errors.isPaid?.message && <p className="text-red-500 text-xs mt-1 ml-1">{errors.isPaid.message}</p>}
                                     </div>
                                 )}
                             </div>
@@ -246,112 +248,8 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
                                 </div>
                             )}
 
-                            {/* CONDICIONAL: SE FOR TRANSAÇÃO GLOBAL, MOSTRA AS CATEGORIAS */}
-                            {transCategory !== 'BRIDGE' && (
-                                <div className="grid grid-cols-2 gap-4 pt-2">
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Categoria</label>
-                                        <select
-                                            {...register('categoryId', { valueAsNumber: true })}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl text-white px-3 py-2.5 outline-none focus:ring-1 focus:ring-purple-500 appearance-none disabled:opacity-50"
-                                            disabled={isLoadingCategories}
-                                        >
-                                            <option value="0" className="text-black" disabled hidden>Selecione...</option>
-                                            {categories?.map((cat) => (
-                                                <option key={cat.id} value={cat.id} className="text-black">
-                                                    {cat.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {errors.categoryId?.message && <p className="text-red-500 text-xs mt-1 ml-1">{errors.categoryId.message}</p>}
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Conta Bancária</label>
-                                        <select
-                                            {...register('accountId', { valueAsNumber: true })}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl text-white px-3 py-2.5 outline-none focus:ring-1 focus:ring-purple-500 appearance-none disabled:opacity-50"
-                                            disabled={isLoadingAccounts}
-                                        >
-                                            <option value="0" className="text-black" disabled hidden>Selecione...</option>
-                                            {SourceAccounts?.map((acc) => (
-                                                <option key={acc.id} value={acc.id} className="text-black">
-                                                    {acc.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {errors.accountId?.message && <p className="text-red-500 text-xs mt-1 ml-1">{errors.accountId.message}</p>}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* CONDICIONAL: SE FOR PRÓ-LABORE, MOSTRA INTERFACE ESPECIAL */}
-                            {transCategory === 'BRIDGE' && (
-                                <div className="space-y-4 pt-2 p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Wallet className="w-4 h-4 text-blue-400" />
-                                        <h3 className="text-sm font-semibold text-blue-200">De onde o dinheiro vai sair?</h3>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Conta de Origem ({activeWorkspace?.type === 'BUSINESS' ? 'Empresa Atual' : 'Pessoal Atual'})</label>
-                                        <select
-                                            {...register('accountId', { valueAsNumber: true })}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl text-white px-3 py-2.5 outline-none focus:ring-1 focus:ring-blue-500 appearance-none disabled:opacity-50"
-                                            disabled={isLoadingAccounts}
-                                        >
-                                            <option value="0" className="text-black" disabled hidden>Selecione a conta que irá pagar...</option>
-                                            {SourceAccounts?.map((acc) => (
-                                                <option key={acc.id} value={acc.id} className="text-black">
-                                                    {acc.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div className="w-full h-px bg-white/10 my-4" />
-
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Repeat className="w-4 h-4 text-purple-400" />
-                                        <h3 className="text-sm font-semibold text-purple-200">Para onde ele vai?</h3>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Ambiente de Destino</label>
-                                            <select
-                                                {...register('toWorkspaceId', { valueAsNumber: true })}
-                                                className="w-full bg-white/5 border border-white/10 rounded-xl text-white px-3 py-2.5 outline-none focus:ring-1 focus:ring-purple-500 appearance-none"
-                                            >
-                                                <option value="0" className="text-black" disabled hidden>Selecione...</option>
-                                                {workspaces.filter(w => w.id !== activeWorkspace?.id).map((ws) => (
-                                                    <option key={ws.id} value={ws.id} className="text-black">
-                                                        {ws.type === 'BUSINESS' ? '🏢 ' : '👤 '}{ws.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Conta que vai Receber</label>
-                                            <select
-                                                {...register('toAccountId', { valueAsNumber: true })}
-                                                className="w-full bg-white/5 border border-white/10 rounded-xl text-white px-3 py-2.5 outline-none focus:ring-1 focus:ring-purple-500 appearance-none disabled:opacity-50"
-                                                disabled={isLoadingDestAccounts || !watchToWorkspaceId}
-                                            >
-                                                <option value="0" className="text-black" disabled hidden>
-                                                    {isLoadingDestAccounts ? 'Buscando contas...' : 'Selecione...'}
-                                                </option>
-                                                {DestinationAccounts?.map((acc) => (
-                                                    <option key={acc.id} value={acc.id} className="text-black">
-                                                        {acc.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* UPLOAD ATÔMICO R2 BYPASS (Opcional) */}
-                            <div className="pt-2 pb-6">
+                            {/* UPLOAD ATÔMICO R2 BYPASS (Opcional) - Posicionado ANTES dos selects para não sobrepor os dropdowns nativos */}
+                            <div className="pt-2 pb-2">
                                 <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Comprovante de Pagamento (Nuvem)</label>
                                 <Controller
                                     control={control}
@@ -363,7 +261,7 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
                                                 type="file"
                                                 accept="image/jpeg,image/png,application/pdf"
                                                 className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-purple-500/20 file:text-purple-300 hover:file:bg-purple-500/30"
-                                                value={value?.fileName} // bypass value prop constraint to avoid error on File prototype
+                                                value={value?.fileName}
                                                 onChange={async (e) => {
                                                     let file = e.target.files?.[0];
 
@@ -371,14 +269,13 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
                                                         // V3.8 Shrinking Engine
                                                         if (file.type.startsWith('image/')) {
                                                             const options = {
-                                                                maxSizeMB: 1, // Shrink para < 1MB
+                                                                maxSizeMB: 1,
                                                                 maxWidthOrHeight: 1920,
                                                                 useWebWorker: true,
                                                                 fileType: file.type
                                                             };
                                                             try {
                                                                 const compressedBlob = await imageCompression(file, options);
-                                                                // Convert Blob back to File preserving original name
                                                                 file = new File([compressedBlob], file.name, {
                                                                     type: file.type,
                                                                     lastModified: Date.now(),
@@ -409,6 +306,118 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
                                     </div>
                                 )}
                             </div>
+
+                            {/* CONDICIONAL: SE FOR TRANSAÇÃO GLOBAL, MOSTRA AS CATEGORIAS */}
+                            {transCategory !== 'BRIDGE' && (
+                                <div className="grid grid-cols-2 gap-4 pt-2 pb-6 relative z-50">
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Categoria</label>
+                                        <Controller
+                                            control={control}
+                                            name="categoryId"
+                                            render={({ field }) => (
+                                                <CustomSelect
+                                                    value={field.value}
+                                                    onChange={field.onChange}
+                                                    options={categories?.map(c => ({ value: c.id, label: c.name })) || []}
+                                                    disabled={isLoadingCategories}
+                                                    error={errors.categoryId?.message}
+                                                    placeholder="Selecione..."
+                                                />
+                                            )}
+                                        />
+                                        {errors.categoryId?.message && <p className="text-red-500 text-xs mt-1 ml-1">{errors.categoryId.message}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Conta Bancária</label>
+                                        <Controller
+                                            control={control}
+                                            name="accountId"
+                                            render={({ field }) => (
+                                                <CustomSelect
+                                                    value={field.value}
+                                                    onChange={field.onChange}
+                                                    options={SourceAccounts?.map(a => ({ value: a.id, label: a.name })) || []}
+                                                    disabled={isLoadingAccounts}
+                                                    error={errors.accountId?.message}
+                                                    placeholder="Selecione..."
+                                                />
+                                            )}
+                                        />
+                                        {errors.accountId?.message && <p className="text-red-500 text-xs mt-1 ml-1">{errors.accountId.message}</p>}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* CONDICIONAL: SE FOR PRÓ-LABORE, MOSTRA INTERFACE ESPECIAL */}
+                            {transCategory === 'BRIDGE' && (
+                                <div className="space-y-4 pt-2 p-4 pb-6 bg-blue-500/10 border border-blue-500/20 rounded-2xl relative z-40">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Wallet className="w-4 h-4 text-blue-400" />
+                                        <h3 className="text-sm font-semibold text-blue-200">De onde o dinheiro vai sair?</h3>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Conta de Origem ({activeWorkspace?.type === 'BUSINESS' ? 'Empresa Atual' : 'Pessoal Atual'})</label>
+                                        <Controller
+                                            control={control}
+                                            name="accountId"
+                                            render={({ field }) => (
+                                                <CustomSelect
+                                                    value={field.value}
+                                                    onChange={field.onChange}
+                                                    options={SourceAccounts?.map(a => ({ value: a.id, label: a.name })) || []}
+                                                    disabled={isLoadingAccounts}
+                                                    placeholder="Selecione a conta que irá pagar..."
+                                                />
+                                            )}
+                                        />
+                                    </div>
+
+                                    <div className="w-full h-px bg-white/10 my-4" />
+
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Repeat className="w-4 h-4 text-purple-400" />
+                                        <h3 className="text-sm font-semibold text-purple-200">Para onde ele vai?</h3>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Ambiente de Destino</label>
+                                            <Controller
+                                                control={control}
+                                                name="toWorkspaceId"
+                                                render={({ field }) => (
+                                                    <CustomSelect
+                                                        value={field.value}
+                                                        onChange={field.onChange}
+                                                        options={workspaces.filter(w => w.id !== activeWorkspace?.id).map(w => ({
+                                                            value: w.id,
+                                                            label: `${w.type === 'BUSINESS' ? '🏢 ' : '👤 '} ${w.name}`
+                                                        }))}
+                                                        placeholder="Selecione..."
+                                                    />
+                                                )}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Conta que vai Receber</label>
+                                            <Controller
+                                                control={control}
+                                                name="toAccountId"
+                                                render={({ field }) => (
+                                                    <CustomSelect
+                                                        value={field.value}
+                                                        onChange={field.onChange}
+                                                        options={DestinationAccounts?.map(a => ({ value: a.id, label: a.name })) || []}
+                                                        disabled={isLoadingDestAccounts || !watchToWorkspaceId}
+                                                        placeholder={isLoadingDestAccounts ? 'Buscando contas...' : 'Selecione...'}
+                                                    />
+                                                )}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                         </div>
                     </form>

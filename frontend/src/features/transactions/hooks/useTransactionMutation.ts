@@ -114,15 +114,53 @@ export function useTransactionMutation(onSuccessCallback?: () => void) {
         }
 
         // 3. Tudo seguro -> Gravamos a Transação + Referência R2 no Banco
+        // Sanitização do Payload: Remover campos que NÃO pertencem ao schema do Backend
+        const sanitizedPayload: Record<string, any> = {
+            description: data.description,
+            amount: Number(data.amount),
+            date: data.date,
+            type: data.type === 'BRIDGE' ? 'INCOME' : data.type, // Backend não conhece 'BRIDGE'
+            accountId: Number(data.accountId),
+            categoryId: Number(data.categoryId),
+            isPaid: data.isPaid === true || data.isPaid === 'true' as any, // Coerção: <select> envia string
+        };
+
+        // Campos opcionais de Marketplace (somente se preenchidos e > 0)
+        if (data.grossAmount && Number(data.grossAmount) > 0) sanitizedPayload.grossAmount = Number(data.grossAmount);
+        if (data.marketplaceFee && Number(data.marketplaceFee) > 0) sanitizedPayload.marketplaceFee = Number(data.marketplaceFee);
+        if (data.shippingCost && Number(data.shippingCost) > 0) sanitizedPayload.shippingCost = Number(data.shippingCost);
+        if (data.productCost && Number(data.productCost) > 0) sanitizedPayload.productCost = Number(data.productCost);
+        if (data.platformFeeRate && Number(data.platformFeeRate) > 0) sanitizedPayload.platformFeeRate = Number(data.platformFeeRate);
+
+        // Anexo R2 (já processado acima)
+        if (finalAttachmentUrl) sanitizedPayload.attachmentUrl = finalAttachmentUrl;
+        if (data.attachmentSize && data.attachmentSize > 0) sanitizedPayload.attachmentSize = data.attachmentSize;
+
         createTransaction(
-            { ...data, attachmentUrl: finalAttachmentUrl },
+            sanitizedPayload as CreateTransactionDTO,
             {
                 onSuccess: () => {
                     success('Transação registrada com sucesso!');
                     if (onSuccessCallback) onSuccessCallback();
                 },
-                onError: () => {
-                    toastError('Falha ao registrar transação. Verifique os dados.');
+                onError: (err: Error) => {
+                    // Extrair mensagem detalhada do Backend
+                    const axiosError = err as unknown as { response?: { data?: { message?: string; issues?: Array<{ path: (string | number)[]; message: string }> } } };
+                    const backendData = axiosError?.response?.data;
+
+                    if (backendData?.message) {
+                        // O backend já retorna uma mensagem formatada em PT-BR
+                        toastError(backendData.message);
+                    } else if (backendData?.issues && Array.isArray(backendData.issues)) {
+                        // Fallback: parser programático da array de issues
+                        const fieldErrors = backendData.issues.map(
+                            (issue) => `${issue.path.join('.')}: ${issue.message}`
+                        );
+                        toastError(`Erro de validação: ${fieldErrors.join(' | ')}`);
+                    } else {
+                        toastError('Falha ao registrar transação. Tente novamente ou verifique sua conexão.');
+                    }
+                    console.error('[Transaction Error] Detalhes:', backendData || err);
                 }
             }
         );

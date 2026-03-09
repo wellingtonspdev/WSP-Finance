@@ -82,6 +82,99 @@
         }
       }
     },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Obter Perfil do Usuário Autenticado",
+        "description": "Retorna o perfil completo do utilizador com as memberships (workspaces) atualizadas. Resolve o problema de sincronização após aceitar convites ou refresh da página (F5).",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "0": {
+            "description": ""
+          },
+          "1": {
+            "description": ""
+          },
+          "4": {
+            "description": ""
+          },
+          "200": {
+            "description": "Perfil retornado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "CLIENT",
+                        "ACCOUNTANT"
+                      ]
+                    },
+                    "memberships": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "PERSONAL",
+                              "BUSINESS"
+                            ]
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "OWNER",
+                              "EDITOR",
+                              "VIEWER",
+                              "ACCOUNTANT"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido ou expirado"
+          },
+          "404": {
+            "description": "Usuário não encontrado"
+          }
+        }
+      }
+    },
     "/password/forgot": {
       "post": {
         "tags": [
@@ -300,6 +393,601 @@
           },
           "401": {
             "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/workspaces/{id}/invites": {
+      "post": {
+        "tags": [
+          "Workspaces"
+        ],
+        "summary": "Gerar Convite (Smart Link)",
+        "description": "Cria um convite com Token Criptografado para que um contador ou editor acesse esta empresa. Apenas o OWNER pode executar.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-workspace-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "0": {
+            "description": ""
+          },
+          "1": {
+            "description": ""
+          },
+          "4": {
+            "description": ""
+          },
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Convites"
+        ],
+        "summary": "Listar Convites Enviados por Workspace",
+        "description": "Retorna o histórico de convites emitidos por este workspace. Requer membership no workspace.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do workspace"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-workspace-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "0": {
+            "description": ""
+          },
+          "1": {
+            "description": ""
+          },
+          "4": {
+            "description": ""
+          },
+          "200": {
+            "description": "Lista de convites enviados",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "email": {
+                        "type": "string"
+                      },
+                      "role": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "expiresAt": {
+                        "type": "string"
+                      },
+                      "inviter": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/workspaces/{id}/invites/{inviteId}/revoke": {
+      "post": {
+        "tags": [
+          "Workspaces"
+        ],
+        "summary": "Revogar Convite",
+        "description": "Invalida um link de convite previamente gerado, bloqueando o engajamento caso o link tenha vazado.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "inviteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-workspace-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "0": {
+            "description": ""
+          },
+          "1": {
+            "description": ""
+          },
+          "4": {
+            "description": ""
+          },
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/invites/accept": {
+      "post": {
+        "tags": [
+          "Convites"
+        ],
+        "summary": "Aceitar Convite (Double Handshake)",
+        "description": "Consome o token do convite. Valida se o email do destinatário bate fisicamente com o email da sessão logada antes de injetar a Role na tabela.",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "0": {
+            "description": ""
+          },
+          "1": {
+            "description": ""
+          },
+          "4": {
+            "description": ""
+          },
+          "200": {
+            "description": "Convite aceito. WorkspaceMember criado."
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Email mismatch, convite revogado ou expirado"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "description": "Token criptográfico do convite"
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invites/received": {
+      "get": {
+        "tags": [
+          "Convites"
+        ],
+        "summary": "Listar Convites Recebidos",
+        "description": "Retorna todos os convites (qualquer status) onde o email do utilizador logado é o destinatário. Usado na Central de Convites do Contador.",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "0": {
+            "description": ""
+          },
+          "1": {
+            "description": ""
+          },
+          "4": {
+            "description": ""
+          },
+          "200": {
+            "description": "Lista de convites recebidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "email": {
+                        "type": "string"
+                      },
+                      "role": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "PENDING",
+                          "ACCEPTED",
+                          "EXPIRED",
+                          "REVOKED",
+                          "REJECTED"
+                        ]
+                      },
+                      "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "workspace": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "inviter": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/invites/{id}/reject": {
+      "post": {
+        "tags": [
+          "Convites"
+        ],
+        "summary": "Rejeitar Convite",
+        "description": "O destinatário recusa o convite. Altera status para REJECTED. Requer que o email do utilizador logado corresponda ao email do convite (Double Handshake).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "UUID do convite"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "0": {
+            "description": ""
+          },
+          "1": {
+            "description": ""
+          },
+          "4": {
+            "description": ""
+          },
+          "200": {
+            "description": "Convite rejeitado com sucesso"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Email mismatch ou convite não está PENDING"
+          },
+          "404": {
+            "description": "Convite não encontrado"
+          }
+        }
+      }
+    },
+    "/workspaces/{id}/members": {
+      "get": {
+        "tags": [
+          "Convites"
+        ],
+        "summary": "Listar Membros do Workspace",
+        "description": "Retorna todos os membros atuais do workspace com nome, email, tipo e role. Requer membership.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do workspace"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-workspace-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "0": {
+            "description": ""
+          },
+          "1": {
+            "description": ""
+          },
+          "4": {
+            "description": ""
+          },
+          "200": {
+            "description": "Lista de membros",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "userId": {
+                        "type": "integer"
+                      },
+                      "workspaceId": {
+                        "type": "integer"
+                      },
+                      "role": {
+                        "type": "string",
+                        "enum": [
+                          "OWNER",
+                          "EDITOR",
+                          "VIEWER",
+                          "ACCOUNTANT"
+                        ]
+                      },
+                      "user": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/workspaces/{id}/members/{userId}": {
+      "delete": {
+        "tags": [
+          "Convites"
+        ],
+        "summary": "Revogar Acesso de Membro",
+        "description": "O OWNER remove um membro do workspace. Não permite auto-remoção. Caso de uso: desligar um contador ou editor.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do workspace"
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do utilizador a ser removido"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-workspace-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "0": {
+            "description": ""
+          },
+          "1": {
+            "description": ""
+          },
+          "4": {
+            "description": ""
+          },
+          "200": {
+            "description": "Membro removido com sucesso"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Apenas OWNER pode remover membros / Não pode remover a si mesmo"
+          },
+          "404": {
+            "description": "Utilizador alvo não é membro deste workspace"
+          },
+          "500": {
+            "description": "Internal Server Error"
           }
         }
       }
@@ -828,6 +1516,124 @@
         "summary": "Criar Movimentação Financeira",
         "description": "Faz a inserção formal de Receitas/Despesas operacionais impactando de forma viva a contabilidade central.",
         "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-workspace-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "0": {
+            "description": ""
+          },
+          "1": {
+            "description": ""
+          },
+          "4": {
+            "description": ""
+          },
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/transactions/{id}": {
+      "delete": {
+        "tags": [
+          "Transações"
+        ],
+        "summary": "Deletar Lançamento e Limpar Cota R2",
+        "description": "Realiza o Rollback do Saldo Bancário, extingue o registro fiscal e dispara a Faxina do Cloudflare para recuperar a cota.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-workspace-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "0": {
+            "description": ""
+          },
+          "1": {
+            "description": ""
+          },
+          "4": {
+            "description": ""
+          },
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/transactions/{id}/attachment": {
+      "get": {
+        "tags": [
+          "Transações"
+        ],
+        "summary": "Visualizar Anexo (Assinatura de 5 min)",
+        "description": "Retorna a URL pré-assinada (S3 V4) efêmera para visualização temporária do comprovante, com as chaves SSE-C necessárias caso seja vault.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "authorization",
             "in": "header",

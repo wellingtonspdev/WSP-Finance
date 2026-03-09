@@ -1,7 +1,7 @@
 import type { Transaction } from '../api/getRecentTransactions';
 import { ListSkeleton } from '../../../shared/components/skeletons/ListSkeleton';
 import { ShoppingCart, ArrowRight, Paperclip } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
 import { useAttachment } from '../../transactions/hooks/useAttachment';
 import { AttachmentPreview } from '../../transactions/components/AttachmentPreview';
@@ -13,6 +13,7 @@ interface Props {
 
 export function RecentTransactions({ data, isLoading }: Props) {
   const navigate = useNavigate();
+  const { workspaceId } = useParams<{ workspaceId: string }>();
   const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
   const { getSignedUrl, isLoading: isAttachmentLoading, error: attachmentError, clearError } = useAttachment();
   const [previewData, setPreviewData] = useState<{ url: string, headers?: Record<string, string> } | null>(null);
@@ -52,7 +53,7 @@ export function RecentTransactions({ data, isLoading }: Props) {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-white font-semibold text-lg lg:text-xl">Atividade Recente</h2>
         <button
-          onClick={() => navigate('/transactions')}
+          onClick={() => navigate(`/${workspaceId}/transactions`)}
           className="text-sm text-blue-400 font-medium hover:text-blue-300 flex items-center gap-1 transition-colors"
         >
           Ver extrato completo <ArrowRight className="w-4 h-4" />
@@ -67,7 +68,7 @@ export function RecentTransactions({ data, isLoading }: Props) {
 
       {/* Mobile View (List) */}
       <div className="space-y-4 lg:hidden pb-4">
-        {data?.map((tx) => (
+        {data?.slice(0, 6).map((tx) => (
           <div key={tx.id} className="flex items-start justify-between bg-white/5 p-4 rounded-xl border border-white/5 active:scale-[0.98] transition-transform">
             <div className="flex items-start gap-3 flex-1">
               <div className="mt-0.5 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
@@ -107,7 +108,7 @@ export function RecentTransactions({ data, isLoading }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {data?.map((tx) => (
+            {data?.slice(0, 6).map((tx) => (
               <tr key={tx.id} className="hover:bg-white/5 transition-colors cursor-pointer">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">

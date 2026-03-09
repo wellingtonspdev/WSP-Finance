@@ -1,327 +1,272 @@
-import { PrismaClient, TransactionType, TransactionStatus, AccountType } from '@prisma/client';
-import { hash } from 'bcryptjs';
-import { subDays, addDays } from 'date-fns';
+import { PrismaClient } from '@prisma/client';
+import { Decimal } from 'decimal.js';
+import { seedIdentities } from './seed/modules/01_Identities';
+import { seedStructure } from './seed/modules/02_Structure';
+import { seedTimeTravel } from './seed/modules/03_TimeTravel';
+import { seedAuditAndChaos } from './seed/modules/04_Auditor';
+import { seedLifeCycle } from './seed/modules/05_LifeCycle';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log('🌱 Iniciando Seed Avançado (V3.0 Estresse Maximo)...');
-
-  // 1. Limpeza (Ordem Reversa Rígida)
-  console.log('🧹 Limpando banco de dados...');
-  await prisma.auditLog.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.transaction.deleteMany();
-  await prisma.account.deleteMany();
-  await prisma.category.deleteMany();
-  await prisma.workspaceMember.deleteMany();
-  await prisma.workspace.deleteMany();
-  await prisma.refreshToken.deleteMany();             // V3: Deleção nova
-  await prisma.passwordResetToken.deleteMany();       // V3: Deleção nova
-  await prisma.accountVerificationToken.deleteMany(); // V3: Deleção nova
-  await prisma.user.deleteMany();
-
-  // 2. Criar Usuários (O Owner e o Contador Híbrido)
-  console.log('👥 Criando Personas...');
-  const defaultPassword = await hash('senha123', 8);
-
-  const ana = await prisma.user.create({
-    data: {
-      name: 'Ana Silva (Empresária)',
-      email: 'ana@wspfinance.com',
-      passwordHash: defaultPassword,
-      emailVerifiedAt: new Date(),
+// ══════════════════════════════════════════════════════════════════
+// 0. EARTHQUAKE PROTOCOL (Reset Determinístico)
+// ══════════════════════════════════════════════════════════════════
+async function earthquakeReset() {
+  console.log('🧹 Protocolo Earthquake — Reset Determinístico...');
+  try {
+    const tables = [
+      'Notification', 'AuditLog', 'Transaction', 'Account',
+      'Category', 'WorkspaceInvite', 'WorkspaceMember',
+      'RefreshToken', 'PasswordResetToken', 'AccountVerificationToken',
+      'Workspace', 'User'
+    ];
+    for (const table of tables) {
+      await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE;`);
     }
-  });
+    console.log('  ✅ Ground Zero. Todos os IDs resetados.\n');
+  } catch (err) {
+    console.warn('  ⚠️ TRUNCATE falhou, tentando deleteMany...');
+    await prisma.$transaction([
+      prisma.notification.deleteMany(),
+      prisma.auditLog.deleteMany(),
+      prisma.transaction.deleteMany(),
+      prisma.account.deleteMany(),
+      prisma.category.deleteMany(),
+      prisma.workspaceInvite.deleteMany(),
+      prisma.workspaceMember.deleteMany(),
+      prisma.refreshToken.deleteMany(),
+      prisma.passwordResetToken.deleteMany(),
+      prisma.accountVerificationToken.deleteMany(),
+      prisma.workspace.deleteMany(),
+      prisma.user.deleteMany(),
+    ]);
+  }
+}
 
-  const wellington = await prisma.user.create({
-    data: {
-      name: 'Wellington (Contador)',
-      email: 'wellington@wspfinance.com',
-      passwordHash: defaultPassword,
-      emailVerifiedAt: new Date(),
-    }
-  });
+// ══════════════════════════════════════════════════════════════════
+// 6. PÓS-PROCESSAMENTO — Atomic Balance Update
+// ══════════════════════════════════════════════════════════════════
+async function recalculateBalances() {
+  console.log('\n💰 [Fase 6] Recalculando saldos atômicos...');
 
-  // 3. Criar Workspaces (Fricção Zero)
-  console.log('🏢 Formando Workspaces e Memberships Híbridos...');
+  const accounts = await prisma.account.findMany({ select: { id: true } });
+  let updated = 0;
 
-  const anaPersonalWs = await prisma.workspace.create({
-    data: {
-      name: 'Finanças Ana',
-      type: 'PERSONAL',
-      taxRate: 0,
-      members: {
-        create: { userId: ana.id, role: 'OWNER' }
-      }
-    }
-  });
-
-  // Workspace Empresarial com Dados Externos Reais (+ Contador como Viewer)
-  const businessWs = await prisma.workspace.create({
-    data: {
-      name: 'Tech WSP Comercio', // Nome real do CNPJ
-      type: 'BUSINESS',
-      taxRate: 6.0, // Simples Nacional presumido
-      documentType: 'CNPJ',
-      document: '41562512000115',
-      cnae: '4751201',
-      zipCode: '01311200',
-      street: 'Avenida Paulista',
-      number: '1000',
-      neighborhood: 'Bela Vista',
-      city: 'São Paulo',
-      state: 'SP',
-      members: {
-        create: [
-          { userId: ana.id, role: 'OWNER' },
-          { userId: wellington.id, role: 'VIEWER' } // Multi-Perfil!
-        ]
-      }
-    }
-  });
-
-  // Workspace Pessoal do Contador (Pra ele ser Híbrido Owner vs Viewer)
-  const welPersonalWs = await prisma.workspace.create({
-    data: {
-      name: 'Pessoal Wellington',
-      type: 'PERSONAL',
-      taxRate: 0,
-      members: {
-        create: { userId: wellington.id, role: 'OWNER' }
-      }
-    }
-  });
-
-  // 4. Criar Categorias Globais
-  console.log('🏷️ Forjando Categorias de Análise...');
-  const catIncome = await prisma.category.create({ data: { name: 'Vendas', icon: 'trending-up', workspaceId: null } });
-  const catTransport = await prisma.category.create({ data: { name: 'Logística', icon: 'truck', workspaceId: null } });
-  const catTaxes = await prisma.category.create({ data: { name: 'Tributos', icon: 'pie-chart', workspaceId: null } });
-  const catProlabore = await prisma.category.create({ data: { name: 'Pró-Labore', icon: 'user', workspaceId: null } });
-  const catShopping = await prisma.category.create({ data: { name: 'Compras', icon: 'shopping-bag', workspaceId: null } });
-
-  // 5. Instanciar Contas Multiformes
-  console.log('🏦 Criando Estrutura de Contas Multiformes...');
-
-  const accAnaBank = await prisma.account.create({
-    data: { name: 'Itaú Personal', type: 'CHECKING', workspaceId: anaPersonalWs.id }
-  });
-
-  const accBusinessBank = await prisma.account.create({
-    data: { name: 'Conta Nubank PJ', type: 'CHECKING', workspaceId: businessWs.id }
-  });
-
-  const accBusinessCard = await prisma.account.create({
-    data: { name: 'Cartão de Crédito PJ', type: 'CREDIT_CARD', workspaceId: businessWs.id }
-  });
-
-  const accBusinessSavings = await prisma.account.create({
-    data: { name: 'Caixinha Reserva', type: 'SAVINGS', workspaceId: businessWs.id }
-  });
-
-  const accWelBank = await prisma.account.create({
-    data: { name: 'Bradesco Prime', type: 'CHECKING', workspaceId: welPersonalWs.id }
-  });
-
-  // 6. Injeção Profunda de Transações
-  console.log('💸 Injetando Transações e Testes de Estresse...');
-  const today = new Date();
-
-  // --- C1: Cenário PACT Convencional ---
-  await prisma.transaction.create({
-    data: {
-      description: 'Venda Mercado Livre #001',
-      date: subDays(today, 5),
-      type: 'INCOME',
-      status: 'RECONCILED',
-      accountId: accBusinessBank.id,
-      categoryId: catIncome.id,
-      workspaceId: businessWs.id,
-      grossAmount: 1500.00,
-      marketplaceFee: 250.00,
-      shippingCost: 50.00,
-      productCost: 600.00,
-      taxAmount: 90.00, // 6%
-      amount: 1500 - 250 - 50, // netCash
-    }
-  });
-
-  // --- C2: Cenário Margem Negativa (Ruptura PACT) ---
-  await prisma.transaction.create({
-    data: {
-      description: 'Venda Shopee Prejuízo #002',
-      date: subDays(today, 2),
-      type: 'INCOME', // Categoria de Venda
-      status: 'COMPLETED',
-      accountId: accBusinessBank.id,
-      categoryId: catIncome.id,
-      workspaceId: businessWs.id,
-      grossAmount: 120.00,
-      marketplaceFee: 40.00,  // Alta Taxa
-      shippingCost: 85.00,    // Frete explodiu
-      productCost: 80.00,
-      taxAmount: 7.20,
-      amount: 120 - 40 - 85, // -5.00 (Loss!)
-    }
-  });
-
-  // --- C3: Cartão de Crédito Pendente ---
-  await prisma.transaction.create({
-    data: {
-      description: 'Assinatura AWS (Dollar)',
-      date: today,
-      dueDate: addDays(today, 10), // Vence no futuro
-      type: 'EXPENSE',
-      status: 'PENDING',
-      isPaid: false,
-      accountId: accBusinessCard.id,
-      categoryId: catTransport.id, // Servidor 
-      workspaceId: businessWs.id,
-      amount: 540.35,
-    }
-  });
-
-  // --- C4: Ponte Pró-Labore (Bridge Transfer) ---
-  const bridgeToken = 'B-10020-UUID';
-  // Saída da Firma (Completa, bateu o caixa)
-  await prisma.transaction.create({
-    data: {
-      description: 'Saída Pró-Labore',
-      date: subDays(today, 1),
-      type: 'EXPENSE',
-      status: 'RECONCILED',
-      accountId: accBusinessBank.id,
-      categoryId: catProlabore.id,
-      workspaceId: businessWs.id,
-      amount: 5000.00,
-      fitid: `OUT_${bridgeToken}`,
-    }
-  });
-
-  // Entrada no Pessoal da Ana
-  await prisma.transaction.create({
-    data: {
-      description: 'Recebimento Pró-Labore Tech WSP',
-      date: subDays(today, 1),
-      type: 'INCOME',
-      status: 'COMPLETED',
-      accountId: accAnaBank.id,
-      categoryId: catProlabore.id,
-      workspaceId: anaPersonalWs.id,
-      amount: 5000.00,
-      fitid: `IN_${bridgeToken}`,
-    }
-  });
-
-  // --- C4.5: Honorários do Contador (Bridge Transfer para Wellington) ---
-  const bridgeTokenWel = 'B-9988-UUID';
-  await prisma.transaction.create({
-    data: {
-      description: 'Pagamento Honorários Contábeis',
-      date: subDays(today, 2),
-      type: 'EXPENSE',
-      status: 'RECONCILED',
-      accountId: accBusinessBank.id,
-      categoryId: catTaxes.id, // Servindo como Categoria de Serviços
-      workspaceId: businessWs.id,
-      amount: 1200.00,
-      fitid: `OUT_${bridgeTokenWel}`,
-    }
-  });
-
-  await prisma.transaction.create({
-    data: {
-      description: 'Recebimento Tech WSP',
-      date: subDays(today, 2),
-      type: 'INCOME',
-      status: 'COMPLETED',
-      accountId: accWelBank.id,
-      categoryId: catIncome.id,
-      workspaceId: welPersonalWs.id,
-      amount: 1200.00,
-      fitid: `IN_${bridgeTokenWel}`,
-    }
-  });
-
-  // --- C5: Tranferência Interna (Checking -> Savings) ---
-  const intToken = 'INT-550-UUID';
-  await prisma.transaction.create({
-    data: {
-      description: 'Movimentação para Investimento',
-      date: today,
-      type: 'EXPENSE',
-      status: 'COMPLETED',
-      accountId: accBusinessBank.id,
-      categoryId: catTransport.id, // Categoria ignorada aqui mas exigida
-      workspaceId: businessWs.id,
-      amount: 1000.00,
-      fitid: `T_OUT_${intToken}`
-    }
-  });
-
-  await prisma.transaction.create({
-    data: {
-      description: 'Aplicação Automática',
-      date: today,
-      type: 'INCOME',
-      status: 'COMPLETED',
-      accountId: accBusinessSavings.id,
-      categoryId: catTransport.id,
-      workspaceId: businessWs.id,
-      amount: 1000.00,
-      fitid: `T_IN_${intToken}`
-    }
-  });
-
-  // --- C6: Armadilha Decimal (Chaos Test) ---
-  // Inserimos um NaN no banco pra estressar a resiliência do Client Next.JS
-  // Felizmente o Prisma e o Postgres evitam que inseramos letras puro em um formato Float
-  // Portanto vamos inserir um número grotesco, fracionado e gigante (19 casas) para garantir o money Format
-  await prisma.transaction.create({
-    data: {
-      description: 'Estresse Decimal (Vírus do Dízimo)',
-      date: subDays(today, 30),
-      type: 'EXPENSE',
-      status: 'COMPLETED',
-      accountId: accAnaBank.id,
-      categoryId: catShopping.id,
-      workspaceId: anaPersonalWs.id,
-      amount: 0.3333333333333333, // Dízimo quebrado
-    }
-  });
-
-  console.log('⚖️ Recalculando Saldos Finais Matemáticos na base de dados...');
-  const accountsToUpdate = [accAnaBank.id, accBusinessBank.id, accBusinessCard.id, accBusinessSavings.id, accWelBank.id];
-
-  for (const accId of accountsToUpdate) {
-    const incomes = await prisma.transaction.aggregate({
-      _sum: { amount: true },
-      where: { accountId: accId, type: 'INCOME', isPaid: true }
-    });
-    const expenses = await prisma.transaction.aggregate({
-      _sum: { amount: true },
-      where: { accountId: accId, type: 'EXPENSE', isPaid: true }
+  for (const account of accounts) {
+    // Soma de receitas (INCOME)
+    const incomeResult = await prisma.transaction.aggregate({
+      where: { accountId: account.id, type: 'INCOME', status: 'COMPLETED' },
+      _sum: { amount: true }
     });
 
-    const inc = incomes._sum.amount ? incomes._sum.amount.toNumber() : 0;
-    const exp = expenses._sum.amount ? expenses._sum.amount.toNumber() : 0;
+    // Soma de despesas (EXPENSE)
+    const expenseResult = await prisma.transaction.aggregate({
+      where: { accountId: account.id, type: 'EXPENSE', status: 'COMPLETED' },
+      _sum: { amount: true }
+    });
+
+    const income = new Decimal(incomeResult._sum.amount?.toString() || '0');
+    const expenses = new Decimal(expenseResult._sum.amount?.toString() || '0');
+
+    // Pega saldo atual (pode ter sido forçado pelo chaos engine)
+    const currentAccount = await prisma.account.findUnique({ where: { id: account.id } });
+    const currentBalance = new Decimal(currentAccount?.balance?.toString() || '0');
+
+    // Se o saldo já foi manipulado negativamente pelo chaos, preserva
+    if (currentBalance.lt(0)) {
+      console.log(`    ⚠️ Conta ${account.id}: Saldo negativo preservado (${currentBalance.toFixed(2)})`);
+      continue;
+    }
+
+    const newBalance = income.minus(expenses);
 
     await prisma.account.update({
-      where: { id: accId },
-      data: { balance: inc - exp }
+      where: { id: account.id },
+      data: { balance: newBalance.toDecimalPlaces(4) }
     });
+    updated++;
   }
 
-  console.log('✅ Seed Brutal V3 Injetado Integralmente!');
-  console.log('--- PERSONAS ---');
-  console.log('👩🏻‍💼 Ana Silva: ana@wspfinance.com | senha123');
-  console.log('👨🏽‍💼 Wellington: wellington@wspfinance.com | senha123');
+  console.log(`  → ${updated} saldos recalculados com base em transações COMPLETED`);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MASTER ORCHESTRATOR
+// ══════════════════════════════════════════════════════════════════
+async function main() {
+  console.log('══════════════════════════════════════════════');
+  console.log('🏭 WSP Finance — Seed V3.0 (Real-World Simulator)');
+  console.log('══════════════════════════════════════════════\n');
+
+  const startTime = Date.now();
+
+  await earthquakeReset();
+
+  // ── FASE 1: IDENTIDADES ──
+  console.log('👤 [Fase 1] Criando Personas e Workspaces...');
+  const identities = await seedIdentities(prisma);
+
+  // ── FASE 2: ESTRUTURAS ──
+  console.log('\n🏗️ [Fase 2] Montando Categorias e Contas Bancárias...');
+  const structures = await seedStructure(prisma, identities.workspaces);
+
+  // ── FASE 3: TIME TRAVEL ──
+  console.log('\n⏳ [Fase 3] Viagem no Tempo — 6 Meses de Transações...');
+  const timeTravelResult = await seedTimeTravel(prisma, [
+    // João Dropshipping — SAUDÁVEL (100% com anexos)
+    {
+      workspaceId: identities.workspaces.joaoBusinessId,
+      accountId: structures.business['joaoBusinessId'].checkingId,
+      structure: structures.business['joaoBusinessId'],
+      taxRate: 6.0,
+      healthProfile: 'healthy',
+      salesPerMonth: 18,
+    },
+    // Maria Tech — RISCO (sem anexos nos últimos 2 meses)
+    {
+      workspaceId: identities.workspaces.mariaBusinessId,
+      accountId: structures.business['mariaBusinessId'].checkingId,
+      structure: structures.business['mariaBusinessId'],
+      taxRate: 15.5,
+      healthProfile: 'risky',
+      salesPerMonth: 15,
+    },
+    // Pedro Logistics — TRANSIÇÃO (novo, 1 mês)
+    {
+      workspaceId: identities.workspaces.pedroBusinessId,
+      accountId: structures.business['pedroBusinessId'].checkingId,
+      structure: structures.business['pedroBusinessId'],
+      taxRate: 0.0,
+      healthProfile: 'transition',
+      salesPerMonth: 5,
+    },
+    // Ana Café — SAUDÁVEL
+    {
+      workspaceId: identities.workspaces.anaBusinessId,
+      accountId: structures.business['anaBusinessId'].checkingId,
+      structure: structures.business['anaBusinessId'],
+      taxRate: 6.0,
+      healthProfile: 'healthy',
+      salesPerMonth: 12,
+    },
+    // Lucas Dev — SAUDÁVEL
+    {
+      workspaceId: identities.workspaces.lucasBusinessId,
+      accountId: structures.business['lucasBusinessId'].checkingId,
+      structure: structures.business['lucasBusinessId'],
+      taxRate: 6.0,
+      healthProfile: 'healthy',
+      salesPerMonth: 10,
+    },
+    // Carlos Comércio — EMPTY (recém-vinculado, sem dados)
+    {
+      workspaceId: identities.workspaces.carlosBusinessId,
+      accountId: structures.business['carlosBusinessId'].checkingId,
+      structure: structures.business['carlosBusinessId'],
+      taxRate: 4.0,
+      healthProfile: 'empty',
+    },
+    // Rafael Marketing — SAUDÁVEL
+    {
+      workspaceId: identities.workspaces.rafaelBusinessId,
+      accountId: structures.business['rafaelBusinessId'].checkingId,
+      structure: structures.business['rafaelBusinessId'],
+      taxRate: 6.0,
+      healthProfile: 'healthy',
+      salesPerMonth: 8,
+    },
+    // Bruno Engenharia — RISKY (projetos de alto valor, poucos anexos)
+    {
+      workspaceId: identities.workspaces.brunoBusinessId,
+      accountId: structures.business['brunoBusinessId'].checkingId,
+      structure: structures.business['brunoBusinessId'],
+      taxRate: 11.33,
+      healthProfile: 'risky',
+      salesPerMonth: 6,
+    },
+    // Thiago Advocacia — SAUDÁVEL
+    {
+      workspaceId: identities.workspaces.thiagoBusinessId,
+      accountId: structures.business['thiagoBusinessId'].checkingId,
+      structure: structures.business['thiagoBusinessId'],
+      taxRate: 6.0,
+      healthProfile: 'healthy',
+      salesPerMonth: 10,
+    },
+    // Daniel Fotografia — TRANSITION (poucos meses)
+    {
+      workspaceId: identities.workspaces.danielBusinessId,
+      accountId: structures.business['danielBusinessId'].checkingId,
+      structure: structures.business['danielBusinessId'],
+      taxRate: 6.0,
+      healthProfile: 'transition',
+      salesPerMonth: 4,
+    },
+  ]);
+
+  // ── FASE 4: AUDITORIA + CHAOS ──
+  console.log('\n🌪️ [Fase 4] Injetando Chaos Engine + AuditLogs...');
+  const auditResult = await seedAuditAndChaos(prisma, identities, structures, identities.workspaces);
+
+  // ── FASE 5: LIFECYCLE ──
+  console.log('\n📩 [Fase 5] Gerando Convites e Notificações...');
+  const lifeCycleResult = await seedLifeCycle(prisma, identities, identities.workspaces);
+
+  // ── FASE 6: PÓS-PROCESSAMENTO ──
+  await recalculateBalances();
+
+  // ══════════════════════════════════════════════════════════════
+  // RELATÓRIO FINAL
+  // ══════════════════════════════════════════════════════════════
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+  console.log('\n══════════════════════════════════════════════');
+  console.log('🏁 SEED V3.0 FINALIZADO COM SUCESSO');
+  console.log('══════════════════════════════════════════════');
+  console.log(`⏱️  Tempo de execução: ${elapsed}s`);
+  console.log('');
+  console.log('📊 VOLUMETRIA DE INJEÇÃO:');
+  console.log(`   👤 Users:          12 (2 Contadores + 10 Clientes)`);
+  console.log(`   🏢 Workspaces:     22 (10 BUSINESS + 10 PERSONAL + 2 Contabilidade)`);
+  console.log(`   🔗 ACCOUNTANT links: 10 (Wellington → 10 empresas)`);
+  console.log(`   💳 Transações:     ${timeTravelResult.count + auditResult.chaosCount}`);
+  console.log(`   📋 Audit Logs:     ${auditResult.auditCount}`);
+  console.log(`   📩 Convites:       ${lifeCycleResult.inviteCount}`);
+  console.log(`   🔔 Notificações:   ${lifeCycleResult.notifCount}`);
+  console.log('');
+  console.log('🔐 CREDENCIAIS DE ACESSO:');
+  console.log('   ┌──────────────────────────────────────────────────────┐');
+  console.log('   │ 🧮 Contador Sênior (Wellington):                     │');
+  console.log('   │    Email: auditoria@wsp.finance | Senha: password123 │');
+  console.log('   │    → 10 clientes na Torre de Comando                 │');
+  console.log('   ├──────────────────────────────────────────────────────┤');
+  console.log('   │ 🆕 Contadora Júnior (Fernanda):                      │');
+  console.log('   │    Email: fernanda@contabil.com | Senha: password123 │');
+  console.log('   │    → 0 clientes (1 convite PENDING)                  │');
+  console.log('   ├──────────────────────────────────────────────────────┤');
+  console.log('   │ 👨 Cliente João:  joao@wsp.finance   | password123   │');
+  console.log('   │ 👩 Cliente Maria: maria@wsp.finance  | password123   │');
+  console.log('   │ 👨 Cliente Pedro: pedro@wsp.finance  | password123   │');
+  console.log('   │ 👩 Cliente Ana:   ana@wsp.finance     | password123   │');
+  console.log('   │ 👨 Cliente Lucas: lucas@wsp.finance  | password123   │');
+  console.log('   └──────────────────────────────────────────────────────┘');
+  console.log('');
+  console.log('🩺 PERFIS DE SAÚDE (Torre de Comando):');
+  console.log('   ✅ João Dropshipping  → Saudável (100% com anexos)');
+  console.log('   ✅ Ana Café Gourmet   → Saudável');
+  console.log('   ✅ Lucas Dev Studio   → Saudável');
+  console.log('   ✅ Rafael Marketing   → Saudável');
+  console.log('   ✅ Thiago Advocacia   → Saudável');
+  console.log('   🔴 Maria Tech        → RISCO (sem anexos 30d + saldo negativo)');
+  console.log('   🔴 Bruno Engenharia  → RISCO (sem anexos recentes)');
+  console.log('   🟡 Pedro Logistics   → Transição (1 mês de dados)');
+  console.log('   🟡 Daniel Fotografia → Transição (recém-ativo)');
+  console.log('   ⚪ Carlos Comércio   → Vazio (0 transações)');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('❌ ERRO FATAL NO SEED ENGINE:', e);
     process.exit(1);
   })
   .finally(async () => {

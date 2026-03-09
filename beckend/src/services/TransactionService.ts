@@ -142,7 +142,17 @@ export class TransactionService {
   }
 
   async list(workspaceId: number, filters: any) {
-    return await this.transactionRepository.findManyByWorkspace(workspaceId, filters);
+    const limit = filters.limit || 20;
+    const transactions = await this.transactionRepository.findManyByWorkspace(
+      workspaceId,
+      { ...filters, limit: limit + 1 }
+    );
+
+    const hasMore = transactions.length > limit;
+    const data = hasMore ? transactions.slice(0, limit) : transactions;
+    const nextCursor = hasMore && data.length > 0 ? data[data.length - 1].id : null;
+
+    return { data, nextCursor, hasMore };
   }
 
   async listAllByUser(userId: number) {

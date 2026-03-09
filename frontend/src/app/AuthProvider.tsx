@@ -6,13 +6,14 @@ interface Membership {
   id: number;
   name: string;
   type: 'PERSONAL' | 'BUSINESS';
-  role: 'OWNER' | 'VIEWER';
+  role: 'OWNER' | 'VIEWER' | 'ACCOUNTANT';
 }
 
 export interface User {
   id: number;
   name: string;
   email: string;
+  type: 'CLIENT' | 'ACCOUNTANT';
   memberships: Membership[];
 }
 

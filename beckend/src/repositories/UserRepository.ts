@@ -6,12 +6,12 @@ export class UserRepository {
   async createWithWorkspace(data: Prisma.UserCreateInput): Promise<User> {
     try {
       return await prisma.$transaction(async (tx) => {
-        // 1. Cria o usuário
         const user = await tx.user.create({
           data: {
             name: data.name,
             email: data.email,
             passwordHash: data.passwordHash,
+            type: data.type || 'CLIENT',
             // Não criamos o workspace aninhado aqui mais, pois a relação mudou
           }
         });
@@ -61,6 +61,19 @@ export class UserRepository {
 
   async findById(id: number): Promise<User | null> {
     return await prisma.user.findUnique({ where: { id } });
+  }
+
+  async findByIdWithWorkspaces(id: number) {
+    return await prisma.user.findUnique({
+      where: { id },
+      include: {
+        memberships: {
+          include: {
+            workspace: true
+          }
+        }
+      }
+    });
   }
 
   async updatePassword(userId: number, passwordHash: string): Promise<void> {
