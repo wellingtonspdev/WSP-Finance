@@ -93,4 +93,113 @@ export class InviteController {
             return res.status(400).json({ message: err.message });
         }
     }
+
+    /**
+     * Endpoint: GET /invites/received
+     * Lista convites recebidos pelo email do usuário logado.
+     */
+    async listReceived(req: Request, res: Response) {
+        try {
+            const userId = req.user.id;
+            // Precisa buscar o email do user pelo ID (vem do JWT)
+            const { PrismaClient } = require('@prisma/client');
+            const prisma = new PrismaClient();
+            const user = await prisma.user.findUnique({ where: { id: userId } });
+            if (!user) return res.status(404).json({ message: 'User not found' });
+
+            const invites = await this.inviteService.listReceived(user.email);
+            return res.status(200).json(invites);
+        } catch (err: any) {
+            return res.status(400).json({ message: err.message });
+        }
+    }
+
+    /**
+     * Endpoint: GET /workspaces/:id/invites
+     * Lista convites enviados por um workspace.
+     */
+    async listSent(req: Request, res: Response) {
+        const paramsSchema = z.object({
+            id: z.string().transform(Number)
+        });
+
+        try {
+            const { id: workspaceId } = paramsSchema.parse(req.params);
+            const invites = await this.inviteService.listSent(workspaceId);
+            return res.status(200).json(invites);
+        } catch (err: any) {
+            return res.status(400).json({ message: err.message });
+        }
+    }
+
+    /**
+     * Endpoint: GET /workspaces/:id/members
+     * Lista membros de um workspace.
+     */
+    async listMembers(req: Request, res: Response) {
+        const paramsSchema = z.object({
+            id: z.string().transform(Number)
+        });
+
+        try {
+            const { id: workspaceId } = paramsSchema.parse(req.params);
+            const members = await this.inviteService.listMembers(workspaceId);
+            return res.status(200).json(members);
+        } catch (err: any) {
+            return res.status(400).json({ message: err.message });
+        }
+    }
+
+    /**
+     * Endpoint: POST /invites/:id/reject
+     * Rejeitar um convite recebido.
+     */
+    async reject(req: Request, res: Response) {
+        const paramsSchema = z.object({
+            id: z.string() // UUID
+        });
+
+        try {
+            const { id: inviteId } = paramsSchema.parse(req.params);
+            const rejectingUserId = req.user.id;
+
+            await this.inviteService.rejectInvite(inviteId, rejectingUserId);
+            return res.status(200).json({ message: 'Invite rejected successfully' });
+        } catch (err: any) {
+            if (err.message.includes('Return 403')) {
+                return res.status(403).json({ message: err.message.replace('Return 403: ', '') });
+            }
+            if (err.message.includes('not found')) {
+                return res.status(404).json({ message: err.message });
+            }
+            return res.status(400).json({ message: err.message });
+        }
+    }
+
+    /**
+     * Endpoint: DELETE /workspaces/:id/members/:userId
+     * Remover um membro do workspace (apenas OWNER).
+     */
+    async removeMember(req: Request, res: Response) {
+        const paramsSchema = z.object({
+            id: z.string().transform(Number),
+            userId: z.string().transform(Number)
+        });
+
+        try {
+            const { id: workspaceId, userId: targetUserId } = paramsSchema.parse(req.params);
+            const requestingUserId = req.user.id;
+
+            const result = await this.inviteService.removeMember(workspaceId, requestingUserId, targetUserId);
+            return res.status(200).json(result);
+        } catch (err: any) {
+            if (err.message.includes('Return 403')) {
+                return res.status(403).json({ message: err.message.replace('Return 403: ', '') });
+            }
+            if (err.message.includes('not a member')) {
+                return res.status(404).json({ message: err.message });
+            }
+            return res.status(400).json({ message: err.message });
+        }
+    }
 }

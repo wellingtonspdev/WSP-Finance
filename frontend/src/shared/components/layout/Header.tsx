@@ -2,17 +2,29 @@ import { useAuth } from '../../../app/AuthProvider';
 import { useWorkspace } from '../../../features/workspaces/context/WorkspaceProvider';
 import { Bell } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export function Header() {
   const { user } = useAuth();
   const { activeWorkspace, workspaces, switchWorkspace } = useWorkspace();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isDashboardRoute = location.pathname.includes('/dashboard');
 
   // Hard-Kill: Contadores nunca vêem o seletor, blindando o contexto cruzado.
   const shouldShowWorkspaceSelector = user?.type !== 'ACCOUNTANT' && (isDashboardRoute || location.pathname === '/' || location.pathname.split('/').length <= 2);
+
+  const handleWorkspaceSwitch = (workspaceId: number) => {
+    switchWorkspace(workspaceId);
+
+    // Extract route suffix (e.g., 'dashboard' or 'transactions') to maintain the same view
+    const segments = location.pathname.split('/').filter(Boolean);
+    const suffix = segments.length > 1 ? segments.slice(1).join('/') : 'dashboard';
+
+    // Explicitly navigate so useParams() hooks reload active data
+    navigate(`/${workspaceId}/${suffix}`);
+  };
 
   return (
     <header className="px-6 pt-12 pb-6 flex items-center justify-between bg-transparent z-10 relative">
@@ -29,7 +41,7 @@ export function Header() {
           {workspaces.map((ws) => (
             <button
               key={ws.id}
-              onClick={() => switchWorkspace(ws.id)}
+              onClick={() => handleWorkspaceSwitch(ws.id)}
               className={clsx(
                 "px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200",
                 activeWorkspace?.id === ws.id

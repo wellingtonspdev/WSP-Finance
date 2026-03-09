@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useParams, Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore';
 import { useAuth } from '../../../app/AuthProvider';
+import { useWorkspace } from '../../../features/workspaces/context/WorkspaceProvider';
 
 export function WorkspaceGuard() {
     const { workspaceId: workspaceIdParam } = useParams<{ workspaceId: string }>();
@@ -13,6 +14,7 @@ export function WorkspaceGuard() {
         setMemberships,
         isLoadingMetadata,
     } = useWorkspaceStore();
+    const { activeWorkspace, switchWorkspace } = useWorkspace();
 
     useEffect(() => {
         // 1. Ao montar ou o user mudar, garante que as memberships do Auth(usuário) passem pro store do Workspace
@@ -30,8 +32,13 @@ export function WorkspaceGuard() {
                 // O F5 ativou com um param ID. Vamos forçar ao Zustand.
                 setActiveWorkspaceId(paramId);
             }
+
+            // Sincroniza o React Context (WorkspaceProvider) para que o Axios Header e os Hooks (useTransactionMutation) operem no cliente correto
+            if (activeWorkspace?.id !== paramId) {
+                switchWorkspace(paramId);
+            }
         }
-    }, [workspaceIdParam, activeWorkspaceId, setActiveWorkspaceId]);
+    }, [workspaceIdParam, activeWorkspaceId, setActiveWorkspaceId, activeWorkspace?.id, switchWorkspace]);
 
     // Handle URL raiz (/) e Bloqueio Hard-Kill de Contadores
     useEffect(() => {

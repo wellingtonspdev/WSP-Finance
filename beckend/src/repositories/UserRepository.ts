@@ -63,6 +63,19 @@ export class UserRepository {
     return await prisma.user.findUnique({ where: { id } });
   }
 
+  async findByIdWithWorkspaces(id: number) {
+    return await prisma.user.findUnique({
+      where: { id },
+      include: {
+        memberships: {
+          include: {
+            workspace: true
+          }
+        }
+      }
+    });
+  }
+
   async updatePassword(userId: number, passwordHash: string): Promise<void> {
     await prisma.user.update({
       where: { id: userId },

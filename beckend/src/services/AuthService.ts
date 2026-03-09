@@ -114,6 +114,25 @@ export class AuthService {
     };
   }
 
+  // --- Caso de Uso: Get Me (Sincronização de Sessão) ---
+  async getMe(userId: number) {
+    const user = await this.userRepository.findByIdWithWorkspaces(userId);
+    if (!user) throw new Error('User not found');
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      type: user.type,
+      memberships: user.memberships.map((m: any) => ({
+        id: m.workspace.id,
+        name: m.workspace.name,
+        type: m.workspace.type,
+        role: m.role
+      }))
+    };
+  }
+
   private generateAccessToken(userId: number): string {
     return jwt.sign({}, this.JWT_SECRET, {
       subject: userId.toString(),

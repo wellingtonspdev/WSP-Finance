@@ -1,90 +1,150 @@
 import { PrismaClient } from '@prisma/client';
 import { Decimal } from 'decimal.js';
 
-export async function seedSazonalTransactions(prisma: PrismaClient, identities: any, structure: any) {
+/**
+ * MÓDULO 03 — TIME TRAVEL (Séries Temporais) — Seed V3.0
+ * 
+ * Gera 6 meses de transações para cada workspace BUSINESS com:
+ * - Receitas distribuídas aleatoriamente pelos dias do mês
+ * - 5 tipos de despesas fixas recorrentes (Aluguel, Energia, Internet, Salário, DAS)
+ * - Sazonalidade: Novembro (Black Friday) gera 3x mais vendas
+ * - Precisão Decimal(19,4) em todos os campos monetários
+ * 
+ * Parâmetros de "Saúde Financeira" são controlados pelo healthProfile:
+ *   - 'healthy': attachmentUrl em 100% das transações
+ *   - 'risky': attachmentUrl em 0% das transações recentes (últimos 2 meses)
+ *   - 'transition': poucas transações, perfil recém-criado
+ *   - 'empty': nenhuma transação
+ */
+
+type HealthProfile = 'healthy' | 'risky' | 'transition' | 'empty';
+
+interface TimeTravelConfig {
+    workspaceId: number;
+    accountId: number;
+    structure: any; // Mapeamento de catIds
+    taxRate: number;
+    healthProfile: HealthProfile;
+    salesPerMonth?: number; // Override do volume base
+}
+
+const EXPENSE_TEMPLATES = [
+    { descPrefix: 'Aluguel Comercial', catKey: 'catRentId', baseAmount: 2800, variation: 0 },
+    { descPrefix: 'Conta de Energia', catKey: 'catEnergyId', baseAmount: 320, variation: 80 },
+    { descPrefix: 'Internet / Telecom', catKey: 'catInternetId', baseAmount: 159.90, variation: 0 },
+    { descPrefix: 'Pró-Labore', catKey: 'catPayrollId', baseAmount: 4500, variation: 500 },
+    { descPrefix: 'DAS Simples Nacional', catKey: 'catTaxId', baseAmount: 0, variation: 0 }, // Calculado
+];
+
+const SALE_DESCRIPTIONS = [
+    'Venda E-commerce Shopee',
+    'Venda Mercado Livre',
+    'Venda Site Próprio',
+    'Venda Atacado B2B',
+    'Serviço de Consultoria',
+    'Projeto Freelance',
+    'Manutenção Mensal',
+    'Venda Balcão',
+    'Serviço de Instalação',
+    'Comissão de Indicação',
+];
+
+export async function seedTimeTravel(prisma: PrismaClient, configs: TimeTravelConfig[]) {
     let totalCount = 0;
 
-    const generateRetroactiveMonths = async (workspaceId: number, acctId: number, catIncomeId: number, catExpenseId: number, taxRate: number) => {
-        const today = new Date();
-        const monthsBack = 6;
+    for (const cfg of configs) {
+        if (cfg.healthProfile === 'empty') continue;
 
-        let localCount = 0;
+        const today = new Date();
+        const monthsBack = cfg.healthProfile === 'transition' ? 1 : 6;
+        const baseSalesPerMonth = cfg.salesPerMonth || (cfg.healthProfile === 'transition' ? 5 : 15);
+
+        let workspaceCount = 0;
 
         for (let m = monthsBack; m >= 0; m--) {
-            // Configurar a data base do mês retroativo
             const targetDate = new Date(today.getFullYear(), today.getMonth() - m, 15);
+            const isBlackFriday = targetDate.getMonth() === 10; // Novembro
+            const salesCount = isBlackFriday ? baseSalesPerMonth * 3 : baseSalesPerMonth;
 
-            // Sazonalidade Simples: Novembro (Black Friday) vende 3x mais.
-            const isBlackFriday = targetDate.getMonth() === 10;
-            const salesVolumeCount = isBlackFriday ? 45 : 15;
+            // Flag: Meses recentes sem anexo para empresas "risky"
+            const isRecentMonth = m <= 1;
+            const shouldHaveAttachment = cfg.healthProfile === 'healthy' ||
+                (cfg.healthProfile === 'risky' && !isRecentMonth);
 
-            // 1. Receitas do Mês (Fracionadas)
-            for (let i = 0; i < salesVolumeCount; i++) {
+            let monthIncome = new Decimal(0);
+
+            // ── RECEITAS ──
+            for (let i = 0; i < salesCount; i++) {
                 const day = Math.floor(Math.random() * 28) + 1;
                 const txDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), day);
 
-                // Valor Bruto de Venda (Stress Decimal Simulado)
-                const gross = new Decimal(Math.random() * 500 + 50); // Entre 50 e 550
-                const platformFee = gross.mul(0.18); // 18% ML/Shopee
-                const taxAmount = gross.mul(taxRate / 100);
-                const net = gross.minus(platformFee).minus(taxAmount);
+                const gross = new Decimal(Math.random() * 500 + 50).toDecimalPlaces(4);
+                const platformFee = gross.mul(0.18).toDecimalPlaces(4);
+                const taxAmount = gross.mul(cfg.taxRate / 100).toDecimalPlaces(4);
+                const net = gross.minus(platformFee).minus(taxAmount).toDecimalPlaces(4);
+                monthIncome = monthIncome.plus(net);
+
+                const desc = SALE_DESCRIPTIONS[i % SALE_DESCRIPTIONS.length];
 
                 await prisma.transaction.create({
                     data: {
-                        accountId: acctId,
-                        categoryId: catIncomeId,
-                        workspaceId: workspaceId,
+                        accountId: cfg.accountId,
+                        categoryId: cfg.structure.catSalesId,
+                        workspaceId: cfg.workspaceId,
                         type: 'INCOME',
                         status: 'COMPLETED',
-                        description: `Venda E-commerce #${m}${i}`,
+                        description: `${desc} #${targetDate.getMonth() + 1}-${String(i + 1).padStart(3, '0')}`,
                         date: txDate,
                         grossAmount: gross,
                         feeAmount: platformFee,
                         platformFeeRate: new Decimal(18.0),
-                        taxAmount: taxAmount,
-                        amount: net, // O PACT armazena o Liquido aqui
-                        netValue: net
+                        taxAmount,
+                        amount: net,
+                        netValue: net,
+                        attachmentUrl: shouldHaveAttachment
+                            ? `https://storage.wsp.finance/receipts/${cfg.workspaceId}/${txDate.toISOString().split('T')[0]}_${i}.pdf`
+                            : null,
                     }
                 });
-                localCount++;
+                workspaceCount++;
             }
 
-            // 2. Despesas Fixas Mensais (Aluguel, Software, Energia)
-            await prisma.transaction.create({
-                data: {
-                    accountId: acctId,
-                    categoryId: catExpenseId,
-                    workspaceId: workspaceId,
-                    type: 'EXPENSE',
-                    status: 'COMPLETED',
-                    description: `Conta de Energia B2B - Mês ${targetDate.getMonth() + 1}`,
-                    date: new Date(targetDate.getFullYear(), targetDate.getMonth(), 10),
-                    amount: new Decimal("250.75"),
+            // ── DESPESAS FIXAS ──
+            for (const template of EXPENSE_TEMPLATES) {
+                let amount: Decimal;
+
+                if (template.descPrefix.includes('DAS')) {
+                    // DAS calculado sobre a receita bruta do mês
+                    amount = monthIncome.mul(cfg.taxRate / 100).toDecimalPlaces(4);
+                    if (amount.lte(0)) amount = new Decimal(67.00); // Mínimo DAS MEI
+                } else {
+                    amount = new Decimal(template.baseAmount + (Math.random() * template.variation * 2 - template.variation)).toDecimalPlaces(4);
                 }
-            });
-            localCount++;
+
+                const expenseDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 10);
+
+                await prisma.transaction.create({
+                    data: {
+                        accountId: cfg.accountId,
+                        categoryId: cfg.structure[template.catKey],
+                        workspaceId: cfg.workspaceId,
+                        type: 'EXPENSE',
+                        status: 'COMPLETED',
+                        description: `${template.descPrefix} - ${String(targetDate.getMonth() + 1).padStart(2, '0')}/${targetDate.getFullYear()}`,
+                        date: expenseDate,
+                        amount,
+                        attachmentUrl: shouldHaveAttachment
+                            ? `https://storage.wsp.finance/invoices/${cfg.workspaceId}/${template.descPrefix.replace(/\s/g, '_')}_${targetDate.getMonth() + 1}.pdf`
+                            : null,
+                    }
+                });
+                workspaceCount++;
+            }
         }
 
-        return localCount;
-    };
-
-    // Roda o simulador para a Empresa do João (Dropshipping - Gross Flow)
-    totalCount += await generateRetroactiveMonths(
-        identities.joaoBusinessId,
-        structure.joaoB2B.checkingId,
-        structure.joaoB2B.catSalesId,
-        structure.joaoB2B.catEnergyId,
-        6.0 // João paga 6% SIMPLES
-    );
-
-    // Roda o simulador para a Empresa da Maria (Tech - High Ticket)
-    totalCount += await generateRetroactiveMonths(
-        identities.mariaBusinessId,
-        structure.mariaB2B.checkingId,
-        structure.mariaB2B.catServicesId,
-        structure.mariaB2B.catEnergyId,
-        15.5 // Maria paga 15.5% (Lucro Presumido)
-    );
+        totalCount += workspaceCount;
+        console.log(`    • Workspace ${cfg.workspaceId} (${cfg.healthProfile}): ${workspaceCount} transações`);
+    }
 
     return { count: totalCount };
 }

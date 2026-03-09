@@ -161,4 +161,118 @@ export class InviteService {
 
         return newMembership;
     }
+
+    /**
+     * Lista convites recebidos pelo email do usuário logado.
+     */
+    async listReceived(userEmail: string) {
+        return prisma.workspaceInvite.findMany({
+            where: { email: userEmail },
+            include: {
+                workspace: { select: { id: true, name: true, type: true } },
+                inviter: { select: { name: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+    }
+
+    /**
+     * Lista convites enviados por um workspace (Somente membros com acesso).
+     */
+    async listSent(workspaceId: number) {
+        return prisma.workspaceInvite.findMany({
+            where: { workspaceId },
+            include: {
+                inviter: { select: { name: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+    }
+
+    /**
+     * Lista membros de um workspace com dados do usuário.
+     */
+    async listMembers(workspaceId: number) {
+        return prisma.workspaceMember.findMany({
+            where: { workspaceId },
+            include: {
+                user: { select: { id: true, name: true, email: true, type: true } }
+            },
+            orderBy: { userId: 'asc' }
+        });
+    }
+
+    /**
+     * Rejeita um convite (Somente o destinatário pode rejeitar).
+     * Double Handshake: email do user logado deve bater com email do convite.
+     */
+    async rejectInvite(inviteId: string, rejectingUserId: number) {
+        const invite = await prisma.workspaceInvite.findUnique({
+            where: { id: inviteId }
+        });
+
+        if (!invite) throw new Error('Invite not found.');
+        if (invite.status !== 'PENDING') throw new Error('Return 403: Invite is not pending.');
+
+        const user = await prisma.user.findUnique({ where: { id: rejectingUserId } });
+        if (!user || user.email !== invite.email) {
+            throw new Error('Return 403: This invite is not for your account.');
+        }
+
+        return prisma.workspaceInvite.update({
+            where: { id: inviteId },
+            data: { status: 'REJECTED' }
+        });
+    }
+
+    /**
+     * Remove um membro de um workspace (Somente OWNER pode remover).
+     * O OWNER não pode remover a si mesmo.
+     */
+    async removeMember(workspaceId: number, requestingUserId: number, targetUserId: number) {
+        // 1. Verifica se quem solicita é OWNER
+        const requesterMembership = await prisma.workspaceMember.findUnique({
+            where: {
+                userId_workspaceId: {
+                    userId: requestingUserId,
+                    workspaceId
+                }
+            }
+        });
+
+        if (!requesterMembership || requesterMembership.role !== 'OWNER') {
+            throw new Error('Return 403: Only the OWNER can remove members.');
+        }
+
+        // 2. Não pode remover a si mesmo
+        if (requestingUserId === targetUserId) {
+            throw new Error('Return 403: You cannot remove yourself from the workspace.');
+        }
+
+        // 3. Verifica se o alvo é realmente membro
+        const targetMembership = await prisma.workspaceMember.findUnique({
+            where: {
+                userId_workspaceId: {
+                    userId: targetUserId,
+                    workspaceId
+                }
+            }
+        });
+
+        if (!targetMembership) {
+            throw new Error('Target user is not a member of this workspace.');
+        }
+
+        // 4. Remove o vínculo
+        await prisma.workspaceMember.delete({
+            where: {
+                userId_workspaceId: {
+                    userId: targetUserId,
+                    workspaceId
+                }
+            }
+        });
+
+        return { message: 'Member removed successfully', removedUserId: targetUserId };
+    }
 }

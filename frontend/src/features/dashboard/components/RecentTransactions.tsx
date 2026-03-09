@@ -1,7 +1,7 @@
 import type { Transaction } from '../api/getRecentTransactions';
 import { ListSkeleton } from '../../../shared/components/skeletons/ListSkeleton';
 import { ShoppingCart, ArrowRight, Paperclip } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
 import { useAttachment } from '../../transactions/hooks/useAttachment';
 import { AttachmentPreview } from '../../transactions/components/AttachmentPreview';
@@ -13,6 +13,7 @@ interface Props {
 
 export function RecentTransactions({ data, isLoading }: Props) {
   const navigate = useNavigate();
+  const { workspaceId } = useParams<{ workspaceId: string }>();
   const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
   const { getSignedUrl, isLoading: isAttachmentLoading, error: attachmentError, clearError } = useAttachment();
   const [previewData, setPreviewData] = useState<{ url: string, headers?: Record<string, string> } | null>(null);
@@ -52,7 +53,7 @@ export function RecentTransactions({ data, isLoading }: Props) {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-white font-semibold text-lg lg:text-xl">Atividade Recente</h2>
         <button
-          onClick={() => navigate('/transactions')}
+          onClick={() => navigate(`/${workspaceId}/transactions`)}
           className="text-sm text-blue-400 font-medium hover:text-blue-300 flex items-center gap-1 transition-colors"
         >
           Ver extrato completo <ArrowRight className="w-4 h-4" />

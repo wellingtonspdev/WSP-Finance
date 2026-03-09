@@ -18,7 +18,7 @@ export class TransactionController {
       type: z.nativeEnum(TransactionType),
       accountId: z.number().int().positive(),
       categoryId: z.number().int().positive(),
-      isPaid: z.boolean().default(true),
+      isPaid: z.coerce.boolean().default(true),
       // Campos Opcionais de Marketplace
       grossAmount: z.number().min(0).optional(),
       marketplaceFee: z.number().min(0).optional(),
@@ -54,13 +54,15 @@ export class TransactionController {
       accountId: z.coerce.number().optional(),
       categoryId: z.coerce.number().optional(),
       type: z.nativeEnum(TransactionType).optional(),
+      cursor: z.string().optional(),
+      limit: z.coerce.number().min(1).max(100).default(20).optional(),
     });
 
     const filters = listQuerySchema.parse(req.query);
     const workspaceId = req.workspaceId!;
 
-    const transactions = await this.transactionService.list(workspaceId, filters);
-    return res.status(200).json(transactions);
+    const result = await this.transactionService.list(workspaceId, filters);
+    return res.status(200).json(result);
   }
 
   async listAll(req: Request, res: Response) {

@@ -22,7 +22,7 @@ export function DashboardPage() {
       <SummaryCards data={summary} isLoading={isLoading} />
 
       {/* Alerta de Risco (Condicional) */}
-      {summary?.metrics.breakEvenPoint && summary.metrics.breakEvenPoint > 0 && (
+      {summary?.metrics.breakEvenPoint != null && summary.metrics.breakEvenPoint > 0 && (
         <section className="px-6 mb-8">
           <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 flex items-start gap-3">
             <AlertTriangle className="text-yellow-500 shrink-0 w-5 h-5" />

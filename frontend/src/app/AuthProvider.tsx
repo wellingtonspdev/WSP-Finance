@@ -6,7 +6,7 @@ interface Membership {
   id: number;
   name: string;
   type: 'PERSONAL' | 'BUSINESS';
-  role: 'OWNER' | 'VIEWER';
+  role: 'OWNER' | 'VIEWER' | 'ACCOUNTANT';
 }
 
 export interface User {

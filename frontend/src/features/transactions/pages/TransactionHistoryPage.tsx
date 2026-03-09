@@ -1,21 +1,50 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { useTransactions } from '../hooks/useTransactions';
 import { TransactionAccordionItem } from '../components/TransactionAccordionItem';
-import { ArrowLeft, Filter } from 'lucide-react';
+import { ArrowLeft, Filter, Loader2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAttachment } from '../hooks/useAttachment';
 import { AttachmentPreview } from '../components/AttachmentPreview';
 
 export function TransactionHistoryPage() {
     const [filterMode, setFilterMode] = useState<'ALL' | 'PACT' | 'SERVICES' | 'SUBS'>('ALL');
-    const { data: transactions, isLoading, isError } = useTransactions();
+    const {
+        data,
+        isLoading,
+        isError,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+    } = useTransactions();
     const navigate = useNavigate();
     const { workspaceId } = useParams<{ workspaceId: string }>();
+
+    // Flatten pages into single array
+    const transactions = useMemo(
+        () => data?.pages.flatMap((page) => page.data) ?? [],
+        [data]
+    );
 
     // Estado do Visualizador
     const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
     const { getSignedUrl, isLoading: isAttachmentLoading, error: attachmentError, clearError } = useAttachment();
     const [previewData, setPreviewData] = useState<{ url: string, headers?: Record<string, string> } | null>(null);
+
+    // Infinite scroll sentinel
+    const observer = useRef<IntersectionObserver | null>(null);
+    const lastItemRef = useCallback(
+        (node: HTMLDivElement | null) => {
+            if (isFetchingNextPage) return;
+            if (observer.current) observer.current.disconnect();
+            observer.current = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting && hasNextPage) {
+                    fetchNextPage();
+                }
+            });
+            if (node) observer.current.observe(node);
+        },
+        [isFetchingNextPage, hasNextPage, fetchNextPage]
+    );
 
     const handlePreviewAttachment = async (id: number) => {
         const txIdStr = String(id);
@@ -68,7 +97,7 @@ export function TransactionHistoryPage() {
     }
 
     // Filtragem MOCK visual
-    const filteredTransactions = (transactions || []).filter(t => {
+    const filteredTransactions = transactions.filter(t => {
         if (filterMode === 'PACT') return t.grossAmount !== undefined && t.grossAmount !== null && t.grossAmount > 0;
         return true;
     });
@@ -120,17 +149,36 @@ export function TransactionHistoryPage() {
                         {filteredTransactions.length === 0 ? (
                             <div className="text-center py-10 text-slate-400">Nenhuma transação encontrada.</div>
                         ) : (
-                            filteredTransactions.map(transaction => (
-                                <TransactionAccordionItem
+                            filteredTransactions.map((transaction, index) => (
+                                <div
                                     key={transaction.id}
-                                    transaction={transaction}
-                                    onEdit={(id) => console.log('Edit', id)}
-                                    onDelete={(id) => console.log('Delete', id)}
-                                    onPreviewAttachment={(id) => handlePreviewAttachment(id)}
-                                />
+                                    ref={index === filteredTransactions.length - 1 ? lastItemRef : undefined}
+                                >
+                                    <TransactionAccordionItem
+                                        transaction={transaction}
+                                        onEdit={(id) => console.log('Edit', id)}
+                                        onDelete={(id) => console.log('Delete', id)}
+                                        onPreviewAttachment={(id) => handlePreviewAttachment(id)}
+                                    />
+                                </div>
                             ))
                         )}
                     </div>
+
+                    {/* Loading more indicator */}
+                    {isFetchingNextPage && (
+                        <div className="flex items-center justify-center py-8 gap-2">
+                            <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                            <span className="text-sm text-slate-400">Carregando mais transações...</span>
+                        </div>
+                    )}
+
+                    {/* End of list */}
+                    {!hasNextPage && filteredTransactions.length > 0 && (
+                        <div className="text-center py-8">
+                            <span className="text-xs text-slate-600">Todas as transações foram carregadas</span>
+                        </div>
+                    )}
                 </main>
             </div>
 

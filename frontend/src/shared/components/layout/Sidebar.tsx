@@ -13,14 +13,18 @@ export function Sidebar() {
   const location = useLocation();
   const { activeMembership } = useWorkspaceStore();
 
-  const activeTab = location.pathname.includes('/transactions') ? 'extract' : 'home';
+  const activeTab = location.pathname.includes('/transactions')
+    ? 'extract'
+    : location.pathname.includes('/team')
+      ? 'team'
+      : 'home';
   const isAccountant = activeMembership?.role === 'ACCOUNTANT';
 
   const navItems = [
     { id: 'home', icon: Home, label: 'Dashboard', action: () => navigate(`/${activeMembership?.id || ''}/dashboard`) },
     { id: 'extract', icon: Receipt, label: 'Extrato', action: () => navigate(`/${activeMembership?.id || ''}/transactions`) },
+    { id: 'team', icon: User, label: 'Equipe', action: () => navigate(`/${activeMembership?.id || ''}/team`) },
     { id: 'analytics', icon: BarChart2, label: 'Análises', action: () => { } },
-    { id: 'profile', icon: User, label: 'Perfil', action: () => { } },
   ];
 
   return (

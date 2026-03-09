@@ -55,6 +55,7 @@ enum InviteStatus {
   ACCEPTED
   EXPIRED
   REVOKED
+  REJECTED
 }
 
 enum AuditAction {

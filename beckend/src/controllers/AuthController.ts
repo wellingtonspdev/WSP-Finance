@@ -79,4 +79,18 @@ export class AuthController {
       throw err;
     }
   }
+
+  // --- Handler: Get Me (Sincronização Pós-F5) ---
+  async me(req: Request, res: Response) {
+    try {
+      const userId = req.user.id;
+      const userData = await this.authService.getMe(userId);
+      return res.status(200).json(userData);
+    } catch (err: any) {
+      if (err.message === 'User not found') {
+        return res.status(404).json({ message: 'Usuário não encontrado' });
+      }
+      throw err;
+    }
+  }
 }

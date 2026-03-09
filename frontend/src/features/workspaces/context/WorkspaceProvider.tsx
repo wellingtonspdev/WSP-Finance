@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import type { Workspace } from '../types';
 import { api } from '../../../shared/lib/axios';
 import { useAuth } from '../../../app/AuthProvider';
@@ -16,7 +15,7 @@ const WorkspaceContext = createContext<WorkspaceContextType>({} as WorkspaceCont
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
+  // const queryClient = useQueryClient(); // Removido por não ser mais necessário
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
 
   // PACT V3: Varrendo memberships direto do Payload de Autenticação (Zero Request)
@@ -52,12 +51,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     // 2. Sync Header (Axios)
     api.defaults.headers.common['x-workspace-id'] = workspaceId.toString();
 
-    // 3. Hard Reset do Cache (Segurança e Consistência)
-    // Remove todas as queries cacheadas para garantir que dados da "Empresa A"
-    // não apareçam na "Empresa B"
-    queryClient.removeQueries();
-
-    // 4. Refetch (Opcional, pois os componentes farão mount novamente)
+    // 3. O React Query já segmenta os dados por [workspaceId] em queryKeys.ts
+    // Não precisamos de removeQueries() aqui, o que evita destruir fetches ativos.
     // queryClient.invalidateQueries(); 
   };
 

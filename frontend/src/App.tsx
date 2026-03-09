@@ -8,10 +8,12 @@ import { ForgotPasswordPage } from './features/auth/routes/ForgotPasswordPage';
 import { ResetPasswordPage } from './features/auth/routes/ResetPasswordPage';
 import { DashboardPage } from './features/dashboard/routes/DashboardPage';
 import { TransactionHistoryPage } from './features/transactions/pages/TransactionHistoryPage';
+import { TeamSettingsPage } from './features/workspaces/routes/TeamSettingsPage';
 import { WorkspaceGuard } from './shared/components/guards/WorkspaceGuard';
 import { ThemeWrapper } from './shared/components/layout/ThemeWrapper';
 import { InviteLandingPage } from './features/workspaces/routes/InviteLandingPage';
 import { AccountantHubPage } from './features/accountant/routes/AccountantHubPage';
+import { InviteInboxPage } from './features/accountant/routes/InviteInboxPage';
 
 import { UIProvider } from './shared/context/UIProvider';
 
@@ -49,6 +51,14 @@ export default function App() {
                 </PrivateRoute>
               }
             />
+            <Route
+              path="/accountant/invites"
+              element={
+                <PrivateRoute>
+                  <InviteInboxPage />
+                </PrivateRoute>
+              }
+            />
 
             {/* Rotas Protegidas e Aninhadas sob um Guardião de Contexto (WorkspaceId) */}
             <Route
@@ -62,6 +72,7 @@ export default function App() {
               {/* O próprio WorkspaceGuard fará o Replace(/) para o ID persistido */}
               <Route path=":workspaceId/dashboard" element={<DashboardPage />} />
               <Route path=":workspaceId/transactions" element={<TransactionHistoryPage />} />
+              <Route path=":workspaceId/team" element={<TeamSettingsPage />} />
             </Route>
           </Routes>
         </UIProvider>

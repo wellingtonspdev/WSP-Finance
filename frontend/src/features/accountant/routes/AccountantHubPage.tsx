@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, FileText, AlertTriangle, ArrowRight, Search, MoreVertical } from 'lucide-react';
+import { Users, FileText, AlertTriangle, ArrowRight, Search, MoreVertical, UserPlus } from 'lucide-react';
 import { useAuth } from '../../../app/AuthProvider';
 import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 import { AppLayout } from '../../../shared/components/layout/AppLayout';
@@ -8,18 +8,22 @@ import { HealthStatusBadge } from '../components/HealthStatusBadge';
 import { ActivityFeed } from '../components/ActivityFeed';
 import { AccountantMobileHeader } from '../components/AccountantMobileHeader';
 import type { ActivityEvent } from '../components/ActivityFeed';
+import { InviteClientModal } from '../components/InviteClientModal';
 
 export function AccountantHubPage() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { memberships, setActiveWorkspaceId } = useWorkspaceStore();
+    const [showInviteModal, setShowInviteModal] = useState(false);
 
     // Filtra as memberships para pegar apenas aquelas onde o user é ACCOUNTANT
     const clientMemberships = memberships.filter(m => m.role === 'ACCOUNTANT');
 
-    // Ao entrar no HUB, desativamos o workspace atual do Zustand para garantir uma "página neutra"
+    // Ao entrar no HUB, desativamos o workspace atual para garantir uma "página neutra"
     useEffect(() => {
         setActiveWorkspaceId(null);
+        // Limpar persistência stale de workspace anterior
+        localStorage.removeItem('wsp_active_workspace');
     }, [setActiveWorkspaceId]);
 
     // Se ele não for contador de ninguém, ele não deveria nem estar aqui, mas mostraremos vazio.
@@ -54,20 +58,29 @@ export function AccountantHubPage() {
                             <h1 className="text-2xl font-bold text-white tracking-tight hidden lg:block">Olá, {user?.name.split(' ')[0]}</h1>
                             <p className="text-sm text-slate-400">Resumo da sua auditoria e pendências ativas.</p>
                         </div>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                            <input
-                                type="text"
-                                placeholder="Buscar cliente ou documento..."
-                                className="w-full md:w-64 bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#1978e5] transition-colors"
-                            />
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setShowInviteModal(true)}
+                                className="px-4 py-2 rounded-xl bg-[#1978e5]/10 text-[#1978e5] hover:bg-[#1978e5]/20 border border-[#1978e5]/20 font-bold text-xs transition-all flex items-center gap-2"
+                            >
+                                <UserPlus className="w-4 h-4" />
+                                Convidar Cliente
+                            </button>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar cliente ou documento..."
+                                    className="w-full md:w-64 bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#1978e5] transition-colors"
+                                />
+                            </div>
                         </div>
                     </header>
 
                     {/* KPI Summary Cards - HTML Driven snap-x */}
                     <div className="flex overflow-x-auto pb-4 gap-4 no-scrollbar snap-x snap-mandatory md:grid md:grid-cols-3 md:pb-0 mb-8 w-full min-w-0">
                         {/* Card 1: Total Clientes */}
-                        <div className="bg-[#1978e5]/[0.05] backdrop-blur-[12px] border border-white/[0.08] p-5 rounded-2xl flex flex-col gap-1 min-w-[85%] snap-center md:min-w-0">
+                        <div className="bg-[#1978e5]/5 backdrop-blur-[12px] border border-white/10 p-5 rounded-2xl flex flex-col gap-1 min-w-[85%] snap-center md:min-w-0">
                             <Users className="w-5 h-5 text-[#1978e5] mb-2" />
                             <p className="text-sm text-slate-400 font-medium">Clientes Ativos</p>
                             <h3 className="text-3xl font-bold text-white">{activeClients}</h3>
@@ -77,7 +90,7 @@ export function AccountantHubPage() {
                         </div>
 
                         {/* Card 2: Documentos Pendentes */}
-                        <div className="bg-[#1978e5]/[0.05] backdrop-blur-[12px] border border-white/[0.08] p-5 rounded-2xl flex flex-col gap-1 min-w-[85%] snap-center md:min-w-0">
+                        <div className="bg-[#1978e5]/5 backdrop-blur-[12px] border border-white/10 p-5 rounded-2xl flex flex-col gap-1 min-w-[85%] snap-center md:min-w-0">
                             <FileText className="w-5 h-5 text-amber-500 mb-2" />
                             <p className="text-sm text-slate-400 font-medium">Documentos Pendentes</p>
                             <h3 className="text-3xl font-bold text-white">{pendingDocs}</h3>
@@ -87,7 +100,7 @@ export function AccountantHubPage() {
                         </div>
 
                         {/* Card 3: Alertas Críticos */}
-                        <div className="bg-[#1978e5]/[0.05] backdrop-blur-[12px] border border-white/[0.08] p-5 rounded-2xl flex flex-col gap-1 min-w-[85%] snap-center md:min-w-0">
+                        <div className="bg-[#1978e5]/5 backdrop-blur-[12px] border border-white/10 p-5 rounded-2xl flex flex-col gap-1 min-w-[85%] snap-center md:min-w-0">
                             <AlertTriangle className="w-5 h-5 text-red-500 mb-2" />
                             <p className="text-sm text-slate-400 font-medium">Alertas Críticos</p>
                             <h3 className="text-3xl font-bold text-white">{criticalAlerts}</h3>
@@ -99,7 +112,7 @@ export function AccountantHubPage() {
 
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 mt-4 px-4 md:px-0">
                         <h2 className="text-xl font-bold tracking-tight">Torre de Comando</h2>
-                        <div className="flex bg-[#1978e5]/[0.05] border border-white/5 p-1 rounded-lg self-start">
+                        <div className="flex bg-[#1978e5]/5 border border-white/10 p-1 rounded-lg self-start overflow-x-auto no-scrollbar max-w-full">
                             <button className="px-4 py-1.5 text-xs font-bold rounded-md bg-[#1978e5] text-white shadow-sm transition-all whitespace-nowrap">
                                 Todos ({activeClients})
                             </button>
@@ -116,7 +129,7 @@ export function AccountantHubPage() {
                         <div className="relative w-full">
                             <Search className="w-5 h-5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                             <input
-                                className="w-full bg-[#1978e5]/[0.05] backdrop-blur-[12px] border border-white/[0.08] rounded-xl py-2.5 pl-10 pr-4 text-sm focus:border-[#1978e5] focus:ring-1 focus:ring-[#1978e5] outline-none transition-all placeholder:text-slate-500 text-white"
+                                className="w-full bg-[#1978e5]/5 backdrop-blur-[12px] border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:border-[#1978e5] focus:ring-1 focus:ring-[#1978e5] outline-none transition-all placeholder:text-slate-500 text-white"
                                 placeholder="Buscar cliente ou documento..."
                                 type="text"
                             />
@@ -206,7 +219,7 @@ export function AccountantHubPage() {
 
                             <div className="space-y-3">
                                 {clientMemberships.map((membership, index) => (
-                                    <div key={membership.id} className="bg-white/5 backdrop-blur-[12px] border border-white/[0.08] p-4 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-all">
+                                    <div key={membership.id} className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-all">
                                         <div className="flex items-center gap-3">
                                             <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#1a0b2e] to-[#1978e5]/20 flex items-center justify-center border border-white/10 shadow-inner shrink-0 text-white font-bold overflow-hidden">
                                                 {membership.name.substring(0, 2).toUpperCase()}
@@ -257,6 +270,8 @@ export function AccountantHubPage() {
                 {/* Terceira Coluna: Activity Feed (Fixo na direita no Desktop, Empilhado abaixo no Mobile) */}
                 <ActivityFeed events={mockEvents} />
             </div>
+
+            <InviteClientModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
         </AppLayout >
     );
 }

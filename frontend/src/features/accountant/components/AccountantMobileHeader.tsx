@@ -1,8 +1,8 @@
 import { useAuth } from '../../../app/AuthProvider';
-import { Bell, Settings, Landmark } from 'lucide-react';
+import { Bell, Settings, Landmark, LogOut } from 'lucide-react';
 
 export function AccountantMobileHeader() {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
 
     return (
         <header className="flex lg:hidden sticky top-0 z-30 bg-[#11051f]/80 backdrop-blur-md border-b border-white/10 px-5 py-4 items-center justify-between mb-6 w-full">
@@ -23,6 +23,12 @@ export function AccountantMobileHeader() {
                 </button>
                 <button className="p-2 rounded-full text-slate-400 hover:bg-white/5 hover:text-white transition-colors">
                     <Settings className="w-5 h-5" />
+                </button>
+                <button
+                    onClick={() => logout()}
+                    className="p-2 rounded-full text-red-400 hover:bg-red-500/10 hover:text-red-500 transition-colors ml-1"
+                >
+                    <LogOut className="w-5 h-5" />
                 </button>
             </div>
         </header>

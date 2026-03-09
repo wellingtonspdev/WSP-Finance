@@ -3,7 +3,7 @@ import { z } from 'zod';
 // Schema for generic transactions and bridge
 export const transactionFormSchema = z.object({
     description: z.string().min(3, 'A descrição deve ter pelo menos 3 caracteres'),
-    amount: z.number().min(0, 'O valor não pode ser negativo'),
+    amount: z.number().min(0.01, 'O valor não pode ser zero'),
     date: z.string(), // ISO String or YYYY-MM-DD
     type: z.enum(['INCOME', 'EXPENSE', 'BRIDGE']), // Adicionado BRIDGE mock local
 
@@ -27,21 +27,38 @@ export const transactionFormSchema = z.object({
     attachment: z.any().optional(), // File type avoid runtime crash on SSR or Zod File checks
     attachmentUrl: z.string().optional(),
     attachmentSize: z.number().optional(),
-}).refine(data => {
-    // Validar Bridge DTO Localmente
+}).superRefine((data, ctx) => {
     if (data.type === 'BRIDGE') {
         if (!data.toWorkspaceId || !data.toAccountId || !data.accountId) {
-            return false;
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Preencha todas as contas do Pró-labore",
+                path: ["toAccountId"] // highlight some field
+            });
+        }
+    } else {
+        if (!data.accountId || data.accountId <= 0) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Selecione uma Conta Bancária",
+                path: ["accountId"]
+            });
+        }
+        if (!data.categoryId || data.categoryId <= 0) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Selecione uma Categoria",
+                path: ["categoryId"]
+            });
         }
     }
-    return true;
-}, "Preencha todos os campos do Pró-labore");
+});
 
 export type CreateTransactionDTO = z.infer<typeof transactionFormSchema>;
 
 export const transactionPayloadSchema = z.object({
     description: z.string().min(3, 'A descrição deve ter pelo menos 3 caracteres'),
-    amount: z.number().min(0, 'O valor não pode ser negativo'),
+    amount: z.number().min(0.01, 'O valor não pode ser zero'),
     date: z.string(),
     type: z.enum(['INCOME', 'EXPENSE', 'BRIDGE']),
     accountId: z.number().int().optional(),

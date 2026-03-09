@@ -43,28 +43,19 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
 
-  // Fonte Única da Verdade (V2): URL > Params
+  // Fonte Única da Verdade (V3): URL é a ÚNICA fonte de workspace ID.
   // Exemplo de pathname: "/15/dashboard" -> ID = 15
+  // Em rotas como "/accountant/hub", path[1] = "accountant" (não numérico) → sem header.
   const pathParts = window.location.pathname.split('/');
   const possibleWorkspaceId = pathParts[1];
 
   if (possibleWorkspaceId && !isNaN(parseInt(possibleWorkspaceId, 10))) {
     config.headers['x-workspace-id'] = possibleWorkspaceId;
   } else {
-    // Fallback: Se estivermos na raiz ou pagina de perfil genérica, 
-    // tentar pegar da persistência mínima do Zustand (para evitar requests órfãos)
-    const storedState = localStorage.getItem('wsp-workspace-storage');
-    if (storedState) {
-      try {
-        const parsed = JSON.parse(storedState);
-        const persistId = parsed.state?.activeWorkspaceId;
-        if (persistId) {
-          config.headers['x-workspace-id'] = persistId.toString();
-        }
-      } catch (e) {
-        // Silencioso. O Backend devolverá 400/403 se a rota exigir WID.
-      }
-    }
+    // Em rotas sem workspace (ex: /accountant/*, /login, /profile),
+    // remover o header para evitar poluição de contexto.
+    // O Backend devolverá 400/403 se a rota exigir WID.
+    delete config.headers['x-workspace-id'];
   }
 
   return config;
