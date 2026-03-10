@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
+import { tenantContext } from '../lib/tenantContext';
 
 export async function WorkspaceMiddleware(req: Request, res: Response, next: NextFunction) {
   const workspaceIdHeader = req.headers['x-workspace-id'];
@@ -52,7 +53,10 @@ export async function WorkspaceMiddleware(req: Request, res: Response, next: Nex
     // Opcional: Injetar a role também se quiser usar no controller
     // (req as any).userRole = membership.role;
 
-    return next();
+    // Executa o restante da cadeia dentro do contexto isolado
+    return tenantContext.run({ currentWorkspaceId: workspaceId }, () => {
+      next();
+    });
   } catch (err) {
     console.error('Workspace Middleware Error:', err);
     return res.status(500).json({ message: 'Internal server error validating workspace' });

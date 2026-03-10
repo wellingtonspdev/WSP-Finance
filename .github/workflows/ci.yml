@@ -19,6 +19,24 @@ jobs:
     name: Backend Tests + Coverage
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: wsp_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:password@localhost:5432/wsp_test_db?schema=public
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,6 +56,16 @@ jobs:
       - name: Install dependencies (Backend)
         working-directory: ./beckend
         run: pnpm install --frozen-lockfile
+
+      - name: Strict Typecheck (TSC)
+        working-directory: ./beckend
+        run: pnpm exec tsc --noEmit
+
+      - name: Setup Database (Migrate & Seed)
+        working-directory: ./beckend
+        run: |
+          npx prisma migrate deploy
+          npx prisma db seed
 
       - name: Run tests with coverage (Backend)
         working-directory: ./beckend
