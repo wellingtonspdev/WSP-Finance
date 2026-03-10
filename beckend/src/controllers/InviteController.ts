@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { InviteService } from '../services/InviteService';
 import { prisma } from '../lib/prisma'; export class InviteController {
+
+export class InviteController {
     private inviteService: InviteService;
 
     constructor() {
@@ -101,6 +103,8 @@ import { prisma } from '../lib/prisma'; export class InviteController {
         try {
             const userId = req.user.id;
             // Precisa buscar o email do user pelo ID (vem do JWT)
+            const { PrismaClient } = require('@prisma/client');
+            const prisma = new PrismaClient();
             const user = await prisma.user.findUnique({ where: { id: userId } });
             if (!user) return res.status(404).json({ message: 'User not found' });
 
