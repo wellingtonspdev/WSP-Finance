@@ -1,10 +1,10 @@
-import { prisma } from '../lib/prisma';
+import { prisma, ExtendedTransactionClient } from '../lib/prisma';
 import { Prisma, Transaction } from '@prisma/client';
 
 export class TransactionRepository {
   async create(
     data: Prisma.TransactionCreateInput,
-    tx: Prisma.TransactionClient = prisma
+    tx: ExtendedTransactionClient = prisma
   ): Promise<Transaction> {
     return await tx.transaction.create({ data });
   }
@@ -77,7 +77,7 @@ export class TransactionRepository {
     });
   }
 
-  async delete(id: string, tx: Prisma.TransactionClient = prisma): Promise<void> {
+  async delete(id: string, tx: ExtendedTransactionClient = prisma): Promise<void> {
     await tx.transaction.delete({ where: { id } });
   }
 }
