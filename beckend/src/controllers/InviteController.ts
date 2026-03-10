@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { InviteService } from '../services/InviteService';
+import { prisma } from '../lib/prisma'; export class InviteController {
 
 export class InviteController {
     private inviteService: InviteService;

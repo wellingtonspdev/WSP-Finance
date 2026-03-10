@@ -1,4 +1,5 @@
 import { ArrowDown, ArrowUp, Eye } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { CardSkeleton } from '../../../shared/components/skeletons/CardSkeleton';
 import type { DashboardSummary } from '../api/getSummary';
 
@@ -17,14 +18,24 @@ export function SummaryCards({ data, isLoading }: Props) {
     );
   }
 
-  const formatCurrency = (value: number) => 
+  const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
+  };
+
   return (
-    <div className="px-6 lg:px-0 mb-8 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-      
+    <motion.div
+      className="px-6 lg:px-0 mb-8 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start"
+      initial="hidden"
+      animate="visible"
+      variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.12 } } }}
+    >
+
       {/* Card 1: Saldo Total (Destaque) */}
-      <section className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-lg lg:h-full flex flex-col justify-center">
+      <motion.section variants={cardVariants} className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-lg lg:h-full flex flex-col justify-center">
         <div className="flex items-center justify-between mb-4">
           <span className="text-slate-300 text-sm font-medium uppercase tracking-wider">Saldo Total</span>
           <button className="text-slate-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
@@ -40,11 +51,11 @@ export function SummaryCards({ data, isLoading }: Props) {
           <span className="w-2 h-2 rounded-full bg-green-500"></span>
           Atualizado agora
         </div>
-      </section>
+      </motion.section>
 
-      {/* Container Entradas/Saídas (Mobile: Grid 2 / Desktop: Grid 2 dentro da col-span-2) */}
-      <section className="lg:col-span-2 grid grid-cols-2 gap-4 lg:gap-6">
-        
+      {/* Container Entradas/Saídas */}
+      <motion.section variants={cardVariants} className="lg:col-span-2 grid grid-cols-2 gap-4 lg:gap-6">
+
         {/* Card 2: Entradas */}
         <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-5 shadow-sm hover:bg-white/10 transition-colors">
           <div className="flex items-center gap-3 mb-4">
@@ -66,14 +77,14 @@ export function SummaryCards({ data, isLoading }: Props) {
             <span className="text-slate-300 text-sm font-medium">Saídas</span>
           </div>
           <p className="text-xl lg:text-2xl font-bold text-white mb-2">{formatCurrency(data?.flow.expense || 0)}</p>
-          
+
           {/* Barra de Progresso */}
           <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
             <div className="bg-gradient-to-r from-red-400 to-red-600 h-1.5 rounded-full" style={{ width: '72%' }}></div>
           </div>
           <p className="text-[10px] text-slate-400 mt-2 text-right">72% do orçamento</p>
         </div>
-      </section>
-    </div>
+      </motion.section>
+    </motion.div>
   );
 }
