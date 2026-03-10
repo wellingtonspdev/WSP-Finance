@@ -1,7 +1,6 @@
-import { PrismaClient, WorkspaceRole, InviteStatus } from '@prisma/client';
+import { WorkspaceRole, InviteStatus } from '@prisma/client';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 export class InviteService {
     /**
