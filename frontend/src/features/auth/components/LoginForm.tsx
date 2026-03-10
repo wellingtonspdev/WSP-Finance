@@ -1,4 +1,5 @@
 import { useForm } from 'react-hook-form';
+import { motion } from 'framer-motion';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLogin } from '../hooks/useLogin';
@@ -38,7 +39,13 @@ export function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-6">
+    <motion.form
+      onSubmit={handleSubmit(onSubmit)}
+      className="w-full space-y-6"
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+    >
       <div className="text-center space-y-2 mb-8">
         <h1 className="text-3xl font-bold text-white tracking-tight">Bem-vindo</h1>
         <p className="text-slate-400 text-sm">Insira suas credenciais para acessar</p>
@@ -67,8 +74,8 @@ export function LoginForm() {
             {...register('password')}
             icon={<Lock className="w-5 h-5" />}
             rightElement={
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="text-slate-500 hover:text-white focus:outline-none transition-colors p-1"
               >
@@ -77,8 +84,8 @@ export function LoginForm() {
             }
           />
           <div className="flex justify-end">
-            <Link 
-              to="/forgot-password" 
+            <Link
+              to="/forgot-password"
               className="text-xs font-medium text-slate-400 hover:text-[#D946EF] transition-colors"
             >
               Esqueceu a senha?
@@ -99,6 +106,6 @@ export function LoginForm() {
           </Link>
         </p>
       </footer>
-    </form>
+    </motion.form>
   );
 }

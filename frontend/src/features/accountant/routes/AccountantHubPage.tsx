@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Users, FileText, AlertTriangle, ArrowRight, Search, MoreVertical, UserPlus } from 'lucide-react';
 import { useAuth } from '../../../app/AuthProvider';
 import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
@@ -78,37 +79,42 @@ export function AccountantHubPage() {
                     </header>
 
                     {/* KPI Summary Cards - HTML Driven snap-x */}
-                    <div className="flex overflow-x-auto pb-4 gap-4 no-scrollbar snap-x snap-mandatory md:grid md:grid-cols-3 md:pb-0 mb-8 w-full min-w-0">
+                    <motion.div
+                        className="flex overflow-x-auto pb-4 gap-4 no-scrollbar snap-x snap-mandatory md:grid md:grid-cols-3 md:pb-0 mb-8 w-full min-w-0"
+                        initial="hidden"
+                        animate="visible"
+                        variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.1 } } }}
+                    >
                         {/* Card 1: Total Clientes */}
-                        <div className="bg-[#1978e5]/5 backdrop-blur-[12px] border border-white/10 p-5 rounded-2xl flex flex-col gap-1 min-w-[85%] snap-center md:min-w-0">
+                        <motion.div className="bg-[#1978e5]/5 backdrop-blur-[12px] border border-white/10 p-5 rounded-2xl flex flex-col gap-1 min-w-[85%] snap-center md:min-w-0" variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}>
                             <Users className="w-5 h-5 text-[#1978e5] mb-2" />
                             <p className="text-sm text-slate-400 font-medium">Clientes Ativos</p>
                             <h3 className="text-3xl font-bold text-white">{activeClients}</h3>
                             <p className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
                                 <span className="font-bold">+3 este mês</span>
                             </p>
-                        </div>
+                        </motion.div>
 
                         {/* Card 2: Documentos Pendentes */}
-                        <div className="bg-[#1978e5]/5 backdrop-blur-[12px] border border-white/10 p-5 rounded-2xl flex flex-col gap-1 min-w-[85%] snap-center md:min-w-0">
+                        <motion.div className="bg-[#1978e5]/5 backdrop-blur-[12px] border border-white/10 p-5 rounded-2xl flex flex-col gap-1 min-w-[85%] snap-center md:min-w-0" variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}>
                             <FileText className="w-5 h-5 text-amber-500 mb-2" />
                             <p className="text-sm text-slate-400 font-medium">Documentos Pendentes</p>
                             <h3 className="text-3xl font-bold text-white">{pendingDocs}</h3>
                             <p className="text-xs text-amber-500 flex items-center gap-1 mt-1">
                                 <span className="font-bold">Atenção ao prazo</span>
                             </p>
-                        </div>
+                        </motion.div>
 
                         {/* Card 3: Alertas Críticos */}
-                        <div className="bg-[#1978e5]/5 backdrop-blur-[12px] border border-white/10 p-5 rounded-2xl flex flex-col gap-1 min-w-[85%] snap-center md:min-w-0">
+                        <motion.div className="bg-[#1978e5]/5 backdrop-blur-[12px] border border-white/10 p-5 rounded-2xl flex flex-col gap-1 min-w-[85%] snap-center md:min-w-0" variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}>
                             <AlertTriangle className="w-5 h-5 text-red-500 mb-2" />
                             <p className="text-sm text-slate-400 font-medium">Alertas Críticos</p>
                             <h3 className="text-3xl font-bold text-white">{criticalAlerts}</h3>
                             <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
                                 <span className="font-bold">Ações imediatas</span>
                             </p>
-                        </div>
-                    </div>
+                        </motion.div>
+                    </motion.div>
 
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 mt-4 px-4 md:px-0">
                         <h2 className="text-xl font-bold tracking-tight">Torre de Comando</h2>
@@ -160,7 +166,13 @@ export function AccountantHubPage() {
                                             </tr>
                                         )}
                                         {clientMemberships.map((membership, index) => (
-                                            <tr key={membership.id} className="hover:bg-white/[0.02] transition-colors group">
+                                            <motion.tr
+                                                key={membership.id}
+                                                className="hover:bg-white/5 transition-colors group"
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: index * 0.05, duration: 0.3 }}
+                                            >
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-slate-800 to-slate-700 flex items-center justify-center border border-white/10 shadow-inner shrink-0 text-white font-bold">
@@ -201,7 +213,7 @@ export function AccountantHubPage() {
                                                         </button>
                                                     </div>
                                                 </td>
-                                            </tr>
+                                            </motion.tr>
                                         ))}
                                     </tbody>
                                 </table>
@@ -219,7 +231,13 @@ export function AccountantHubPage() {
 
                             <div className="space-y-3">
                                 {clientMemberships.map((membership, index) => (
-                                    <div key={membership.id} className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-all">
+                                    <motion.div
+                                        key={membership.id}
+                                        className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-all"
+                                        initial={{ opacity: 0, y: 16 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: index * 0.06, duration: 0.3 }}
+                                    >
                                         <div className="flex items-center gap-3">
                                             <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#1a0b2e] to-[#1978e5]/20 flex items-center justify-center border border-white/10 shadow-inner shrink-0 text-white font-bold overflow-hidden">
                                                 {membership.name.substring(0, 2).toUpperCase()}
@@ -259,7 +277,7 @@ export function AccountantHubPage() {
                                                 <ArrowRight className="w-4 h-4" />
                                             </button>
                                         </div>
-                                    </div>
+                                    </motion.div>
                                 ))}
                             </div>
                         </div>
