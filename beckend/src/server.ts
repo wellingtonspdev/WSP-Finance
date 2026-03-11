@@ -8,6 +8,8 @@ import path from 'path';
 import { router } from './routes';
 import swaggerFile from './swagger-output.json'; // Arquivo autogerado 
 import { CronService } from './services/CronService';
+import { Prisma } from '@prisma/client';
+import { AuditLogService } from './services/AuditLogService';
 
 const app = express();
 
@@ -32,7 +34,8 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 app.use(router);
 
 // Global Error Handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+// Handler exportado para permitir Testes Unitários Isolados
+export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof ZodError) {
     // Traduz os campos do Zod para mensagens legíveis em PT-BR
     const fieldLabels: Record<string, string> = {
@@ -64,6 +67,51 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     return;
   }
 
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    const prismaErr = err as Prisma.PrismaClientKnownRequestError;
+    // P2004: A constraint failed on the database
+    // P2010: Raw query failed (sometimes thrown when RLS blocks bypass)
+    if (prismaErr.code === 'P2004' || prismaErr.code === 'P2010') {
+      const isRlsViolation = prismaErr.message.toLowerCase().includes('row-level security') || 
+                             prismaErr.message.toLowerCase().includes('policy') ||
+                             (prismaErr.meta && JSON.stringify(prismaErr.meta).toLowerCase().includes('row-level security'));
+
+      if (isRlsViolation) {
+        const customReq = req as any;
+        const userId = customReq.user?.id;
+        const workspaceId = customReq.headers['x-workspace-id'] ? Number(customReq.headers['x-workspace-id']) : undefined;
+
+        if (userId) {
+          AuditLogService.logAsync({
+            userId,
+            workspaceId: workspaceId || 0,
+            action: 'DELETE', // Default mapped action per instructions, though it could be UPDATE/SELECT based on context
+            entity: 'RLS_VIOLATION',
+            entityId: 'SECURITY_BLOCK',
+            ipAddress: customReq.ip,
+            userAgent: customReq.headers['user-agent'],
+            newState: { url: customReq.originalUrl, method: customReq.method }
+          }).catch(console.error);
+        }
+
+        res.status(403).json({
+          status: 'access_denied',
+          message: 'Workspace isolation violated',
+          ...(process.env.NODE_ENV === 'development' && { errorDetails: prismaErr.message, meta: prismaErr.meta })
+        });
+        return;
+      } else {
+        // P2004 FK/Constraint regular
+        res.status(400).json({
+          status: 'bad_request',
+          message: 'Database constraint violation',
+          ...(process.env.NODE_ENV === 'development' && { errorDetails: prismaErr.message, meta: prismaErr.meta })
+        });
+        return;
+      }
+    }
+  }
+
   console.error(err);
 
   res.status(500).json({
@@ -71,7 +119,9 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     message: 'Internal server error',
   });
   return;
-});
+};
+
+app.use(errorHandler);
 
 // Inicializar Cron Jobs
 const cronService = new CronService();

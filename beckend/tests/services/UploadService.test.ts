@@ -24,6 +24,9 @@ vi.mock('../../src/lib/prisma', () => {
             transaction: {
                 aggregate: vi.fn().mockResolvedValue({ _sum: { attachmentSize: 500 * 1024 * 1024 } }), // 500MB usados
                 findFirst: vi.fn().mockResolvedValue({ attachmentUrl: 'workspaces/1/receipt/file.pdf' })
+            },
+            auditLog: {
+                create: vi.fn().mockResolvedValue(true)
             }
         }
     };
