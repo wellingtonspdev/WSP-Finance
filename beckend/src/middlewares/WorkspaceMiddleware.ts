@@ -59,6 +59,7 @@ export async function WorkspaceMiddleware(req: Request, res: Response, next: Nex
       userRole: membership.role,
       workspaceType: membership.workspace.type 
     }, () => {
+    return tenantContext.run({ currentWorkspaceId: workspaceId }, () => {
       next();
     });
   } catch (err) {

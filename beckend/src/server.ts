@@ -45,6 +45,9 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
     return;
   }
 
+// Global Error Handler
+// Handler exportado para permitir Testes Unitários Isolados
+export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof ZodError) {
     // Traduz os campos do Zod para mensagens legíveis em PT-BR
     const fieldLabels: Record<string, string> = {
