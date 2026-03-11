@@ -22,8 +22,25 @@ enum WorkspaceType {
 enum DocumentType {
   CPF
   CNPJ
+  PASSPORT
 }
 
+// Fechamento e Importações
+enum MovementSource {
+  OFX
+  OPEN_FINANCE
+  OCR
+  MANUAL
+}
+
+enum MovementStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  MERGED
+}
+
+// Master / App Core
 enum TransactionType {
   INCOME
   EXPENSE
@@ -139,12 +156,16 @@ model Workspace {
   city         String?
   state        String?
 
+  // Governança e Fecho Fiscal
+  closedUntil  DateTime?
+
   // Relacionamentos
   members      WorkspaceMember[] // Membros do workspace
   accounts     Account[]
   categories   Category[]
   transactions Transaction[]
   invites      WorkspaceInvite[]
+  bankMovements BankMovement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -173,6 +194,7 @@ model Account {
   workspaceId       Int
   workspace         Workspace     @relation(fields: [workspaceId], references: [id])
   transactions      Transaction[]
+  bankMovements     BankMovement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -318,4 +340,29 @@ model WorkspaceInvite {
   @@index([token])
   @@index([workspaceId])
   @@index([email])
+}
+
+// Importações Bancárias (Área de Staging - Amortecedor)
+model BankMovement {
+  id                String         @id @default(uuid())
+  workspaceId       Int
+  workspace         Workspace      @relation(fields: [workspaceId], references: [id])
+  accountId         Int
+  account           Account        @relation(fields: [accountId], references: [id])
+  
+  amount            Decimal        @db.Decimal(19, 4)
+  date              DateTime
+  description       String
+  source            MovementSource
+  status            MovementStatus @default(PENDING)
+  
+  fitid             String?
+  hashDeduplication String?
+  rawPayload        Json           // Payload original do banco/ofx
+  
+  createdAt         DateTime       @default(now())
+
+  @@unique([workspaceId, fitid])
+  @@unique([workspaceId, hashDeduplication])
+  @@index([workspaceId, status])
 }
