@@ -54,7 +54,11 @@ export async function WorkspaceMiddleware(req: Request, res: Response, next: Nex
     // (req as any).userRole = membership.role;
 
     // Executa o restante da cadeia dentro do contexto isolado
-    return tenantContext.run({ currentWorkspaceId: workspaceId }, () => {
+    return tenantContext.run({ 
+      currentWorkspaceId: workspaceId,
+      userRole: membership.role,
+      workspaceType: membership.workspace.type 
+    }, () => {
       next();
     });
   } catch (err) {

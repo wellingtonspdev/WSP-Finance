@@ -5,6 +5,12 @@ import { CategoryRepository } from '../repositories/CategoryRepository';
 import { TransactionType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { UploadService } from './UploadService';
+import { AppError } from '../errors/AppError';
+import { tenantContext } from '../lib/tenantContext';
+import dayjs from 'dayjs';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+
+dayjs.extend(isSameOrBefore);
 
 interface CreateTransactionDTO {
   description: string;
@@ -60,9 +66,19 @@ export class TransactionService {
     const category = await this.categoryRepository.findByIdAndWorkspace(categoryId, workspaceId);
     if (!category) throw new Error('Category not found or access denied');
 
-    // Recupera o Workspace para obter o Linter Fiscal (taxRate)
     const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
-    if (!workspace) throw new Error('Workspace not found');
+    if (!workspace) throw new AppError('Workspace not found', 404);
+
+    // Guardião de Período Fiscal (closedUntil)
+    if (workspace.closedUntil) {
+      const store = tenantContext.getStore();
+      const isAccountantBypass = store?.userRole === 'ACCOUNTANT' && workspace.type === 'BUSINESS';
+      const isTargetDateClosed = dayjs(date).isSameOrBefore(dayjs(workspace.closedUntil), 'day');
+      
+      if (isTargetDateClosed && !isAccountantBypass) {
+        throw new AppError('Acesso negado: A data da transação pertence a um período fiscal fechado.', 403);
+      }
+    }
 
     const taxRate = workspace.taxRate; // Prisma lida como Decimal
 
@@ -161,7 +177,20 @@ export class TransactionService {
 
   async delete(id: string, workspaceId: number): Promise<void> {
     const transaction = await this.transactionRepository.findByIdAndWorkspace(id, workspaceId);
-    if (!transaction) throw new Error('Transaction not found or access denied');
+    if (!transaction) throw new AppError('Transaction not found or access denied', 404);
+
+    const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: { closedUntil: true, type: true } });
+    
+    // Guardião de Período Fiscal (closedUntil)
+    if (workspace?.closedUntil) {
+      const store = tenantContext.getStore();
+      const isAccountantBypass = store?.userRole === 'ACCOUNTANT' && workspace.type === 'BUSINESS';
+      const isTargetDateClosed = dayjs(transaction.date).isSameOrBefore(dayjs(workspace.closedUntil), 'day');
+      
+      if (isTargetDateClosed && !isAccountantBypass) {
+        throw new AppError('Acesso negado: A transação pertence a um período fiscal fechado e não pode ser deletada.', 403);
+      }
+    }
 
     // 1. Transação Atômica (Reembolsar Saldo + Apagar Registro)
     await prisma.$transaction(async (tx) => {
