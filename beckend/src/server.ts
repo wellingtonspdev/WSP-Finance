@@ -33,9 +33,18 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 // Rotas da Aplicação
 app.use(router);
 
+import { AppError } from './errors/AppError';
+
 // Global Error Handler
 // Handler exportado para permitir Testes Unitários Isolados
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({
+      status: 'error',
+      message: err.message,
+    });
+    return;
+  }
   if (err instanceof ZodError) {
     // Traduz os campos do Zod para mensagens legíveis em PT-BR
     const fieldLabels: Record<string, string> = {
