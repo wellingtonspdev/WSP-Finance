@@ -1,0 +1,27 @@
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+Error: Prisma schema validation - (validate wasm)
+Error code: P1012
+error: Error validating field `workspace` in model `BankMovement`: The relation field `workspace` on model `BankMovement` is missing an opposite relation field on the model `Workspace`. Either run `prisma format` or add it manually.
+  -->  prisma\schema.prisma:347
+   | 
+346 |   workspaceId       Int
+347 |   workspace         Workspace      @relation(fields: [workspaceId], references: [id])
+348 |   accountId         Int
+   | 
+error: Error validating field `account` in model `BankMovement`: The relation field `account` on model `BankMovement` is missing an opposite relation field on the model `Account`. Either run `prisma format` or add it manually.
+  -->  prisma\schema.prisma:349
+   | 
+348 |   accountId         Int
+349 |   account           Account        @relation(fields: [accountId], references: [id])
+350 |   
+   | 
+
+Validation Error Count: 2
+[Context: validate]
+
+Prisma CLI Version : 6.19.2
