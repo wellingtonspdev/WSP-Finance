@@ -3,6 +3,9 @@ import type { Transaction } from '../types';
 import { formatDecimalToBrl } from '../../../shared/lib/moneyFormat';
 import { ShoppingBag, Pencil, Trash, Clock, Tag, Briefcase, Zap, Home, DollarSign, Wallet, Paperclip, Eye } from 'lucide-react';
 import { useCapabilities } from '../../../shared/hooks/useCapabilities';
+import { LockIcon } from '../../../shared/components/LockIcon';
+import { isDateLocked } from '../../../shared/lib/fiscalLock';
+import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 
 const ICON_MAP: Record<string, React.ElementType> = {
     'tag': Tag,
@@ -23,7 +26,12 @@ interface TransactionAccordionItemProps {
 
 export function TransactionAccordionItem({ transaction, onEdit, onDelete, onPreviewAttachment }: TransactionAccordionItemProps) {
     const [isExpanded, setIsExpanded] = useState(false);
-    const { canEdit } = useCapabilities();
+    const { canEdit, activeRole } = useCapabilities();
+    const closedUntil = useWorkspaceStore(s => s.activeMembership?.closedUntil ?? null);
+    const isLocked = isDateLocked(transaction.date, closedUntil);
+
+    // Bypass: ACCOUNTANT pode operar em períodos fechados (backend permite)
+    const isActionBlocked = isLocked && activeRole !== 'ACCOUNTANT';
 
     // We should decide colors based on the data
     const isIncome = transaction.type === 'INCOME';
@@ -59,6 +67,7 @@ export function TransactionAccordionItem({ transaction, onEdit, onDelete, onPrev
                     </div>
                     <div className="flex-1">
                         <div className="flex items-center gap-2">
+                            {isLocked && <LockIcon transactionDate={transaction.date} />}
                             <p className="text-sm font-medium text-white break-words hyphens-auto">{transaction.description}</p>
                             {transaction.attachmentUrl && (
                                 <button
@@ -150,14 +159,26 @@ export function TransactionAccordionItem({ transaction, onEdit, onDelete, onPrev
                         {canEdit ? (
                             <>
                                 <button
-                                    onClick={() => onEdit && onEdit(transaction.id)}
-                                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 text-slate-300 text-sm font-medium hover:bg-white/10 transition-colors"
+                                    onClick={() => !isActionBlocked && onEdit && onEdit(transaction.id)}
+                                    disabled={isActionBlocked}
+                                    title={isActionBlocked ? 'Período auditado e fechado pelo seu contador' : undefined}
+                                    className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                                        isActionBlocked
+                                            ? 'border-white/5 text-slate-500 opacity-40 cursor-not-allowed'
+                                            : 'border-white/10 text-slate-300 hover:bg-white/10'
+                                    }`}
                                 >
                                     <Pencil className="w-4 h-4" /> Editar
                                 </button>
                                 <button
-                                    onClick={() => onDelete && onDelete(transaction.id)}
-                                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/10 transition-colors"
+                                    onClick={() => !isActionBlocked && onDelete && onDelete(transaction.id)}
+                                    disabled={isActionBlocked}
+                                    title={isActionBlocked ? 'Período auditado e fechado pelo seu contador' : undefined}
+                                    className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                                        isActionBlocked
+                                            ? 'border-white/5 text-slate-500 opacity-40 cursor-not-allowed'
+                                            : 'border-red-500/20 text-red-400 hover:bg-red-500/10'
+                                    }`}
                                 >
                                     <Trash className="w-4 h-4" /> Excluir
                                 </button>
