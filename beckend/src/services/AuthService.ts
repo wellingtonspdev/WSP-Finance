@@ -73,7 +73,8 @@ export class AuthService {
       id: m.workspace.id,
       name: m.workspace.name,
       type: m.workspace.type,
-      role: m.role
+      role: m.role,
+      closedUntil: m.workspace.closedUntil ?? null
     }));
 
     return {
@@ -128,7 +129,8 @@ export class AuthService {
         id: m.workspace.id,
         name: m.workspace.name,
         type: m.workspace.type,
-        role: m.role
+        role: m.role,
+        closedUntil: m.workspace.closedUntil ?? null
       }))
     };
   }

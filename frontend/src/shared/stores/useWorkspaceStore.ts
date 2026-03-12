@@ -5,7 +5,8 @@ interface Membership {
     id: number;
     name: string;
     type: 'PERSONAL' | 'BUSINESS';
-    role: 'OWNER' | 'VIEWER' | 'ACCOUNTANT'; // Expandido para incluir ACCOUNTANT
+    role: 'OWNER' | 'VIEWER' | 'ACCOUNTANT';
+    closedUntil: string | null; // ISO date string do período fiscal fechado
     cnai?: string;
 }
 
