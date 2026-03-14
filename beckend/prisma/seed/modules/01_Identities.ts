@@ -105,17 +105,21 @@ export async function seedIdentities(prisma: PrismaClient): Promise<IdentitiesRe
     // Cada um com PERSONAL + BUSINESS workspace
     // ═══════════════════════════════════════════════════════════════
 
+    const nowRaw = new Date();
+    const lastMonthEnd = new Date(nowRaw.getFullYear(), nowRaw.getMonth(), 0);
+    const twoMonthsAgoEnd = new Date(nowRaw.getFullYear(), nowRaw.getMonth() - 1, 0);
+
     const clientConfigs = [
-        { name: 'João Silva', email: 'joao@wsp.finance', bizName: 'João Dropshipping LTDA', taxRate: 6.00, cnae: '4761003', doc: '12.345.678/0001-90', docType: 'CNPJ' as const },
-        { name: 'Maria Oliveira', email: 'maria@wsp.finance', bizName: 'Maria Tech Solutions', taxRate: 15.50, cnae: '6201501', doc: '98.765.432/0001-10', docType: 'CNPJ' as const },
-        { name: 'Pedro Santos', email: 'pedro@wsp.finance', bizName: 'Pedro Logistics MEI', taxRate: 0.00, cnae: '5320202', doc: '11.222.333/0001-44', docType: 'CNPJ' as const },
-        { name: 'Ana Costa', email: 'ana@wsp.finance', bizName: 'Ana Café Gourmet', taxRate: 6.00, cnae: '5611201', doc: '22.333.444/0001-55', docType: 'CNPJ' as const },
-        { name: 'Lucas Ferreira', email: 'lucas@wsp.finance', bizName: 'Lucas Dev Studio', taxRate: 6.00, cnae: '6201501', doc: '33.444.555/0001-66', docType: 'CNPJ' as const },
-        { name: 'Carlos Rocha', email: 'carlos@wsp.finance', bizName: 'Carlos Comércio Varejista', taxRate: 4.00, cnae: '4712100', doc: '44.555.666/0001-77', docType: 'CNPJ' as const },
-        { name: 'Rafael Mendes', email: 'rafael@wsp.finance', bizName: 'Rafael Marketing Digital', taxRate: 6.00, cnae: '7311400', doc: '55.666.777/0001-88', docType: 'CNPJ' as const },
-        { name: 'Bruno Almeida', email: 'bruno@wsp.finance', bizName: 'Bruno Engenharia Civil', taxRate: 11.33, cnae: '7112000', doc: '66.777.888/0001-99', docType: 'CNPJ' as const },
-        { name: 'Thiago Nascimento', email: 'thiago@wsp.finance', bizName: 'Thiago Advocacia', taxRate: 6.00, cnae: '6911701', doc: '77.888.999/0001-00', docType: 'CNPJ' as const },
-        { name: 'Daniel Ribeiro', email: 'daniel@wsp.finance', bizName: 'Daniel Fotografia', taxRate: 6.00, cnae: '7420001', doc: '88.999.000/0001-11', docType: 'CNPJ' as const },
+        { name: 'João Silva', email: 'joao@wsp.finance', bizName: 'João Dropshipping LTDA', taxRate: 6.00, cnae: '4761003', doc: '12.345.678/0001-90', docType: 'CNPJ' as const, closedUntil: lastMonthEnd },
+        { name: 'Maria Oliveira', email: 'maria@wsp.finance', bizName: 'Maria Tech Solutions', taxRate: 15.50, cnae: '6201501', doc: '98.765.432/0001-10', docType: 'CNPJ' as const, closedUntil: twoMonthsAgoEnd },
+        { name: 'Pedro Santos', email: 'pedro@wsp.finance', bizName: 'Pedro Logistics MEI', taxRate: 0.00, cnae: '5320202', doc: '11.222.333/0001-44', docType: 'CNPJ' as const, closedUntil: null },
+        { name: 'Ana Costa', email: 'ana@wsp.finance', bizName: 'Ana Café Gourmet', taxRate: 6.00, cnae: '5611201', doc: '22.333.444/0001-55', docType: 'CNPJ' as const, closedUntil: null },
+        { name: 'Lucas Ferreira', email: 'lucas@wsp.finance', bizName: 'Lucas Dev Studio', taxRate: 6.00, cnae: '6201501', doc: '33.444.555/0001-66', docType: 'CNPJ' as const, closedUntil: null },
+        { name: 'Carlos Rocha', email: 'carlos@wsp.finance', bizName: 'Carlos Comércio Varejista', taxRate: 4.00, cnae: '4712100', doc: '44.555.666/0001-77', docType: 'CNPJ' as const, closedUntil: null },
+        { name: 'Rafael Mendes', email: 'rafael@wsp.finance', bizName: 'Rafael Marketing Digital', taxRate: 6.00, cnae: '7311400', doc: '55.666.777/0001-88', docType: 'CNPJ' as const, closedUntil: null },
+        { name: 'Bruno Almeida', email: 'bruno@wsp.finance', bizName: 'Bruno Engenharia Civil', taxRate: 11.33, cnae: '7112000', doc: '66.777.888/0001-99', docType: 'CNPJ' as const, closedUntil: null },
+        { name: 'Thiago Nascimento', email: 'thiago@wsp.finance', bizName: 'Thiago Advocacia', taxRate: 6.00, cnae: '6911701', doc: '77.888.999/0001-00', docType: 'CNPJ' as const, closedUntil: null },
+        { name: 'Daniel Ribeiro', email: 'daniel@wsp.finance', bizName: 'Daniel Fotografia', taxRate: 6.00, cnae: '7420001', doc: '88.999.000/0001-11', docType: 'CNPJ' as const, closedUntil: null },
     ];
 
     const clientUsers: any = {};
@@ -146,6 +150,7 @@ export async function seedIdentities(prisma: PrismaClient): Promise<IdentitiesRe
                                     cnae: cfg.cnae,
                                     document: cfg.doc,
                                     documentType: cfg.docType,
+                                    closedUntil: cfg.closedUntil,
                                 }
                             }
                         }
