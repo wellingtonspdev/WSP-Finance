@@ -40,3 +40,7 @@ Thumbs.db
 /frontend/dist
 GEMINI.md
 /documentacao
+
+# Project Guidelines
+project_style.md
+design_system.md
