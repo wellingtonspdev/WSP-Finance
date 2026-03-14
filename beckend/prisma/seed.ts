@@ -5,6 +5,7 @@ import { seedStructure } from './seed/modules/02_Structure';
 import { seedTimeTravel } from './seed/modules/03_TimeTravel';
 import { seedAuditAndChaos } from './seed/modules/04_Auditor';
 import { seedLifeCycle } from './seed/modules/05_LifeCycle';
+import { seedBankMovements } from './seed/modules/06_BankMovements';
 
 const prisma = new PrismaClient();
 
@@ -15,7 +16,7 @@ async function earthquakeReset() {
   console.log('🧹 Protocolo Earthquake — Reset Determinístico...');
   try {
     const tables = [
-      'Notification', 'AuditLog', 'Transaction', 'Account',
+      'Notification', 'AuditLog', 'Transaction', 'BankMovement', 'Account',
       'Category', 'WorkspaceInvite', 'WorkspaceMember',
       'RefreshToken', 'PasswordResetToken', 'AccountVerificationToken',
       'Workspace', 'User'
@@ -30,6 +31,7 @@ async function earthquakeReset() {
       prisma.notification.deleteMany(),
       prisma.auditLog.deleteMany(),
       prisma.transaction.deleteMany(),
+      prisma.bankMovement.deleteMany(),
       prisma.account.deleteMany(),
       prisma.category.deleteMany(),
       prisma.workspaceInvite.deleteMany(),
@@ -91,11 +93,50 @@ async function recalculateBalances() {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// 7. RLS VALIDATION CHECK (Zero-Trust Proof)
+// ══════════════════════════════════════════════════════════════════
+async function validateRLS() {
+  console.log('\n🔒 [Fase 7] Executando Prova Zero-Trust (RLS Check)...');
+  
+  // Array transactions no Prisma garantem a execução na MESMA conexão de banco
+  const [, ws1Txns] = await prisma.$transaction([
+      prisma.$executeRaw`SELECT set_config('app.current_workspace_id', '1', true)`,
+      prisma.$queryRaw`SELECT COUNT(*) as count FROM "Transaction"`
+  ]);
+
+  const [, ws2Txns] = await prisma.$transaction([
+      prisma.$executeRaw`SELECT set_config('app.current_workspace_id', '2', true)`,
+      prisma.$queryRaw`SELECT COUNT(*) as count FROM "Transaction"`
+  ]);
+  
+  const [, nullTxns] = await prisma.$transaction([
+      prisma.$executeRaw`SELECT set_config('app.current_workspace_id', '', true)`,
+      prisma.$queryRaw`SELECT COUNT(*) as count FROM "Transaction"`
+  ]);
+
+  const ws1Count = (ws1Txns as any)[0].count.toString();
+  const ws2Count = (ws2Txns as any)[0].count.toString();
+  const nullCount = (nullTxns as any)[0].count.toString();
+
+  console.log(`  → Transactions p/ WS_ID(1): ${ws1Count}`);
+  console.log(`  → Transactions p/ WS_ID(2): ${ws2Count}`);
+  console.log(`  → Transactions sem isolamento (NULL): ${nullCount}`);
+  
+  if (nullCount === '0' && ws1Count !== '0' && ws1Count !== ws2Count) {
+    console.log('  ✅ SUCESSO. RLS em força total. Leak rate: 0.00%');
+  } else {
+    console.log('  ⚠️ ALERTA: Teste RLS inconclusivo.');
+    console.log('     Se todos os retornos forem idênticos, a user/role de conexão atual');
+    console.log('     é superuser (ex: postgres) ou possui BYPASSRLS.');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
 // MASTER ORCHESTRATOR
 // ══════════════════════════════════════════════════════════════════
 async function main() {
   console.log('══════════════════════════════════════════════');
-  console.log('🏭 WSP Finance — Seed V3.0 (Real-World Simulator)');
+  console.log('🏭 WSP Finance — Seed V4.0 (RLS & Stress Test Edition)');
   console.log('══════════════════════════════════════════════\n');
 
   const startTime = Date.now();
@@ -212,8 +253,18 @@ async function main() {
   console.log('\n📩 [Fase 5] Gerando Convites e Notificações...');
   const lifeCycleResult = await seedLifeCycle(prisma, identities, identities.workspaces);
 
-  // ── FASE 6: PÓS-PROCESSAMENTO ──
+  // ── FASE 6: BANK MOVEMENTS (STAGING) ──
+  console.log('\n🏦 [Fase 6] Populando Staging Area (Bank Movements)...');
+  const bankMovementResult = await seedBankMovements(prisma, [
+    { workspaceId: identities.workspaces.joaoBusinessId, accountId: structures.business.joaoBusinessId.checkingId, count: 40 },
+    { workspaceId: identities.workspaces.mariaBusinessId, accountId: structures.business.mariaBusinessId.checkingId, count: 20 }
+  ]);
+
+  // ── FASE 7: PÓS-PROCESSAMENTO ──
   await recalculateBalances();
+
+  // ── FASE 8: RLS VALIDATION ──
+  await validateRLS();
 
   // ══════════════════════════════════════════════════════════════
   // RELATÓRIO FINAL
@@ -221,7 +272,7 @@ async function main() {
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
   console.log('\n══════════════════════════════════════════════');
-  console.log('🏁 SEED V3.0 FINALIZADO COM SUCESSO');
+  console.log('🏁 SEED V4.0 FINALIZADO COM SUCESSO');
   console.log('══════════════════════════════════════════════');
   console.log(`⏱️  Tempo de execução: ${elapsed}s`);
   console.log('');
@@ -231,6 +282,7 @@ async function main() {
   console.log(`   🔗 ACCOUNTANT links: 10 (Wellington → 10 empresas)`);
   console.log(`   💳 Transações:     ${timeTravelResult.count + auditResult.chaosCount}`);
   console.log(`   📋 Audit Logs:     ${auditResult.auditCount}`);
+  console.log(`   🗂️ Bank Movements: ${bankMovementResult.count}`);
   console.log(`   📩 Convites:       ${lifeCycleResult.inviteCount}`);
   console.log(`   🔔 Notificações:   ${lifeCycleResult.notifCount}`);
   console.log('');
@@ -252,12 +304,12 @@ async function main() {
   console.log('   └──────────────────────────────────────────────────────┘');
   console.log('');
   console.log('🩺 PERFIS DE SAÚDE (Torre de Comando):');
-  console.log('   ✅ João Dropshipping  → Saudável (100% com anexos)');
+  console.log('   ✅ João Dropshipping  → Saudável (closedUntil ativo)');
   console.log('   ✅ Ana Café Gourmet   → Saudável');
   console.log('   ✅ Lucas Dev Studio   → Saudável');
   console.log('   ✅ Rafael Marketing   → Saudável');
   console.log('   ✅ Thiago Advocacia   → Saudável');
-  console.log('   🔴 Maria Tech        → RISCO (sem anexos 30d + saldo negativo)');
+  console.log('   🔴 Maria Tech        → RISCO (closedUntil ativo)');
   console.log('   🔴 Bruno Engenharia  → RISCO (sem anexos recentes)');
   console.log('   🟡 Pedro Logistics   → Transição (1 mês de dados)');
   console.log('   🟡 Daniel Fotografia → Transição (recém-ativo)');

@@ -36,17 +36,18 @@ const EXPENSE_TEMPLATES = [
     { descPrefix: 'DAS Simples Nacional', catKey: 'catTaxId', baseAmount: 0, variation: 0 }, // Calculado
 ];
 
-const SALE_DESCRIPTIONS = [
-    'Venda E-commerce Shopee',
-    'Venda Mercado Livre',
-    'Venda Site Próprio',
-    'Venda Atacado B2B',
-    'Serviço de Consultoria',
-    'Projeto Freelance',
-    'Manutenção Mensal',
-    'Venda Balcão',
-    'Serviço de Instalação',
-    'Comissão de Indicação',
+const FUZZY_SALE_DESCRIPTIONS = [
+    // Cluster UBER
+    'Uber *Trip 102', 'UBER DO BRASIL TECNOLOG', 'Uber Brasil', 'UBR* PENDING',
+    // Cluster AMAZON
+    'Amazon AWS Cloud', 'AMZN AWS', 'Amzn Prime', 'AMAZON.COM.BR',
+    // Cluster 99APP
+    '99App *Corrida', '99 POP', '99APP *PAGAMENTO', 'NINENINECORP',
+    // Cluster iFood
+    'IFood *Pedido', 'IFOOD.COM', 'iFood Restaurante', 'IFOOD PAG',
+    // Descrições normais
+    'Venda E-commerce Shopee', 'Venda Mercado Livre', 'Serviço de Consultoria',
+    'Projeto Freelance', 'Manutenção Mensal', 'Venda Balcão',
 ];
 
 export async function seedTimeTravel(prisma: PrismaClient, configs: TimeTravelConfig[]) {
@@ -56,8 +57,8 @@ export async function seedTimeTravel(prisma: PrismaClient, configs: TimeTravelCo
         if (cfg.healthProfile === 'empty') continue;
 
         const today = new Date();
-        const monthsBack = cfg.healthProfile === 'transition' ? 1 : 6;
-        const baseSalesPerMonth = cfg.salesPerMonth || (cfg.healthProfile === 'transition' ? 5 : 15);
+        const monthsBack = cfg.healthProfile === 'transition' ? 3 : 12; // 12 meses em instead de 6
+        const baseSalesPerMonth = cfg.salesPerMonth ? (cfg.salesPerMonth * 4) : (cfg.healthProfile === 'transition' ? 15 : 40); // 40 * 12 = 480 vendas + despesas -> >500 txnts
 
         let workspaceCount = 0;
 
@@ -84,7 +85,7 @@ export async function seedTimeTravel(prisma: PrismaClient, configs: TimeTravelCo
                 const net = gross.minus(platformFee).minus(taxAmount).toDecimalPlaces(4);
                 monthIncome = monthIncome.plus(net);
 
-                const desc = SALE_DESCRIPTIONS[i % SALE_DESCRIPTIONS.length];
+                const desc = FUZZY_SALE_DESCRIPTIONS[Math.floor(Math.random() * FUZZY_SALE_DESCRIPTIONS.length)];
 
                 await prisma.transaction.create({
                     data: {
