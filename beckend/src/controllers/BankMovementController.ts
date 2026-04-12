@@ -67,7 +67,6 @@ export class BankMovementController {
     });
 
     const bodySchema = z.object({
-      accountId: z.number().int().positive(),
       categoryId: z.number().int().positive(),
     });
 
@@ -76,13 +75,15 @@ export class BankMovementController {
     const workspaceId = req.workspaceId!;
 
     try {
-      const transaction = await this.service.approve({
+      const result = await this.service.approve({
         movementId: id,
         workspaceId,
-        accountId: body.accountId,
         categoryId: body.categoryId,
       });
-      return res.status(201).json(transaction);
+
+      // Idempotência: já aprovado → 200; primeira aprovação → 201
+      const statusCode = ('alreadyApproved' in result && result.alreadyApproved) ? 200 : 201;
+      return res.status(statusCode).json(result);
     } catch (err: any) {
       if (err instanceof AppError) {
         return res.status(err.statusCode).json({ message: err.message });

@@ -164,31 +164,38 @@ A combinação dos payloads segue a estrutura de **Lastro de Evidência** (BACKE
 
 ```json
 {
-  "accountId": 1,
   "categoryId": 5
 }
 ```
 
 | Campo        | Tipo     | Obrigatório | Validação               |
 |--------------|----------|-------------|-------------------------|
-| `accountId`  | `number` | ✅          | `int().positive()`      |
 | `categoryId` | `number` | ✅          | `int().positive()`      |
 
-##### Fluxo interno (atômico)
+> **Nota:** `accountId` é derivado diretamente do `BankMovement.accountId` (a conta bancária onde o extrato foi importado).
 
-1. Busca o `BankMovement` por `id` + `workspaceId` → valida `status === PENDING`.
-2. Determina `TransactionType`: `amount >= 0` → `INCOME`, senão `EXPENSE`.
-3. Cria `Transaction` vinculada ao workspace/account/category.
-4. Atualiza `Account.balance` com `+abs(amount)` (INCOME) ou `-abs(amount)` (EXPENSE).
-5. Marca o `BankMovement` como `APPROVED`.
+##### Fluxo interno
+
+1. Busca o `BankMovement` por `id` + `workspaceId`.
+2. **Idempotência:** Se `status === APPROVED`, retorna `200 OK` com a Transaction existente (sem re-criar).
+3. Valida `status === PENDING` (senão 400).
+4. **Guardião closedUntil:** Valida se `movement.date` está em período fiscal fechado. Se `closedUntil` ativo e `userRole !== ACCOUNTANT` → 403. ⚠️ Esta validação DEVE ocorrer **ANTES** de abrir `prisma.$transaction`.
+5. Valida pertencimento de `Account` e `Category` ao workspace.
+6. **Bloco atômico** (`prisma.$transaction`):
+   - Determina `TransactionType`: `amount >= 0` → `INCOME`, senão `EXPENSE`.
+   - Cria `Transaction` vinculada ao workspace/account/category.
+   - Atualiza `Account.balance` com `increment` (INCOME) ou `decrement` (EXPENSE) usando `absAmount`.
+   - Marca o `BankMovement` como `APPROVED`.
 
 > **Regra 1 (Amortecedor):** O saldo só é atualizado AQUI, nunca na ingestão.
+> **Regra 2 (Idempotência):** Aprovação dupla retorna 200, sem duplicar Transaction.
+> **Regra 3 (Batch):** Em batch approvals, cada item abre sua própria transação isolada (evita timeout).
 
-#### Response `201 Created`
+#### Response `201 Created` (primeira aprovação)
 
 ```json
 {
-  "id": 42,
+  "id": "uuid",
   "description": "PIX RECEBIDO - CLIENTE X",
   "amount": "1500.0000",
   "type": "INCOME",
@@ -197,12 +204,27 @@ A combinação dos payloads segue a estrutura de **Lastro de Evidência** (BACKE
 }
 ```
 
+#### Response `200 OK` (aprovação duplicada — idempotente)
+
+```json
+{
+  "id": "uuid",
+  "description": "PIX RECEBIDO - CLIENTE X",
+  "amount": "1500.0000",
+  "type": "INCOME",
+  "alreadyApproved": true
+}
+```
+
 #### Erros
 
-| Status | Código               | Mensagem                          |
-|--------|----------------------|-----------------------------------|
-| `404`  | `NOT_FOUND`          | `Movimento não encontrado`        |
-| `400`  | `NOT_PENDING`        | `Movimento não está pendente`     |
+| Status | Código               | Mensagem                                                              |
+|--------|----------------------|-----------------------------------------------------------------------|
+| `404`  | `NOT_FOUND`          | `Movimento não encontrado`                                            |
+| `400`  | `NOT_PENDING`        | `Movimento não está pendente`                                         |
+| `403`  | `FISCAL_PERIOD`      | `Acesso negado: data pertence a período fiscal fechado`               |
+| `404`  | `ACCOUNT_NOT_FOUND`  | `Conta não encontrada ou acesso negado`                               |
+| `404`  | `CATEGORY_NOT_FOUND` | `Categoria não encontrada ou acesso negado`                           |
 
 ---
 
