@@ -164,6 +164,7 @@ A combinação dos payloads segue a estrutura de **Lastro de Evidência** (BACKE
 
 ```json
 {
+  "accountId": 1,
   "categoryId": 5
 }
 ```
@@ -196,6 +197,24 @@ A combinação dos payloads segue a estrutura de **Lastro de Evidência** (BACKE
 ```json
 {
   "id": "uuid",
+| `accountId`  | `number` | ✅          | `int().positive()`      |
+| `categoryId` | `number` | ✅          | `int().positive()`      |
+
+##### Fluxo interno (atômico)
+
+1. Busca o `BankMovement` por `id` + `workspaceId` → valida `status === PENDING`.
+2. Determina `TransactionType`: `amount >= 0` → `INCOME`, senão `EXPENSE`.
+3. Cria `Transaction` vinculada ao workspace/account/category.
+4. Atualiza `Account.balance` com `+abs(amount)` (INCOME) ou `-abs(amount)` (EXPENSE).
+5. Marca o `BankMovement` como `APPROVED`.
+
+> **Regra 1 (Amortecedor):** O saldo só é atualizado AQUI, nunca na ingestão.
+
+#### Response `201 Created`
+
+```json
+{
+  "id": 42,
   "description": "PIX RECEBIDO - CLIENTE X",
   "amount": "1500.0000",
   "type": "INCOME",
@@ -225,6 +244,12 @@ A combinação dos payloads segue a estrutura de **Lastro de Evidência** (BACKE
 | `403`  | `FISCAL_PERIOD`      | `Acesso negado: data pertence a período fiscal fechado`               |
 | `404`  | `ACCOUNT_NOT_FOUND`  | `Conta não encontrada ou acesso negado`                               |
 | `404`  | `CATEGORY_NOT_FOUND` | `Categoria não encontrada ou acesso negado`                           |
+#### Erros
+
+| Status | Código               | Mensagem                          |
+|--------|----------------------|-----------------------------------|
+| `404`  | `NOT_FOUND`          | `Movimento não encontrado`        |
+| `400`  | `NOT_PENDING`        | `Movimento não está pendente`     |
 
 ---
 

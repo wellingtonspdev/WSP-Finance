@@ -6,6 +6,15 @@ import { AppLayout } from '../../../shared/components/layout/AppLayout';
 import { MovementCard } from '../components/MovementCard';
 import {
   fetchGlobalPendingMovements,
+import { useEffect, useState, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Inbox, Loader2, RefreshCw, CheckCircle2, AlertTriangle, Filter } from 'lucide-react';
+import { AppLayout } from '../../../shared/components/layout/AppLayout';
+import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
+import { MovementCard } from '../components/MovementCard';
+import {
+  fetchPendingMovements,
   mergeMovements,
   approveMovement,
   rejectMovement,
@@ -37,6 +46,8 @@ interface WorkspaceGroup {
  */
 function groupDuplicates(movements: BankMovementDTO[]): DuplicateGroup[] {
   const groups: DuplicateGroup[] = [];
+function groupDuplicates(movements: BankMovementDTO[]) {
+  const groups: { primary: BankMovementDTO; duplicates: BankMovementDTO[] }[] = [];
   const used = new Set<string>();
 
   for (const mov of movements) {
@@ -63,6 +74,13 @@ export function ApprovalInboxPage() {
   const navigate = useNavigate();
 
   const clientName = "Todos os Clientes (Visão Global)";
+  const { workspaceId } = useParams<{ workspaceId: string }>();
+  const navigate = useNavigate();
+  const { memberships } = useWorkspaceStore();
+
+  const wsId = Number(workspaceId);
+  const membership = memberships.find(m => m.id === wsId);
+  const clientName = membership?.name || `Workspace #${wsId}`;
 
   const [movements, setMovements] = useState<BankMovementDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -83,6 +101,7 @@ export function ApprovalInboxPage() {
     try {
       setIsLoading(true);
       const res = await fetchGlobalPendingMovements(cursor);
+      const res = await fetchPendingMovements(wsId, cursor);
       if (cursor) {
         setMovements(prev => [...prev, ...res.data]);
       } else {
@@ -96,6 +115,11 @@ export function ApprovalInboxPage() {
       setIsLoading(false);
     }
   }, [addToast]);
+      addToast('Erro ao carregar movimentos', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [wsId, addToast]);
 
   useEffect(() => { loadMovements(); }, [loadMovements]);
 
@@ -105,6 +129,11 @@ export function ApprovalInboxPage() {
       const mov = movements.find(m => m.id === id);
       if (!mov) return;
       await approveMovement(mov.workspaceId, id, 1);
+      // Para uma implementação completa, precisa selecionar conta e categoria.
+      // Mock: usa accountId do próprio movimento e categoryId = 1
+      const mov = movements.find(m => m.id === id);
+      if (!mov) return;
+      await approveMovement(wsId, id, mov.accountId, 1);
       setMovements(prev => prev.filter(m => m.id !== id));
       addToast('Movimento aprovado e convertido em Transação');
     } catch {
@@ -120,6 +149,7 @@ export function ApprovalInboxPage() {
       const mov = movements.find(m => m.id === id);
       if (!mov) return;
       await rejectMovement(mov.workspaceId, id);
+      await rejectMovement(wsId, id);
       setMovements(prev => prev.filter(m => m.id !== id));
       addToast('Movimento rejeitado', 'info');
     } catch {
@@ -135,6 +165,7 @@ export function ApprovalInboxPage() {
       const mov = movements.find(m => m.id === keepId);
       if (!mov) return;
       await mergeMovements(mov.workspaceId, keepId, discardIds);
+      await mergeMovements(wsId, keepId, discardIds);
       setMovements(prev => prev.filter(m => !discardIds.includes(m.id)));
       addToast(`Movimentos mesclados em ${keepId.slice(0, 8)}…`);
     } catch {
@@ -269,6 +300,19 @@ export function ApprovalInboxPage() {
                   ))}
                 </div>
               </motion.div>
+        {/* Lista de Movimentos Agrupados */}
+        <div className="space-y-3">
+          <AnimatePresence mode="popLayout">
+            {groups.map(group => (
+              <MovementCard
+                key={group.primary.id}
+                movement={group.primary}
+                duplicates={group.duplicates}
+                onApprove={handleApprove}
+                onReject={handleReject}
+                onMerge={handleMerge}
+                isProcessing={isProcessing === group.primary.id}
+              />
             ))}
           </AnimatePresence>
         </div>
