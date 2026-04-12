@@ -1,4 +1,4 @@
-import { Home, Mail, Users, FileText, BarChart2, Settings, ShieldCheck, LogOut } from 'lucide-react';
+import { Home, Mail, Users, FileText, BarChart2, Settings, ShieldCheck, LogOut, Inbox } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '../../../app/AuthProvider';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -12,7 +12,7 @@ export function AccountantSidebar() {
     const navItems = [
         { id: 'hub', icon: Home, label: 'Torre de Controle', action: () => navigate('/accountant/hub') },
         { id: 'invites', icon: Mail, label: 'Convites', action: () => navigate('/accountant/invites') },
-        { id: 'clients', icon: Users, label: 'Clientes', action: () => { }, disabled: true },
+        { id: 'inbox', icon: Inbox, label: 'Inbox de Aprovação', action: () => navigate('/accountant/hub'), hint: 'Selecione um cliente' },
         { id: 'docs', icon: FileText, label: 'Documentos', action: () => { }, disabled: true },
         { id: 'reports', icon: BarChart2, label: 'Relatórios', action: () => { }, disabled: true },
         { id: 'settings', icon: Settings, label: 'Configurações', action: () => { }, disabled: true },

@@ -13,6 +13,7 @@ import { ImportController } from './controllers/ImportController';
 import { ExternalDataController } from './controllers/ExternalDataController';
 import { UserController } from './controllers/UserController';
 import { InviteController } from './controllers/InviteController';
+import { BankMovementController } from './controllers/BankMovementController';
 
 // Middlewares
 import { AuthMiddleware } from './middlewares/AuthMiddleware';
@@ -43,6 +44,7 @@ const importController = new ImportController();
 const externalDataController = new ExternalDataController();
 const userController = new UserController();
 const inviteController = new InviteController();
+const bankMovementController = new BankMovementController();
 
 // ==============================================================================
 // AUTENTICAÇÃO & IDENTIDADE
@@ -404,6 +406,38 @@ router.post('/transactions/import', AuthMiddleware, WorkspaceMiddleware, (req, r
        #swagger.summary = 'Decodificar OFX Bancário'
        #swagger.description = 'Lê e traduz blocos de dados transacionais gerados por sistemas bancários antigos e transforma instantaneamente em Json compatível PACT.' */
     return importController.importOFX(req, res);
+});
+
+// ==============================================================================
+// INBOX DE APROVAÇÃO (Bank Movements - Staging → Transaction)
+// ==============================================================================
+
+router.get('/bank-movements', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Inbox Aprovação']
+       #swagger.summary = 'Listar Movimentos Pendentes'
+       #swagger.description = 'Retorna BankMovements com status PENDING do workspace corrente, paginados por cursor. Filtro Zero Trust: WorkspaceMiddleware já bloqueia PERSONAL para contadores.' */
+    return bankMovementController.listPending(req, res);
+});
+
+router.post('/bank-movements/:id/merge', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Inbox Aprovação']
+       #swagger.summary = 'Mesclar Movimentos Duplicados'
+       #swagger.description = 'Combina rawPayload de 2+ movimentos no keepId e deleta os discardIds. Operação atômica via prisma.$transaction.' */
+    return bankMovementController.merge(req, res);
+});
+
+router.post('/bank-movements/:id/approve', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Inbox Aprovação']
+       #swagger.summary = 'Aprovar Movimento → Transaction'
+       #swagger.description = 'Converte um BankMovement PENDING em Transaction real, atualizando saldo da conta e marcando o movimento como APPROVED.' */
+    return bankMovementController.approve(req, res);
+});
+
+router.post('/bank-movements/:id/reject', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Inbox Aprovação']
+       #swagger.summary = 'Rejeitar Movimento'
+       #swagger.description = 'Marca o movimento como REJECTED sem criar Transaction.' */
+    return bankMovementController.reject(req, res);
 });
 
 export { router };

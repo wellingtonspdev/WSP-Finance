@@ -14,6 +14,7 @@ import { ThemeWrapper } from './shared/components/layout/ThemeWrapper';
 import { InviteLandingPage } from './features/workspaces/routes/InviteLandingPage';
 import { AccountantHubPage } from './features/accountant/routes/AccountantHubPage';
 import { InviteInboxPage } from './features/accountant/routes/InviteInboxPage';
+import { ApprovalInboxPage } from './features/accountant/routes/ApprovalInboxPage';
 
 import { UIProvider } from './shared/context/UIProvider';
 
@@ -56,6 +57,14 @@ export default function App() {
               element={
                 <PrivateRoute>
                   <InviteInboxPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/accountant/inbox/:workspaceId"
+              element={
+                <PrivateRoute>
+                  <ApprovalInboxPage />
                 </PrivateRoute>
               }
             />

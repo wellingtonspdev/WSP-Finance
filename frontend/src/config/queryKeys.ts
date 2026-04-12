@@ -19,5 +19,10 @@ export const queryKeys = {
         metrics: (workspaceId: string | number) => ['dashboard-metrics', String(workspaceId)] as const,
     },
 
+    // === BANK MOVEMENTS (Inbox de Aprovação) ===
+    bankMovements: {
+        pending: (workspaceId: string | number) => ['bank-movements', 'pending', String(workspaceId)] as const,
+    },
+
     // Adicione novas factories de domínio conforme o sistema cresce...
 };

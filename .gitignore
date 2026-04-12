@@ -65,5 +65,6 @@ relatorio_correções_segurança_ingestão
 
 # Prisma
 /beckend/prisma/migrations/**/migration_lock.toml
+/beckend/prisma/migrations/**/migration_lock.toml
 # Package (root)
 package.json
