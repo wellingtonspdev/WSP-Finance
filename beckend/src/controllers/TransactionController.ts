@@ -32,9 +32,11 @@ export class TransactionController {
 
     const data = createTransactionSchema.parse(req.body);
     const workspaceId = req.workspaceId!;
+    const userId = req.user.id;
 
     try {
       const transaction = await this.transactionService.create({
+        userId,
         ...data,
         workspaceId
       });
@@ -74,9 +76,10 @@ export class TransactionController {
   async delete(req: Request, res: Response) {
     const { id } = req.params;
     const workspaceId = req.workspaceId!;
+    const userId = req.user.id;
 
     try {
-      await this.transactionService.delete(id, workspaceId);
+      await this.transactionService.delete(id, workspaceId, userId);
       return res.status(204).send();
     } catch (err: any) {
       if (err.message.includes('not found') || err.message.includes('access denied')) {

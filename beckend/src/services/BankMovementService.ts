@@ -6,6 +6,7 @@ import { CategoryRepository } from '../repositories/CategoryRepository';
 import { AppError } from '../errors/AppError';
 import { TransactionType, MovementStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { AuditLogService } from './AuditLogService';
 import { tenantContext } from '../lib/tenantContext';
 import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
@@ -18,6 +19,12 @@ interface ListPendingDTO {
   limit?: number;
 }
 
+interface ListGlobalPendingDTO {
+  userId: number;
+  cursor?: string;
+  limit?: number;
+}
+
 interface MergeDTO {
   keepId: string;
   discardIds: string[];
@@ -25,6 +32,7 @@ interface MergeDTO {
 }
 
 interface ApproveDTO {
+  userId: number;
   movementId: string;
   workspaceId: number;
   categoryId: number;
@@ -45,6 +53,19 @@ export class BankMovementService {
 
   async listPending({ workspaceId, cursor, limit = 20 }: ListPendingDTO) {
     const movements = await this.movementRepo.findPendingByWorkspace(workspaceId, {
+      cursor,
+      limit,
+    });
+
+    const hasMore = movements.length > limit;
+    const data = hasMore ? movements.slice(0, limit) : movements;
+    const nextCursor = hasMore && data.length > 0 ? data[data.length - 1].id : null;
+
+    return { data, nextCursor, hasMore };
+  }
+
+  async listGlobalPending({ userId, cursor, limit = 20 }: ListGlobalPendingDTO) {
+    const movements = await this.movementRepo.findGlobalPendingByAccountant(userId, {
       cursor,
       limit,
     });
@@ -117,7 +138,7 @@ export class BankMovementService {
    * 5. Valida pertencimento Account + Category
    * 6. prisma.$transaction { criar Transaction + atualizar saldo + marcar APPROVED }
    */
-  async approve({ movementId, workspaceId, categoryId }: ApproveDTO) {
+  async approve({ userId, movementId, workspaceId, categoryId }: ApproveDTO) {
     // 1. Buscar movement
     const movement = await this.movementRepo.findByIdAndWorkspace(movementId, workspaceId);
     if (!movement) throw new AppError('Movimento não encontrado', 404);
@@ -183,8 +204,29 @@ export class BankMovementService {
       }, tx);
 
       // B. Atualizar saldo (increment/decrement atômico do Prisma)
+      const balanceBefore = new Decimal(account.balance.toString());
       const balanceDelta = type === 'INCOME' ? absAmount : absAmount.negated();
-      await this.accountRepo.updateBalance(movement.accountId, balanceDelta, tx);
+      const updatedAccount = await this.accountRepo.updateBalance(movement.accountId, balanceDelta, tx);
+
+      await AuditLogService.logSync({
+        userId,
+        workspaceId,
+        action: 'CREATE',
+        entity: 'Transaction',
+        entityId: transaction.id,
+        newState: {
+          transactionId: transaction.id,
+          bankMovementId: movement.id,
+          accountId: movement.accountId,
+          amount: absAmount.toString(),
+          type,
+          isPaid: true,
+        },
+        balanceBefore,
+        balanceAfter: updatedAccount.balance,
+        delta: balanceDelta,
+        fromAccount: movement.accountId,
+      }, tx);
 
       // C. Marcar movimento como APPROVED
       await this.movementRepo.updateStatus(movementId, MovementStatus.APPROVED, tx);
@@ -208,4 +250,3 @@ export class BankMovementService {
     return this.movementRepo.updateStatus(movementId, MovementStatus.REJECTED);
   }
 }
-

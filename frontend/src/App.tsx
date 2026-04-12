@@ -61,7 +61,7 @@ export default function App() {
               }
             />
             <Route
-              path="/accountant/inbox/:workspaceId"
+              path="/accountant/inbox"
               element={
                 <PrivateRoute>
                   <ApprovalInboxPage />

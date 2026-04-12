@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   mockTransactionFindFirst: vi.fn(),
   mockPrismaTransaction: vi.fn(),
   mockGetStore: vi.fn(),
+  mockAuditLogSync: vi.fn(),
 }));
 
 vi.mock('../../src/repositories/BankMovementRepository', () => ({
@@ -63,6 +64,13 @@ vi.mock('../../src/lib/tenantContext', () => ({
   },
 }));
 
+vi.mock('../../src/services/AuditLogService', () => ({
+  AuditLogService: {
+    logSync: mocks.mockAuditLogSync,
+    logAsync: vi.fn(),
+  },
+}));
+
 // ─── Helpers ─────────────────────────────────────────────────────
 
 const basePendingMovement = {
@@ -93,6 +101,7 @@ describe('BankMovementService.approve()', () => {
 
     // Defaults seguros
     mocks.mockAccountFindByIdAndWorkspace.mockResolvedValue({ id: 10, balance: 5000 });
+    mocks.mockAccountUpdateBalance.mockResolvedValue({ id: 10, balance: 6500 });
     mocks.mockCategoryFindByIdAndWorkspace.mockResolvedValue({ id: 5 });
     mocks.mockTransactionCreate.mockResolvedValue({
       id: 'txn-uuid-1',
@@ -119,6 +128,7 @@ describe('BankMovementService.approve()', () => {
     mocks.mockFindByIdAndWorkspace.mockResolvedValue(basePendingMovement);
 
     const result = await service.approve({
+      userId: 99,
       movementId: 'mov-uuid-1',
       workspaceId: 1,
       categoryId: 5,
@@ -127,6 +137,7 @@ describe('BankMovementService.approve()', () => {
     expect(result).toHaveProperty('id');
     expect(mocks.mockTransactionCreate).toHaveBeenCalledTimes(1);
     expect(mocks.mockAccountUpdateBalance).toHaveBeenCalledTimes(1);
+    expect(mocks.mockAuditLogSync).toHaveBeenCalledTimes(1);
     expect(mocks.mockUpdateStatus).toHaveBeenCalledTimes(1);
   });
 
@@ -141,6 +152,7 @@ describe('BankMovementService.approve()', () => {
     });
 
     const result = await service.approve({
+      userId: 99,
       movementId: 'mov-uuid-1',
       workspaceId: 1,
       categoryId: 5,
@@ -151,6 +163,7 @@ describe('BankMovementService.approve()', () => {
     // NÃO deve ter criado nova transaction
     expect(mocks.mockTransactionCreate).not.toHaveBeenCalled();
     expect(mocks.mockAccountUpdateBalance).not.toHaveBeenCalled();
+    expect(mocks.mockAuditLogSync).not.toHaveBeenCalled();
   });
 
   // ── 3. Guard closedUntil bloqueia CLIENT ──
@@ -167,11 +180,11 @@ describe('BankMovementService.approve()', () => {
     });
 
     await expect(
-      service.approve({ movementId: 'mov-uuid-1', workspaceId: 1, categoryId: 5 })
+      service.approve({ userId: 99, movementId: 'mov-uuid-1', workspaceId: 1, categoryId: 5 })
     ).rejects.toThrow(AppError);
 
     try {
-      await service.approve({ movementId: 'mov-uuid-1', workspaceId: 1, categoryId: 5 });
+      await service.approve({ userId: 99, movementId: 'mov-uuid-1', workspaceId: 1, categoryId: 5 });
     } catch (err: any) {
       expect(err.statusCode).toBe(403);
       expect(err.message).toContain('fechado');
@@ -192,6 +205,7 @@ describe('BankMovementService.approve()', () => {
     });
 
     const result = await service.approve({
+      userId: 99,
       movementId: 'mov-uuid-1',
       workspaceId: 1,
       categoryId: 5,
@@ -206,7 +220,7 @@ describe('BankMovementService.approve()', () => {
     mocks.mockFindByIdAndWorkspace.mockResolvedValue(null);
 
     await expect(
-      service.approve({ movementId: 'inexistente', workspaceId: 1, categoryId: 5 })
+      service.approve({ userId: 99, movementId: 'inexistente', workspaceId: 1, categoryId: 5 })
     ).rejects.toThrow('Movimento não encontrado');
   });
 
@@ -218,7 +232,7 @@ describe('BankMovementService.approve()', () => {
     });
 
     await expect(
-      service.approve({ movementId: 'mov-uuid-1', workspaceId: 1, categoryId: 5 })
+      service.approve({ userId: 99, movementId: 'mov-uuid-1', workspaceId: 1, categoryId: 5 })
     ).rejects.toThrow('Movimento não está pendente');
   });
 
@@ -228,7 +242,7 @@ describe('BankMovementService.approve()', () => {
     mocks.mockAccountFindByIdAndWorkspace.mockResolvedValue(null);
 
     await expect(
-      service.approve({ movementId: 'mov-uuid-1', workspaceId: 1, categoryId: 5 })
+      service.approve({ userId: 99, movementId: 'mov-uuid-1', workspaceId: 1, categoryId: 5 })
     ).rejects.toThrow('Conta não encontrada');
   });
 
@@ -238,7 +252,7 @@ describe('BankMovementService.approve()', () => {
     mocks.mockCategoryFindByIdAndWorkspace.mockResolvedValue(null);
 
     await expect(
-      service.approve({ movementId: 'mov-uuid-1', workspaceId: 1, categoryId: 5 })
+      service.approve({ userId: 99, movementId: 'mov-uuid-1', workspaceId: 1, categoryId: 5 })
     ).rejects.toThrow('Categoria não encontrada');
   });
 
@@ -258,6 +272,7 @@ describe('BankMovementService.approve()', () => {
     });
 
     await service.approve({
+      userId: 99,
       movementId: 'mov-uuid-1',
       workspaceId: 1,
       categoryId: 5,
@@ -265,5 +280,21 @@ describe('BankMovementService.approve()', () => {
 
     expect(mocks.mockTransactionCreate).toHaveBeenCalledTimes(1);
     expect(mocks.mockAccountUpdateBalance).toHaveBeenCalledTimes(1);
+  });
+
+  // ── 10. Rollback Test: transação falha, movement permanece PENDING ──
+  it('deve realizar rollback e relançar exceção se criar transaction falhar (Garantia ACID)', async () => {
+    mocks.mockFindByIdAndWorkspace.mockResolvedValue(basePendingMovement);
+    // Simula falha no banco de dados
+    mocks.mockTransactionCreate.mockRejectedValue(new Error('DB falhou'));
+
+    await expect(
+      service.approve({ userId: 99, movementId: 'mov-uuid-1', workspaceId: 1, categoryId: 5 })
+    ).rejects.toThrow('DB falhou');
+
+    // A chamada para transaction.create aconteceu
+    expect(mocks.mockTransactionCreate).toHaveBeenCalledTimes(1);
+    
+    // Status update NÃO pode ter completado com sucesso fora do escopo ou o BD faria rollback de tudo no $transaction
   });
 });

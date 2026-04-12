@@ -5,6 +5,7 @@ import { CategoryRepository } from '../repositories/CategoryRepository';
 import { TransactionType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { UploadService } from './UploadService';
+import { AuditLogService } from './AuditLogService';
 import { AppError } from '../errors/AppError';
 import { tenantContext } from '../lib/tenantContext';
 import dayjs from 'dayjs';
@@ -13,6 +14,7 @@ import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 dayjs.extend(isSameOrBefore);
 
 interface CreateTransactionDTO {
+  userId: number;
   description: string;
   amount: number;
   date: Date;
@@ -43,6 +45,7 @@ export class TransactionService {
   }
 
   async create({
+    userId,
     description,
     amount,
     date,
@@ -149,8 +152,28 @@ export class TransactionService {
 
       // B. Atualizar o saldo da conta (SE estiver pago)
       if (isPaid) {
+        const balanceBefore = new Decimal(account.balance.toString());
         const balanceDelta = type === 'INCOME' ? finalAmount : finalAmount.negated();
-        await this.accountRepository.updateBalance(accountId, balanceDelta, tx);
+        const updatedAccount = await this.accountRepository.updateBalance(accountId, balanceDelta, tx);
+
+        await AuditLogService.logSync({
+          userId,
+          workspaceId,
+          action: 'CREATE',
+          entity: 'Transaction',
+          entityId: transaction.id,
+          newState: {
+            transactionId: transaction.id,
+            accountId,
+            amount: finalAmount.toString(),
+            type,
+            isPaid,
+          },
+          balanceBefore,
+          balanceAfter: updatedAccount.balance,
+          delta: balanceDelta,
+          fromAccount: accountId,
+        }, tx);
       }
 
       return transaction;
@@ -175,7 +198,7 @@ export class TransactionService {
     return await this.transactionRepository.findManyByUserId(userId);
   }
 
-  async delete(id: string, workspaceId: number): Promise<void> {
+  async delete(id: string, workspaceId: number, userId: number): Promise<void> {
     const transaction = await this.transactionRepository.findByIdAndWorkspace(id, workspaceId);
     if (!transaction) throw new AppError('Transaction not found or access denied', 404);
 
@@ -193,11 +216,39 @@ export class TransactionService {
     }
 
     // 1. Transação Atômica (Reembolsar Saldo + Apagar Registro)
+    const account = await this.accountRepository.findByIdAndWorkspace(transaction.accountId, workspaceId);
+    if (!account) throw new AppError('Account not found or access denied', 404);
+
     await prisma.$transaction(async (tx) => {
       if (transaction.isPaid && transaction.amount) {
         // Reverter saldo (Se era ganho, o saldo decresce; se era gasto, retorna ao caixa)
-        const balanceDelta = transaction.type === 'INCOME' ? Number(transaction.amount) * -1 : Number(transaction.amount);
-        await this.accountRepository.updateBalance(transaction.accountId, new Decimal(balanceDelta), tx);
+        const balanceBefore = new Decimal(account.balance.toString());
+        const amount = new Decimal(transaction.amount.toString());
+        const balanceDelta = transaction.type === 'INCOME' ? amount.negated() : amount;
+        const updatedAccount = await this.accountRepository.updateBalance(transaction.accountId, balanceDelta, tx);
+
+        await AuditLogService.logSync({
+          userId,
+          workspaceId,
+          action: 'DELETE',
+          entity: 'Transaction',
+          entityId: transaction.id,
+          oldState: {
+            transactionId: transaction.id,
+            accountId: transaction.accountId,
+            amount: amount.toString(),
+            type: transaction.type,
+            isPaid: transaction.isPaid,
+          },
+          newState: {
+            deleted: true,
+            transactionId: transaction.id,
+          },
+          balanceBefore,
+          balanceAfter: updatedAccount.balance,
+          delta: balanceDelta,
+          fromAccount: transaction.accountId,
+        }, tx);
       }
       await this.transactionRepository.delete(id, tx);
     });

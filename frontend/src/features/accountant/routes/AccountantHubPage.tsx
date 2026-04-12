@@ -17,8 +17,28 @@ export function AccountantHubPage() {
     const { memberships, setActiveWorkspaceId } = useWorkspaceStore();
     const [showInviteModal, setShowInviteModal] = useState(false);
 
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDING' | 'OK'>('ALL');
+
     // Filtra as memberships para pegar apenas aquelas onde o user é ACCOUNTANT
     const clientMemberships = memberships.filter(m => m.role === 'ACCOUNTANT');
+
+    // Aplicação dos filtros
+    const filteredMemberships = clientMemberships.filter((membership, index) => {
+        const matchesSearch = membership.name.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        // Mock health metrics based on index (same as UI render)
+        const isCritical = index === 0;
+        const isPending = index === 1;
+        const isOk = index >= 2;
+
+        if (!matchesSearch) return false;
+
+        if (filterStatus === 'PENDING') return isCritical || isPending;
+        if (filterStatus === 'OK') return isOk;
+        
+        return true;
+    });
 
     // Ao entrar no HUB, desativamos o workspace atual para garantir uma "página neutra"
     useEffect(() => {
@@ -29,8 +49,12 @@ export function AccountantHubPage() {
 
     // Se ele não for contador de ninguém, ele não deveria nem estar aqui, mas mostraremos vazio.
     const activeClients = clientMemberships.length;
+    // O número de pendências e OK é derivado da lógica de mock para ter números fiéis na tela
+    const pendingCount = clientMemberships.filter((_, idx) => idx === 0 || idx === 1).length;
+    const okCount = clientMemberships.filter((_, idx) => idx >= 2).length;
+
     // Esses valores podem vir da API no futuro (/accountant/summary), faremos mock realista por enquanto
-    const pendingDocs = clientMemberships.length * 3;
+    const pendingDocs = pendingCount * 3;
     const criticalAlerts = clientMemberships.length > 0 ? 2 : 0;
 
     const handleAccessClient = (workspaceId: number) => {
@@ -71,6 +95,8 @@ export function AccountantHubPage() {
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                                 <input
                                     type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
                                     placeholder="Buscar cliente ou documento..."
                                     className="w-full md:w-64 bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#1978e5] transition-colors"
                                 />
@@ -119,14 +145,20 @@ export function AccountantHubPage() {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 mt-4 px-4 md:px-0">
                         <h2 className="text-xl font-bold tracking-tight">Torre de Comando</h2>
                         <div className="flex bg-[#1978e5]/5 border border-white/10 p-1 rounded-lg self-start overflow-x-auto no-scrollbar max-w-full">
-                            <button className="px-4 py-1.5 text-xs font-bold rounded-md bg-[#1978e5] text-white shadow-sm transition-all whitespace-nowrap">
+                            <button 
+                                onClick={() => setFilterStatus('ALL')}
+                                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all whitespace-nowrap ${filterStatus === 'ALL' ? 'bg-[#1978e5] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>
                                 Todos ({activeClients})
                             </button>
-                            <button className="px-4 py-1.5 text-xs font-semibold rounded-md text-slate-400 hover:text-white transition-all whitespace-nowrap">
-                                Pendências (1)
+                            <button 
+                                onClick={() => setFilterStatus('PENDING')}
+                                className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${filterStatus === 'PENDING' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>
+                                Pendências ({pendingCount})
                             </button>
-                            <button className="px-4 py-1.5 text-xs font-semibold rounded-md text-slate-400 hover:text-white transition-all whitespace-nowrap">
-                                OK ({activeClients > 0 ? activeClients - 1 : 0})
+                            <button 
+                                onClick={() => setFilterStatus('OK')}
+                                className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${filterStatus === 'OK' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>
+                                OK ({okCount})
                             </button>
                         </div>
                     </div>
@@ -138,6 +170,8 @@ export function AccountantHubPage() {
                                 className="w-full bg-[#1978e5]/5 backdrop-blur-[12px] border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:border-[#1978e5] focus:ring-1 focus:ring-[#1978e5] outline-none transition-all placeholder:text-slate-500 text-white"
                                 placeholder="Buscar cliente ou documento..."
                                 type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
                     </div>
@@ -158,14 +192,14 @@ export function AccountantHubPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
-                                        {clientMemberships.length === 0 && (
+                                        {filteredMemberships.length === 0 && (
                                             <tr>
                                                 <td colSpan={4} className="px-6 py-10 text-center text-slate-400">
-                                                    Nenhum cliente ativo no momento.
+                                                    Nenhum cliente encontrado.
                                                 </td>
                                             </tr>
                                         )}
-                                        {clientMemberships.map((membership, index) => (
+                                        {filteredMemberships.map((membership, index) => (
                                             <motion.tr
                                                 key={membership.id}
                                                 className="hover:bg-white/5 transition-colors group"
@@ -185,9 +219,9 @@ export function AccountantHubPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    {index === 0 ? (
+                                                    {clientMemberships.findIndex(m => m.id === membership.id) === 0 ? (
                                                         <HealthStatusBadge status="urgent" label="Furo Contábil" />
-                                                    ) : index === 1 ? (
+                                                    ) : clientMemberships.findIndex(m => m.id === membership.id) === 1 ? (
                                                         <HealthStatusBadge status="attention" label="Revisar" />
                                                     ) : (
                                                         <HealthStatusBadge status="stable" label="Sincronizado" />
@@ -196,7 +230,7 @@ export function AccountantHubPage() {
                                                 <td className="px-6 py-4">
                                                     <div className="flex flex-col">
                                                         <span className="text-sm text-slate-300">Rotina diária concluída</span>
-                                                        <span className="text-[10px] text-slate-500 mt-0.5">há {index + 1} dia(s)</span>
+                                                        <span className="text-[10px] text-slate-500 mt-0.5">há {clientMemberships.findIndex(m => m.id === membership.id) + 1} dia(s)</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
@@ -231,14 +265,14 @@ export function AccountantHubPage() {
                         {/* 2. Versão Mobile: Filtros Rápidos + Cards HTML Driven */}
                         <div className="flex flex-col gap-4 md:hidden mt-4 px-4">
 
-                            {clientMemberships.length === 0 && (
+                            {filteredMemberships.length === 0 && (
                                 <div className="py-10 text-center text-slate-400 bg-white/5 rounded-2xl border border-white/10">
-                                    Nenhum cliente ativo no momento.
+                                    Nenhum cliente encontrado.
                                 </div>
                             )}
 
                             <div className="space-y-3">
-                                {clientMemberships.map((membership, index) => (
+                                {filteredMemberships.map((membership, index) => (
                                     <motion.div
                                         key={membership.id}
                                         className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-all"

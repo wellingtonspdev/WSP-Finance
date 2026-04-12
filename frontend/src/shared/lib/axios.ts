@@ -43,19 +43,26 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
 
-  // Fonte Única da Verdade (V3): URL é a ÚNICA fonte de workspace ID.
+  // Fonte Única da Verdade (V3): URL é a ÚNICA fonte de workspace ID para rotas normais.
   // Exemplo de pathname: "/15/dashboard" -> ID = 15
-  // Em rotas como "/accountant/hub", path[1] = "accountant" (não numérico) → sem header.
+  // Em rotas como "/accountant/*", o WID pode ser injetado manualmente nas API calls.
   const pathParts = window.location.pathname.split('/');
-  const possibleWorkspaceId = pathParts[1];
+  let possibleWorkspaceId = pathParts[1];
 
-  if (possibleWorkspaceId && !isNaN(parseInt(possibleWorkspaceId, 10))) {
-    config.headers['x-workspace-id'] = possibleWorkspaceId;
-  } else {
-    // Em rotas sem workspace (ex: /accountant/*, /login, /profile),
-    // remover o header para evitar poluição de contexto.
-    // O Backend devolverá 400/403 se a rota exigir WID.
-    delete config.headers['x-workspace-id'];
+  // Suporte para a rota do Inbox do Contador: /accountant/inbox/15
+  // Isso permite que chamadas genéricas na tela (como getCategories) funcionem magicamente.
+  if (pathParts[1] === 'accountant' && pathParts[2] === 'inbox' && pathParts[3]) {
+      possibleWorkspaceId = pathParts[3];
+  }
+
+  // Só injeta/modifica pela URL se não foi injetado manualmente no config da requisição
+  if (!config.headers['x-workspace-id']) {
+    if (possibleWorkspaceId && !isNaN(parseInt(possibleWorkspaceId, 10))) {
+      config.headers['x-workspace-id'] = possibleWorkspaceId;
+    } else {
+      // Remover para garantir que nenhuma requisição não declarada leve lixo do Axios default
+      delete config.headers['x-workspace-id'];
+    }
   }
 
   return config;

@@ -1,12 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Inbox, Loader2, RefreshCw, CheckCircle2, AlertTriangle, Filter } from 'lucide-react';
+import { ArrowLeft, Loader2, RefreshCw, CheckCircle2, AlertTriangle, Filter } from 'lucide-react';
 import { AppLayout } from '../../../shared/components/layout/AppLayout';
-import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 import { MovementCard } from '../components/MovementCard';
 import {
-  fetchPendingMovements,
+  fetchGlobalPendingMovements,
   mergeMovements,
   approveMovement,
   rejectMovement,
@@ -21,12 +20,23 @@ interface Toast {
   type: ToastType;
 }
 
+interface DuplicateGroup {
+  primary: BankMovementDTO;
+  duplicates: BankMovementDTO[];
+}
+
+interface WorkspaceGroup {
+  wsId: number;
+  wsName: string;
+  items: DuplicateGroup[];
+}
+
 /**
  * Agrupamento simplificado de duplicatas via nome + valor próximo.
  * No futuro, o backend pode retornar diretamente os clusters fuzzy.
  */
-function groupDuplicates(movements: BankMovementDTO[]) {
-  const groups: { primary: BankMovementDTO; duplicates: BankMovementDTO[] }[] = [];
+function groupDuplicates(movements: BankMovementDTO[]): DuplicateGroup[] {
+  const groups: DuplicateGroup[] = [];
   const used = new Set<string>();
 
   for (const mov of movements) {
@@ -49,13 +59,10 @@ function groupDuplicates(movements: BankMovementDTO[]) {
 }
 
 export function ApprovalInboxPage() {
-  const { workspaceId } = useParams<{ workspaceId: string }>();
+  // Remove useParams, we're global now
   const navigate = useNavigate();
-  const { memberships } = useWorkspaceStore();
 
-  const wsId = Number(workspaceId);
-  const membership = memberships.find(m => m.id === wsId);
-  const clientName = membership?.name || `Workspace #${wsId}`;
+  const clientName = "Todos os Clientes (Visão Global)";
 
   const [movements, setMovements] = useState<BankMovementDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,7 +82,7 @@ export function ApprovalInboxPage() {
   const loadMovements = useCallback(async (cursor?: string) => {
     try {
       setIsLoading(true);
-      const res = await fetchPendingMovements(wsId, cursor);
+      const res = await fetchGlobalPendingMovements(cursor);
       if (cursor) {
         setMovements(prev => [...prev, ...res.data]);
       } else {
@@ -84,22 +91,20 @@ export function ApprovalInboxPage() {
       setNextCursor(res.nextCursor);
       setHasMore(res.hasMore);
     } catch {
-      addToast('Erro ao carregar movimentos', 'error');
+      addToast('Erro ao carregar movimentos globais', 'error');
     } finally {
       setIsLoading(false);
     }
-  }, [wsId, addToast]);
+  }, [addToast]);
 
   useEffect(() => { loadMovements(); }, [loadMovements]);
 
   const handleApprove = async (id: string) => {
     setIsProcessing(id);
     try {
-      // Para uma implementação completa, precisa selecionar categoria.
-      // Mock: usa categoryId = 1
       const mov = movements.find(m => m.id === id);
       if (!mov) return;
-      await approveMovement(wsId, id, 1);
+      await approveMovement(mov.workspaceId, id, 1);
       setMovements(prev => prev.filter(m => m.id !== id));
       addToast('Movimento aprovado e convertido em Transação');
     } catch {
@@ -112,7 +117,9 @@ export function ApprovalInboxPage() {
   const handleReject = async (id: string) => {
     setIsProcessing(id);
     try {
-      await rejectMovement(wsId, id);
+      const mov = movements.find(m => m.id === id);
+      if (!mov) return;
+      await rejectMovement(mov.workspaceId, id);
       setMovements(prev => prev.filter(m => m.id !== id));
       addToast('Movimento rejeitado', 'info');
     } catch {
@@ -125,7 +132,9 @@ export function ApprovalInboxPage() {
   const handleMerge = async (keepId: string, discardIds: string[]) => {
     setIsProcessing(keepId);
     try {
-      await mergeMovements(wsId, keepId, discardIds);
+      const mov = movements.find(m => m.id === keepId);
+      if (!mov) return;
+      await mergeMovements(mov.workspaceId, keepId, discardIds);
       setMovements(prev => prev.filter(m => !discardIds.includes(m.id)));
       addToast(`Movimentos mesclados em ${keepId.slice(0, 8)}…`);
     } catch {
@@ -137,6 +146,19 @@ export function ApprovalInboxPage() {
 
   const groups = groupDuplicates(movements);
   const totalPending = movements.length;
+
+  const groupedByWorkspace = useMemo<WorkspaceGroup[]>(() => {
+    const wsMap = new Map<number, WorkspaceGroup>();
+    groups.forEach(g => {
+      const wsId = g.primary.workspaceId;
+      const wsName = (g.primary.account as any)?.workspace?.name || `Empresa #${wsId}`;
+      if (!wsMap.has(wsId)) {
+        wsMap.set(wsId, { wsId, wsName, items: [] });
+      }
+      wsMap.get(wsId)!.items.push(g);
+    });
+    return Array.from(wsMap.values()).sort((a, b) => a.wsName.localeCompare(b.wsName));
+  }, [groups]);
 
   return (
     <AppLayout>
@@ -210,19 +232,43 @@ export function ApprovalInboxPage() {
           </motion.div>
         )}
 
-        {/* Lista de Movimentos Agrupados */}
-        <div className="space-y-3">
+        {/* Lista de Movimentos Agrupados por Empresa */}
+        <div className="space-y-8">
           <AnimatePresence mode="popLayout">
-            {groups.map(group => (
-              <MovementCard
-                key={group.primary.id}
-                movement={group.primary}
-                duplicates={group.duplicates}
-                onApprove={handleApprove}
-                onReject={handleReject}
-                onMerge={handleMerge}
-                isProcessing={isProcessing === group.primary.id}
-              />
+            {groupedByWorkspace.map(section => (
+              <motion.div 
+                key={section.wsId}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-black/20 border border-white/5 rounded-3xl p-4 lg:p-6"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1978e5] to-[#0ea5e9] flex items-center justify-center shrink-0">
+                    <span className="text-white font-bold text-lg">{section.wsName.charAt(0).toUpperCase()}</span>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-white leading-tight">{section.wsName}</h2>
+                    <p className="text-xs text-slate-400">
+                      {section.items.length} pacote{section.items.length !== 1 ? 's' : ''} pendente{section.items.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {section.items.map(group => (
+                    <MovementCard
+                      key={group.primary.id}
+                      movement={group.primary}
+                      duplicates={group.duplicates}
+                      onApprove={handleApprove}
+                      onReject={handleReject}
+                      onMerge={handleMerge}
+                      isProcessing={isProcessing === group.primary.id}
+                    />
+                  ))}
+                </div>
+              </motion.div>
             ))}
           </AnimatePresence>
         </div>

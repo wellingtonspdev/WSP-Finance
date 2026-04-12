@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Check, X, Merge, Info, Calendar, DollarSign, FileText, Building2, AlertTriangle } from 'lucide-react';
+import { ChevronDown, Check, X, Merge, Info, Calendar, DollarSign, AlertTriangle, Building2 } from 'lucide-react';
 import type { BankMovementDTO } from '../api/bankMovements';
 
 interface MovementCardProps {
@@ -100,22 +100,6 @@ export function MovementCard({ movement, duplicates = [], onApprove, onReject, o
             className="overflow-hidden"
           >
             <div className="px-4 pb-4 space-y-4">
-              {/* Divider */}
-              <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-
-              {/* Detalhes do Payload */}
-              {movement.rawPayload && (
-                <div className="bg-white/5 border border-white/5 rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileText className="w-4 h-4 text-slate-500" />
-                    <span className="text-xs font-medium text-slate-400">Dados do Extrato</span>
-                  </div>
-                  <pre className="text-xs text-slate-500 font-mono overflow-x-auto max-h-24 scrollbar-thin">
-                    {JSON.stringify(movement.rawPayload, null, 2)}
-                  </pre>
-                </div>
-              )}
-
               {/* Seção de Duplicatas (Side-by-Side) */}
               {hasDuplicates && (
                 <div className="space-y-3">

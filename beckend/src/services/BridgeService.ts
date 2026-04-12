@@ -2,7 +2,7 @@ import { prisma } from '../lib/prisma';
 import { AccountRepository } from '../repositories/AccountRepository';
 import { CategoryRepository } from '../repositories/CategoryRepository';
 import { Decimal } from '@prisma/client/runtime/library';
-import { TransactionType, AuditAction } from '@prisma/client';
+import { AuditLogService } from './AuditLogService';
 
 interface BridgeTransferDTO {
   fromWorkspaceId: number;
@@ -122,39 +122,71 @@ export class BridgeService {
       });
 
       // C. Atualização de Saldos
-      await tx.account.update({
+      const updatedFromAccount = await tx.account.update({
         where: { id: dto.fromAccountId },
         data: { balance: { decrement: amountDecimal } }
       });
 
-      await tx.account.update({
+      const updatedToAccount = await tx.account.update({
         where: { id: dto.toAccountId },
         data: { balance: { increment: amountDecimal } }
       });
 
-      // D. Auditoria de Snapshot (Antes e Depois)
-      // Nota: O 'depois' é calculado, pois o banco só retorna após o commit.
-      const fromBalanceBefore = fromAccount.balance.toNumber();
-      const toBalanceBefore = toAccount.balance.toNumber();
+      // D. Auditoria estruturada da partida dobrada: uma linha para cada perna da ponte.
+      const fromBalanceBefore = new Decimal(fromAccount.balance.toString());
+      const toBalanceBefore = new Decimal(toAccount.balance.toString());
 
-      await tx.auditLog.create({
-        data: {
-          userId,
-          action: 'BRIDGE_TRANSFER',
-          entity: 'Transaction',
-          entityId: bridgeId, // Usamos o ID da ponte como referência
-          oldState: {
-            fromAccount: { id: dto.fromAccountId, balance: fromBalanceBefore },
-            toAccount: { id: dto.toAccountId, balance: toBalanceBefore }
-          },
-          newState: {
-            fromAccount: { id: dto.fromAccountId, balance: fromBalanceBefore - dto.amount },
-            toAccount: { id: dto.toAccountId, balance: toBalanceBefore + dto.amount },
-            bridgeId,
-            amount: dto.amount
-          }
-        }
-      });
+      await AuditLogService.logSync({
+        userId,
+        workspaceId: dto.fromWorkspaceId,
+        action: 'BRIDGE_TRANSFER',
+        entity: 'Transaction',
+        entityId: bridgeId,
+        oldState: {
+          bridgeId,
+          leg: 'DEBIT',
+          accountId: dto.fromAccountId,
+          balance: fromBalanceBefore.toString(),
+        },
+        newState: {
+          bridgeId,
+          leg: 'DEBIT',
+          transactionId: debitTx.id,
+          amount: amountDecimal.toString(),
+          balance: updatedFromAccount.balance.toString(),
+        },
+        balanceBefore: fromBalanceBefore,
+        balanceAfter: updatedFromAccount.balance,
+        delta: amountDecimal.negated(),
+        fromAccount: dto.fromAccountId,
+        toAccount: dto.toAccountId,
+      }, tx);
+
+      await AuditLogService.logSync({
+        userId,
+        workspaceId: dto.toWorkspaceId,
+        action: 'BRIDGE_TRANSFER',
+        entity: 'Transaction',
+        entityId: bridgeId,
+        oldState: {
+          bridgeId,
+          leg: 'CREDIT',
+          accountId: dto.toAccountId,
+          balance: toBalanceBefore.toString(),
+        },
+        newState: {
+          bridgeId,
+          leg: 'CREDIT',
+          transactionId: creditTx.id,
+          amount: amountDecimal.toString(),
+          balance: updatedToAccount.balance.toString(),
+        },
+        balanceBefore: toBalanceBefore,
+        balanceAfter: updatedToAccount.balance,
+        delta: amountDecimal,
+        fromAccount: dto.fromAccountId,
+        toAccount: dto.toAccountId,
+      }, tx);
 
       return { debitTx, creditTx };
     });

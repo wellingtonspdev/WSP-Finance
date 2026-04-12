@@ -4,9 +4,8 @@ import { useWorkspaceStore } from '../../stores/useWorkspaceStore';
 
 export function ForbiddenView() {
     const navigate = useNavigate();
-    const { setActiveWorkspaceId, user } = useWorkspaceStore((state) => ({
-        setActiveWorkspaceId: state.setActiveWorkspaceId,
-        user: (state as any).user // Evitando importar AuthStore caso nao precise
+    const { setActiveWorkspaceId } = useWorkspaceStore((state) => ({
+        setActiveWorkspaceId: state.setActiveWorkspaceId
     }));
 
     const handleGoBack = () => {

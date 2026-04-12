@@ -35,8 +35,8 @@ export class AccountRepository {
     accountId: number, // MUDANÇA: id number
     amountDelta: Decimal | number,
     tx: ExtendedTransactionClient = prisma
-  ): Promise<void> {
-    await tx.account.update({
+  ): Promise<Account> {
+    return await tx.account.update({
       where: { id: accountId },
       data: {
         balance: {
