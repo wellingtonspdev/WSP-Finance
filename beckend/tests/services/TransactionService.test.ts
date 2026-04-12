@@ -6,6 +6,10 @@ import { AppError } from '../../src/errors/AppError';
 
 dayjs.extend(isSameOrBefore);
 
+const mocks = vi.hoisted(() => ({
+  mockAuditLogSync: vi.fn(),
+}));
+
 // Mocks
 vi.mock('../../src/lib/prisma', () => {
   return {
@@ -24,7 +28,7 @@ vi.mock('../../src/repositories/AccountRepository', () => {
   return {
     AccountRepository: class {
       findByIdAndWorkspace = vi.fn().mockResolvedValue({ id: 1, balance: 1000 });
-      updateBalance = vi.fn().mockResolvedValue(true);
+      updateBalance = vi.fn().mockResolvedValue({ id: 1, balance: 1100 });
     }
   };
 });
@@ -51,6 +55,15 @@ vi.mock('../../src/lib/tenantContext', () => {
   return {
     tenantContext: {
       getStore: vi.fn()
+    }
+  };
+});
+
+vi.mock('../../src/services/AuditLogService', () => {
+  return {
+    AuditLogService: {
+      logSync: mocks.mockAuditLogSync,
+      logAsync: vi.fn(),
     }
   };
 });
@@ -88,6 +101,7 @@ describe('TransactionService - Guardião de Período Fiscal (closedUntil)', () =
       await expect(
         transactionService.create({
           description: 'Teste de Limite Temporal',
+          userId: 99,
           amount: 50,
           date: transactionDate,
           type: 'EXPENSE',
@@ -100,7 +114,7 @@ describe('TransactionService - Guardião de Período Fiscal (closedUntil)', () =
 
       try {
         await transactionService.create({
-          description: 'Teste', amount: 50, date: transactionDate, type: 'EXPENSE', accountId: 1, categoryId: 1, isPaid: false, workspaceId: 1
+          description: 'Teste', userId: 99, amount: 50, date: transactionDate, type: 'EXPENSE', accountId: 1, categoryId: 1, isPaid: false, workspaceId: 1
         });
       } catch (err: any) {
         expect(err.statusCode).toBe(403);
@@ -129,6 +143,7 @@ describe('TransactionService - Guardião de Período Fiscal (closedUntil)', () =
 
       const result = await transactionService.create({
         description: 'Ajuste Contábil Retroativo',
+        userId: 99,
         amount: 250,
         date: transactionDate,
         type: 'EXPENSE',
@@ -156,7 +171,7 @@ describe('TransactionService - Guardião de Período Fiscal (closedUntil)', () =
       });
 
       await expect(
-        transactionService.delete('fake-transaction', 1)
+        transactionService.delete('fake-transaction', 1, 99)
       ).rejects.toThrow(AppError);
     });
 
@@ -174,6 +189,7 @@ describe('TransactionService - Guardião de Período Fiscal (closedUntil)', () =
 
       const result = await transactionService.create({
         description: 'Livre',
+        userId: 99,
         amount: 10,
         date: transactionDate,
         type: 'INCOME',
@@ -184,6 +200,31 @@ describe('TransactionService - Guardião de Período Fiscal (closedUntil)', () =
       });
 
       expect(result.id).toBe('fake-transaction');
+    });
+    it('deve registrar auditoria de saldo quando cria transaÃ§Ã£o paga', async () => {
+      const { prisma } = await import('../../src/lib/prisma');
+
+      (prisma.workspace.findUnique as any).mockResolvedValue({
+        id: 1,
+        type: 'BUSINESS',
+        taxRate: { dividedBy: vi.fn().mockReturnValue(0.0) },
+        closedUntil: null
+      });
+
+      const result = await transactionService.create({
+        userId: 99,
+        description: 'Recebimento auditado',
+        amount: 100,
+        date: new Date('2026-02-01T10:00:00Z'),
+        type: 'INCOME',
+        accountId: 1,
+        categoryId: 1,
+        isPaid: true,
+        workspaceId: 1
+      });
+
+      expect(result).toHaveProperty('id', 'fake-transaction');
+      expect(mocks.mockAuditLogSync).toHaveBeenCalledTimes(1);
     });
   });
 });

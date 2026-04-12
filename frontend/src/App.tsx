@@ -61,6 +61,7 @@ export default function App() {
               }
             />
             <Route
+              path="/accountant/inbox"
               path="/accountant/inbox/:workspaceId"
               element={
                 <PrivateRoute>

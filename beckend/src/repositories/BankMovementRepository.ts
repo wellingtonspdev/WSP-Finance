@@ -40,6 +40,37 @@ export class BankMovementRepository {
     });
   }
 
+  async findGlobalPendingByAccountant(
+    userId: number,
+    options?: { cursor?: string; limit?: number }
+  ): Promise<BankMovement[]> {
+    const limit = options?.limit || 20;
+
+    return prisma.bankMovement.findMany({
+      where: {
+        status: 'PENDING',
+        workspace: {
+          members: {
+            some: {
+              userId,
+              role: 'ACCOUNTANT'
+            }
+          }
+        }
+      },
+      take: limit + 1,
+      ...(options?.cursor && {
+        cursor: { id: options.cursor },
+        skip: 1,
+      }),
+      orderBy: { date: 'desc' },
+      include: {
+        account: { select: { name: true } },
+        workspace: { select: { name: true, document: true } } // Necessário para a tela global
+      },
+    });
+  }
+
   async findByIdAndWorkspace(id: string, workspaceId: number): Promise<BankMovement | null> {
     return prisma.bankMovement.findFirst({
       where: { id, workspaceId },

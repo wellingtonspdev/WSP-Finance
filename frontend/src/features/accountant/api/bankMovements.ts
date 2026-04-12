@@ -38,6 +38,18 @@ export async function fetchPendingMovements(
   return res.data;
 }
 
+export async function fetchGlobalPendingMovements(
+  cursor?: string,
+  limit = 20
+): Promise<PaginatedResponse> {
+  const params = new URLSearchParams();
+  if (cursor) params.set('cursor', cursor);
+  params.set('limit', String(limit));
+
+  const res = await api.get(`/accountant/bank-movements/pending?${params.toString()}`);
+  return res.data;
+}
+
 export async function mergeMovements(
   workspaceId: number,
   keepId: string,
@@ -59,6 +71,7 @@ export async function approveMovement(
 ): Promise<any> {
   const res = await api.post(
     `/bank-movements/${movementId}/approve`,
+    { categoryId },
     { accountId, categoryId },
     { headers: { 'x-workspace-id': String(workspaceId) } }
   );

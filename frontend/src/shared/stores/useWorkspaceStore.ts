@@ -31,7 +31,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             isLoadingMetadata: false as boolean,
             isForbidden: false as boolean,
 
-            setMemberships: (memberships) => {
+            setMemberships: (memberships: Membership[]) => {
                 set({ memberships });
             },
 
@@ -42,7 +42,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
                 set({ activeWorkspaceId: id, activeMembership: membership, isForbidden: false });
             },
 
-            setIsLoadingMetadata: (loading) => {
+            setIsLoadingMetadata: (loading: boolean) => {
                 set({ isLoadingMetadata: loading });
             },
 

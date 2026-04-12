@@ -57,6 +57,10 @@ jobs:
         working-directory: ./beckend
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma Client
+        working-directory: ./beckend
+        run: npx prisma generate
+
       - name: Strict Typecheck (TSC)
         working-directory: ./beckend
         run: pnpm exec tsc --noEmit

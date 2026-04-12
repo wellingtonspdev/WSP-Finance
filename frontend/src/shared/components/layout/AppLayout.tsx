@@ -15,7 +15,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { isTransactionModalOpen, closeTransactionModal } = useUI();
+  const { isTransactionModalOpen, closeTransactionModal, toggleMobileMenu } = useUI();
   const { canViewAuditBanner } = useCapabilities();
   const { user } = useAuth();
 
@@ -45,7 +45,22 @@ export function AppLayout({ children }: AppLayoutProps) {
 
         {/* Container Responsivo (Global full width) */}
         <div className="flex-1 flex flex-col w-full h-full">
-          {!isAccountantPersona && <Header />}
+          {!isAccountantPersona ? (
+            <Header />
+          ) : (
+            <div className="lg:hidden flex items-center justify-between p-4 border-b border-slate-800/50 bg-[#0f172a]/90 backdrop-blur-md">
+              <button 
+                onClick={toggleMobileMenu}
+                className="p-2 bg-slate-800/50 rounded-lg hover:bg-slate-700/50 transition-colors"
+              >
+                <div className="w-5 h-0.5 bg-slate-400 mb-1" />
+                <div className="w-5 h-0.5 bg-slate-400 mb-1" />
+                <div className="w-5 h-0.5 bg-slate-400" />
+              </button>
+              <span className="font-semibold text-lg text-slate-200">WSP Finance</span>
+              <div className="w-9" /> {/* Elemento vazio para equilibrar o flex-between */}
+            </div>
+          )}
 
           {/* Scrollable Area */}
           <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 lg:px-8 pb-32 lg:pb-8 scroll-smooth w-full">

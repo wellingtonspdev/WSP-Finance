@@ -412,6 +412,13 @@ router.post('/transactions/import', AuthMiddleware, WorkspaceMiddleware, (req, r
 // INBOX DE APROVAÇÃO (Bank Movements - Staging → Transaction)
 // ==============================================================================
 
+router.get('/accountant/bank-movements/pending', AuthMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Inbox Aprovação']
+       #swagger.summary = 'Listar Movimentos Pendentes (Global Contador)'
+       #swagger.description = 'Retorna BankMovements com status PENDING de TODOS os workspaces onde o usuário é ACCOUNTANT. Não usa WorkspaceMiddleware.' */
+    return bankMovementController.listGlobalPending(req, res);
+});
+
 router.get('/bank-movements', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
     /* #swagger.tags = ['Inbox Aprovação']
        #swagger.summary = 'Listar Movimentos Pendentes'

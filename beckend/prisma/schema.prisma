@@ -157,14 +157,14 @@ model Workspace {
   state        String?
 
   // Governança e Fecho Fiscal
-  closedUntil  DateTime?
+  closedUntil DateTime?
 
   // Relacionamentos
-  members      WorkspaceMember[] // Membros do workspace
-  accounts     Account[]
-  categories   Category[]
-  transactions Transaction[]
-  invites      WorkspaceInvite[]
+  members       WorkspaceMember[] // Membros do workspace
+  accounts      Account[]
+  categories    Category[]
+  transactions  Transaction[]
+  invites       WorkspaceInvite[]
   bankMovements BankMovement[]
 
   createdAt DateTime @default(now())
@@ -186,15 +186,17 @@ model Category {
 
 // Contas
 model Account {
-  id                Int           @id @default(autoincrement())
+  id                Int            @id @default(autoincrement())
   name              String
-  type              AccountType   @default(CHECKING)
-  balance           Decimal       @default(0) @db.Decimal(19, 4)
-  isIncludedInTotal Boolean       @default(true)
+  type              AccountType    @default(CHECKING)
+  balance           Decimal        @default(0) @db.Decimal(19, 4)
+  isIncludedInTotal Boolean        @default(true)
   workspaceId       Int
-  workspace         Workspace     @relation(fields: [workspaceId], references: [id])
+  workspace         Workspace      @relation(fields: [workspaceId], references: [id])
   transactions      Transaction[]
   bankMovements     BankMovement[]
+  auditLogsAsFrom   AuditLog[]     @relation("AuditLogFromAccount")
+  auditLogsAsTo     AuditLog[]     @relation("AuditLogToAccount")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -253,22 +255,32 @@ model Transaction {
 
 // Auditoria (Governança)
 model AuditLog {
-  id          String      @id @default(uuid())
-  userId      Int
-  user        User        @relation(fields: [userId], references: [id])
-  workspaceId Int?
-  action      AuditAction
-  entity      String // Ex: "Transaction", "Account"
-  entityId    String // ID da entidade afetada (pode ser Int convertido pra String)
-  oldState    Json? // Estado anterior (para rollback/histórico)
-  newState    Json? // Novo estado
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime    @default(now())
+  id             String      @id @default(uuid())
+  userId         Int
+  user           User        @relation(fields: [userId], references: [id])
+  workspaceId    Int?
+  action         AuditAction
+  entity         String // Ex: "Transaction", "Account"
+  entityId       String // ID da entidade afetada (pode ser Int convertido pra String)
+  oldState       Json? // Estado anterior (para rollback/histórico)
+  newState       Json? // Novo estado
+  balanceBefore  Decimal?    @db.Decimal(19, 4)
+  balanceAfter   Decimal?    @db.Decimal(19, 4)
+  delta          Decimal?    @db.Decimal(19, 4)
+  fromAccount    Int?
+  fromAccountRef Account?    @relation("AuditLogFromAccount", fields: [fromAccount], references: [id])
+  toAccount      Int?
+  toAccountRef   Account?    @relation("AuditLogToAccount", fields: [toAccount], references: [id])
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime    @default(now())
 
   @@index([entity, entityId])
   @@index([userId])
   @@index([workspaceId])
+  @@index([workspaceId, createdAt])
+  @@index([fromAccount])
+  @@index([toAccount])
 }
 
 // Notificações (Automação)
@@ -344,25 +356,26 @@ model WorkspaceInvite {
 
 // Importações Bancárias (Área de Staging - Amortecedor)
 model BankMovement {
-  id                String         @id @default(uuid())
-  workspaceId       Int
-  workspace         Workspace      @relation(fields: [workspaceId], references: [id])
-  accountId         Int
-  account           Account        @relation(fields: [accountId], references: [id])
-  
-  amount            Decimal        @db.Decimal(19, 4)
-  date              DateTime
-  description       String
-  source            MovementSource
-  status            MovementStatus @default(PENDING)
-  
+  id          String    @id @default(uuid())
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  accountId   Int
+  account     Account   @relation(fields: [accountId], references: [id])
+
+  amount      Decimal        @db.Decimal(19, 4)
+  date        DateTime
+  description String
+  source      MovementSource
+  status      MovementStatus @default(PENDING)
+
   fitid             String?
   hashDeduplication String?
-  rawPayload        Json           // Payload original do banco/ofx
-  
-  createdAt         DateTime       @default(now())
+  rawPayload        Json // Payload original do banco/ofx
+
+  createdAt DateTime @default(now())
 
   @@unique([workspaceId, fitid])
   @@unique([workspaceId, hashDeduplication])
   @@index([workspaceId, status])
+  @@index([description(ops: raw("gin_trgm_ops"))], map: "idx_bank_movements_description_trgm", type: Gin)
 }

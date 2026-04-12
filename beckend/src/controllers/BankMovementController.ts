@@ -27,6 +27,23 @@ export class BankMovementController {
     return res.status(200).json(result);
   }
 
+  async listGlobalPending(req: Request, res: Response) {
+    const querySchema = z.object({
+      cursor: z.string().uuid().optional(),
+      limit: z.coerce.number().min(1).max(100).default(20).optional(),
+    });
+
+    const filters = querySchema.parse(req.query);
+    const userId = req.user!.id; // Pego a partir do AuthMiddleware
+
+    const result = await this.service.listGlobalPending({
+      userId,
+      ...filters,
+    });
+
+    return res.status(200).json(result);
+  }
+
   async merge(req: Request, res: Response) {
     const paramsSchema = z.object({
       id: z.string().uuid(),
@@ -67,22 +84,25 @@ export class BankMovementController {
     });
 
     const bodySchema = z.object({
-      accountId: z.number().int().positive(),
       categoryId: z.number().int().positive(),
     });
 
     const { id } = paramsSchema.parse(req.params);
     const body = bodySchema.parse(req.body);
     const workspaceId = req.workspaceId!;
+    const userId = req.user.id;
 
     try {
-      const transaction = await this.service.approve({
+      const result = await this.service.approve({
+        userId,
         movementId: id,
         workspaceId,
-        accountId: body.accountId,
         categoryId: body.categoryId,
       });
-      return res.status(201).json(transaction);
+
+      // Idempotência: já aprovado → 200; primeira aprovação → 201
+      const statusCode = ('alreadyApproved' in result && result.alreadyApproved) ? 200 : 201;
+      return res.status(statusCode).json(result);
     } catch (err: any) {
       if (err instanceof AppError) {
         return res.status(err.statusCode).json({ message: err.message });
