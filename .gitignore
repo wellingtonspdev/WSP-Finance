@@ -27,6 +27,11 @@ pnpm-debug.log*
 *.swp
 *.swo
 
+# IDE Specific
+.agignore
+.agpro-rules
+.opencode/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -39,6 +44,8 @@ Thumbs.db
 /frontend/dist
 GEMINI.md
 /documentacao
+relatorio-estado-wsp-finance.md
+relatorio_correções_segurança_ingestão
 
 # Project Guidelines
 project_style.md
@@ -58,3 +65,5 @@ relatorio_correções_segurança_ingestão
 
 # Prisma
 /beckend/prisma/migrations/**/migration_lock.toml
+# Package (root)
+package.json
