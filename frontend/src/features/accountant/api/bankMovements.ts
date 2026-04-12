@@ -54,12 +54,11 @@ export async function mergeMovements(
 export async function approveMovement(
   workspaceId: number,
   movementId: string,
-  accountId: number,
   categoryId: number
 ): Promise<any> {
   const res = await api.post(
     `/bank-movements/${movementId}/approve`,
-    { accountId, categoryId },
+    { categoryId },
     { headers: { 'x-workspace-id': String(workspaceId) } }
   );
   return res.data;

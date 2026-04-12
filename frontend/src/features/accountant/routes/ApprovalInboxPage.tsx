@@ -95,11 +95,11 @@ export function ApprovalInboxPage() {
   const handleApprove = async (id: string) => {
     setIsProcessing(id);
     try {
-      // Para uma implementação completa, precisa selecionar conta e categoria.
-      // Mock: usa accountId do próprio movimento e categoryId = 1
+      // Para uma implementação completa, precisa selecionar categoria.
+      // Mock: usa categoryId = 1
       const mov = movements.find(m => m.id === id);
       if (!mov) return;
-      await approveMovement(wsId, id, mov.accountId, 1);
+      await approveMovement(wsId, id, 1);
       setMovements(prev => prev.filter(m => m.id !== id));
       addToast('Movimento aprovado e convertido em Transação');
     } catch {
