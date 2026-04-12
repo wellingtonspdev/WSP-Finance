@@ -12,9 +12,6 @@ import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 
 dayjs.extend(isSameOrBefore);
-import { AppError } from '../errors/AppError';
-import { TransactionType, MovementStatus } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
 
 interface ListPendingDTO {
   workspaceId: number;
@@ -38,9 +35,6 @@ interface ApproveDTO {
   userId: number;
   movementId: string;
   workspaceId: number;
-  movementId: string;
-  workspaceId: number;
-  accountId: number;
   categoryId: number;
 }
 
@@ -106,7 +100,6 @@ export class BankMovementService {
     }
 
     return await prisma.$transaction(async (tx) => {
-      // 1. Construir payload de aglutinação com lastro de evidência (Regra 5)
       const keepMovement = movements.find(m => m.id === keepId)!;
       const mergedPayload = {
         merged: true,
@@ -121,16 +114,11 @@ export class BankMovementService {
 
       await this.movementRepo.updateRawPayload(keepId, mergedPayload, tx);
 
-      // 2. Atualizar o rawPayload do "vencedor" (primary nunca é sobrescrito)
-      await this.movementRepo.updateRawPayload(keepId, mergedPayload, tx);
-
-      // 3. Marcar discardIds como MERGED e depois deletar
       for (const discardId of discardIds) {
         await this.movementRepo.updateStatus(discardId, MovementStatus.MERGED, tx);
       }
       await this.movementRepo.deleteMany(discardIds, tx);
 
-      // 4. Retornar o movimento atualizado
       return tx.bankMovement.findUnique({ where: { id: keepId } });
     }, {
       maxWait: 5000,
@@ -198,19 +186,12 @@ export class BankMovementService {
     if (!category) throw new AppError('Categoria não encontrada ou acesso negado', 404);
 
     // 6. Bloco atômico (mínimo possível dentro da transação)
-   */
-  async approve({ movementId, workspaceId, accountId, categoryId }: ApproveDTO) {
-    const movement = await this.movementRepo.findByIdAndWorkspace(movementId, workspaceId);
-    if (!movement) throw new AppError('Movimento não encontrado', 404);
-    if (movement.status !== 'PENDING') throw new AppError('Movimento não está pendente', 400);
-
     return await prisma.$transaction(async (tx) => {
       const amount = new Decimal(movement.amount.toString());
       const type: TransactionType = amount.greaterThanOrEqualTo(0) ? 'INCOME' : 'EXPENSE';
       const absAmount = amount.abs();
 
       // A. Criar Transaction
-      // 1. Criar Transaction
       const transaction = await this.transactionRepo.create({
         description: movement.description,
         amount: absAmount,
@@ -218,7 +199,6 @@ export class BankMovementService {
         type,
         isPaid: true,
         account: { connect: { id: movement.accountId } },
-        account: { connect: { id: accountId } },
         category: { connect: { id: categoryId } },
         workspace: { connect: { id: workspaceId } },
       }, tx);
@@ -249,11 +229,6 @@ export class BankMovementService {
       }, tx);
 
       // C. Marcar movimento como APPROVED
-      // 2. Atualizar saldo da conta
-      const balanceDelta = type === 'INCOME' ? absAmount : absAmount.negated();
-      await this.accountRepo.updateBalance(accountId, balanceDelta, tx);
-
-      // 3. Marcar movimento como APPROVED
       await this.movementRepo.updateStatus(movementId, MovementStatus.APPROVED, tx);
 
       return transaction;
