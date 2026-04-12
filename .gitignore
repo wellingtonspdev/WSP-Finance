@@ -20,7 +20,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 *.log
-*.txt
 
 # IDEs
 .vscode
@@ -52,5 +51,19 @@ relatorio_correções_segurança_ingestão
 project_style.md
 design_system.md
 
+# AI Agent Files
+.agignore
+.agpro-rules
+/.opencode
+
+# Reports (Temporários)
+relatorio-estado-wsp-finance.md
+relatorio_correções_segurança_ingestão
+
+# Root package.json (monorepo root)
+/package.json
+
+# Prisma
+/beckend/prisma/migrations/**/migration_lock.toml
 # Package (root)
 package.json
