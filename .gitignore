@@ -20,18 +20,12 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 *.log
-*.txt
 
 # IDEs
 .vscode
 .idea
 *.swp
 *.swo
-
-# IDE Specific
-.agignore
-.agpro-rules
-.opencode/
 
 # OS
 .DS_Store
@@ -45,12 +39,22 @@ Thumbs.db
 /frontend/dist
 GEMINI.md
 /documentacao
-relatorio-estado-wsp-finance.md
-relatorio_correções_segurança_ingestão
 
 # Project Guidelines
 project_style.md
 design_system.md
 
-# Package (root)
-package.json
+# AI Agent Files
+.agignore
+.agpro-rules
+/.opencode
+
+# Reports (Temporários)
+relatorio-estado-wsp-finance.md
+relatorio_correções_segurança_ingestão
+
+# Root package.json (monorepo root)
+/package.json
+
+# Prisma
+/beckend/prisma/migrations/**/migration_lock.toml
