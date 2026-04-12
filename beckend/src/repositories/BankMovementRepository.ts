@@ -1,5 +1,7 @@
 import { Prisma, BankMovement, MovementStatus } from '@prisma/client';
 import { prisma, ExtendedTransactionClient } from '../lib/prisma';
+import { Prisma } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 
 export class BankMovementRepository {
   /**
@@ -80,6 +82,11 @@ export class BankMovementRepository {
     return tx.bankMovement.update({
       where: { id },
       data: { rawPayload },
+    tx: Prisma.TransactionClient = prisma
+  ) {
+    return tx.bankMovement.createMany({
+      data: movements,
+      skipDuplicates: true, // Garante resiliência (ignora caso o DB emita Unique Constraint de fitid ou hashDeduplication)
     });
   }
 }
