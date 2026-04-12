@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, FileText, AlertTriangle, ArrowRight, Search, MoreVertical, UserPlus } from 'lucide-react';
+import { Users, FileText, AlertTriangle, ArrowRight, Search, MoreVertical, UserPlus, Inbox } from 'lucide-react';
 import { useAuth } from '../../../app/AuthProvider';
 import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 import { AppLayout } from '../../../shared/components/layout/AppLayout';
@@ -208,6 +208,14 @@ export function AccountantHubPage() {
                                                             Acessar Workspace
                                                             <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                                                         </button>
+                                                        <button
+                                                            onClick={() => navigate(`/accountant/inbox/${membership.id}`)}
+                                                            className="px-3 py-2 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 font-semibold text-xs transition-all flex items-center gap-1.5"
+                                                            title="Inbox de Aprovação"
+                                                        >
+                                                            <Inbox className="w-3.5 h-3.5" />
+                                                            Inbox
+                                                        </button>
                                                         <button className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
                                                             <MoreVertical className="w-4 h-4" />
                                                         </button>
@@ -270,6 +278,13 @@ export function AccountantHubPage() {
                                                 <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Última Atividade</p>
                                                 <p className="text-xs font-medium text-slate-300">há {index + 1} dia(s)</p>
                                             </div>
+                                            <button
+                                                onClick={() => navigate(`/accountant/inbox/${membership.id}`)}
+                                                className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 hover:bg-amber-500/20 transition-all"
+                                                title="Inbox"
+                                            >
+                                                <Inbox className="w-4 h-4" />
+                                            </button>
                                             <button
                                                 onClick={() => handleAccessClient(membership.id)}
                                                 className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 group-hover:bg-[#1978e5] group-hover:text-white transition-all shadow-sm"
