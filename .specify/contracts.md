@@ -270,3 +270,58 @@ enum MovementSource {
   MANUAL        // Inserção manual
 }
 ```
+
+---
+
+## 🔍 Deduplicação Fuzzy (`FuzzyDeduplicationService`)
+
+**Responsabilidade:** Identificar movimentos "quase iguais" — mesmo valor, data similar (±2h), descrição variada (ex: "Posto Shell" vs "POSTO SHELL LTDA").
+
+### Modo de Operação (Dual-mode)
+
+| Modo | Mecanismo | Condição |
+|------|-----------|----------|
+| **Primário** | `pg_trgm` → `similarity()` SQL nativa | Extensão ativada no PostgreSQL |
+| **Fallback** | `LIKE` + `LOWER()` + Jaccard no app layer | Supabase Free negar `CREATE EXTENSION` |
+
+> **⚠️ Fallback documentado:** Se `pg_trgm` não estiver disponível no ambiente (erro `42883 - undefined_function`),
+> o serviço ativa automaticamente o modo fallback usando `ILIKE` com as 3 primeiras palavras
+> significativas da descrição (>= 3 caracteres) + cálculo de Jaccard sobre trigramas no application layer.
+> O log `[FuzzyDedup] pg_trgm indisponível` é emitido no console.
+
+### Regras de Negócio
+
+| Regra | Valor | Justificativa |
+|-------|-------|---------------|
+| Threshold de similaridade | `> 0.6` | Balanceamento entre precisão e recall |
+| Janela temporal | `±2 horas` | Bancos processam em batch noturno |
+| Valor mínimo | `>= R$ 1,00` (abs) | Evitar falsos positivos em taxas bancárias |
+| Status filtrado | `PENDING` | Apenas movimentos ainda não processados |
+| Isolamento | `workspaceId` | RLS obrigatório |
+
+### Interface de Resposta
+
+```typescript
+interface FuzzyCandidate {
+  match: BankMovement;     // Candidato encontrado
+  similarity: number;      // Score [0..1], > 0.6 é match
+}
+```
+
+### Migração SQL
+
+```sql
+-- migration: 20260412021800_enable_pg_trgm_fuzzy_index
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_bank_movements_description_trgm
+  ON "BankMovement" USING gin (description gin_trgm_ops);
+```
+
+### Arquivos Relacionados
+
+| Arquivo | Responsabilidade |
+|---------|------------------|
+| `src/services/FuzzyDeduplicationService.ts` | Serviço dual-mode com fallback |
+| `tests/services/FuzzyDeduplicationService.test.ts` | 7 testes TDD (critérios de aceitação) |
+| `prisma/migrations/20260412021800_.../migration.sql` | Infra pg_trgm + índice GIN |
+
