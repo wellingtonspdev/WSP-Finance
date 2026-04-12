@@ -72,18 +72,20 @@ export class BankMovementService {
     }
 
     return await prisma.$transaction(async (tx) => {
-      // 1. Combinar rawPayload: merge de todos os payloads no keepId
+      // 1. Construir payload de aglutinação com lastro de evidência (Regra 5)
       const keepMovement = movements.find(m => m.id === keepId)!;
       const mergedPayload = {
         merged: true,
+        mergedAt: new Date().toISOString(),
+        mergedCount: allIds.length,
         primary: keepMovement.rawPayload,
-        merged_from: discardIds.map(id => {
+        sources: discardIds.map(id => {
           const m = movements.find(mv => mv.id === id)!;
-          return { id: m.id, payload: m.rawPayload };
+          return { id: m.id, source: m.source, payload: m.rawPayload };
         }),
       };
 
-      // 2. Atualizar o rawPayload do "vencedor"
+      // 2. Atualizar o rawPayload do "vencedor" (primary nunca é sobrescrito)
       await this.movementRepo.updateRawPayload(keepId, mergedPayload, tx);
 
       // 3. Marcar discardIds como MERGED e depois deletar
@@ -94,6 +96,10 @@ export class BankMovementService {
 
       // 4. Retornar o movimento atualizado
       return tx.bankMovement.findUnique({ where: { id: keepId } });
+    }, {
+      maxWait: 5000,
+      timeout: 10000,
+      isolationLevel: 'Serializable',
     });
   }
 
@@ -130,6 +136,10 @@ export class BankMovementService {
       await this.movementRepo.updateStatus(movementId, MovementStatus.APPROVED, tx);
 
       return transaction;
+    }, {
+      maxWait: 5000,
+      timeout: 10000,
+      isolationLevel: 'Serializable',
     });
   }
 
