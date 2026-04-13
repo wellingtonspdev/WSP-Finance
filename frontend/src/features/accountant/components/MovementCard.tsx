@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Check, X, Merge, Info, Calendar, DollarSign, AlertTriangle, Building2 } from 'lucide-react';
-import { ChevronDown, Check, X, Merge, Info, Calendar, DollarSign, FileText, Building2, AlertTriangle } from 'lucide-react';
+import { ChevronDown, Check, X, Merge, Info, Calendar, DollarSign, AlertTriangle, Building2, FileText } from 'lucide-react';
 import type { BankMovementDTO } from '../api/bankMovements';
 
 interface MovementCardProps {
