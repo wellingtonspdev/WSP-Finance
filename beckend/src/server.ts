@@ -132,13 +132,31 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
 
 app.use(errorHandler);
 
-// Inicializar Cron Jobs
-const cronService = new CronService();
-cronService.start();
+import { prisma } from './lib/prisma';
+import { checkPrivileges } from './lib/checkEnvironment';
 
-const PORT = process.env.PORT || 3333;
+const startServer = async () => {
+  try {
+    // 🛡️ Fail-Fast / Runtime Security Check
+    // Lança um erro se o Prisma conectar com BypassRLS ou Superuser
+    await checkPrivileges(prisma as any);
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📑 Swagger docs available at http://localhost:${PORT}/docs`);
-});
+    // Inicializar Cron Jobs (Apenas após o banco estar saudável e verificado)
+    const cronService = new CronService();
+    cronService.start();
+
+    const PORT = process.env.PORT || 3333;
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
+      console.log(`📑 Swagger docs available at http://localhost:${PORT}/docs`);
+    });
+
+  } catch (err: any) {
+    console.error('🚨 [RISCO SEVERO] Falha no RLS/DbConfig no Startup:', err.message || err);
+    console.error('🛑 Ação: Para a arquitetura de Tenancy do WSP Finance, o runtime não deve conter [BYPASSRLS] nem [SUPERUSER].');
+    process.exit(1);
+  }
+};
+
+void startServer();
