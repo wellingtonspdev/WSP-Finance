@@ -120,7 +120,11 @@ describe('BankMovementService.approve()', () => {
     });
 
     // prisma.$transaction executa o callback direto
-    mocks.mockPrismaTransaction.mockImplementation(async (callback: any) => callback({}));
+    mocks.mockPrismaTransaction.mockImplementation(async (callback: any) => callback({
+      bankMovement: {
+        updateMany: mocks.mockUpdateStatus
+      }
+    }));
   });
 
   // ── 1. Happy Path ──

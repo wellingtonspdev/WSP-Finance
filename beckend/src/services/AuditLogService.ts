@@ -50,8 +50,11 @@ export class AuditLogService {
         const balanceAfter = this.normalizeDecimal(dto.balanceAfter);
         const delta = this.normalizeDecimal(dto.delta);
 
+        const id = crypto.randomUUID();
+
         await client.$executeRaw`
             INSERT INTO "AuditLog" (
+                "id",
                 "userId",
                 "workspaceId",
                 "action",
@@ -67,6 +70,7 @@ export class AuditLogService {
                 "ipAddress",
                 "userAgent"
             ) VALUES (
+                ${id},
                 ${dto.userId},
                 ${dto.workspaceId ?? null},
                 ${dto.action}::"AuditAction",

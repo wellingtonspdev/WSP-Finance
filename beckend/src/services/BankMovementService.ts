@@ -99,7 +99,7 @@ export class BankMovementService {
       throw new AppError('Todos os movimentos envolvidos no merge devem estar PENDING', 400);
     }
 
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx: any) => {
       const keepMovement = movements.find(m => m.id === keepId)!;
       const mergedPayload = {
         merged: true,
@@ -186,7 +186,7 @@ export class BankMovementService {
     if (!category) throw new AppError('Categoria não encontrada ou acesso negado', 404);
 
     // 6. Bloco atômico (mínimo possível dentro da transação)
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx: any) => {
       const amount = new Decimal(movement.amount.toString());
       const type: TransactionType = amount.greaterThanOrEqualTo(0) ? 'INCOME' : 'EXPENSE';
       const absAmount = amount.abs();
@@ -229,7 +229,13 @@ export class BankMovementService {
       }, tx);
 
       // C. Marcar movimento como APPROVED
-      await this.movementRepo.updateStatus(movementId, MovementStatus.APPROVED, tx);
+      const updateResult = await tx.bankMovement.updateMany({
+        where: { id: movementId, status: 'PENDING' },
+        data: { status: MovementStatus.APPROVED }
+      });
+      if (updateResult.count === 0) {
+        throw new AppError('Movimento já processado', 409);
+      }
 
       return transaction;
     }, {

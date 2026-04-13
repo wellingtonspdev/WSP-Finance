@@ -5,7 +5,7 @@ export class UserRepository {
   // Cria Usuário e Workspace Pessoal em uma única transação atômica
   async createWithWorkspace(data: Prisma.UserCreateInput): Promise<User> {
     try {
-      return await prisma.$transaction(async (tx) => {
+      return await prisma.$transaction(async (tx: any) => {
         const user = await tx.user.create({
           data: {
             name: data.name,
