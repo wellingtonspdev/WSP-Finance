@@ -117,7 +117,7 @@ export class FinancialIngestionEngine {
       try {
         // O Prisma vai retornar "count" com o que de fato foi inserido.
         // O "skipDuplicates: true" lá no repository garante que duplicates reduzam esse count.
-        const txResult = await prisma.$transaction(async (tx) => {
+        const txResult = await prisma.$transaction(async (tx: any) => {
           return this.repository.createBatch(chunk, tx);
         });
 

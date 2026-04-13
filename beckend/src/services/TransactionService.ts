@@ -127,7 +127,7 @@ export class TransactionService {
     }
 
     // 3. Transação Atômica (Cria Transação + Atualiza Saldo)
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx: any) => {
       // A. Criar o registro da transação
       const transaction = await this.transactionRepository.create({
         description,
@@ -219,7 +219,7 @@ export class TransactionService {
     const account = await this.accountRepository.findByIdAndWorkspace(transaction.accountId, workspaceId);
     if (!account) throw new AppError('Account not found or access denied', 404);
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       if (transaction.isPaid && transaction.amount) {
         // Reverter saldo (Se era ganho, o saldo decresce; se era gasto, retorna ao caixa)
         const balanceBefore = new Decimal(account.balance.toString());
