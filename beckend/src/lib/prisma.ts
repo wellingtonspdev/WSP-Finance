@@ -18,6 +18,11 @@ const basePrisma = new PrismaClient({
     }
 });
 
+export const sysPrisma = process.env.DIRECT_URL 
+    ? new PrismaClient({ datasources: { db: { url: process.env.DIRECT_URL } } })
+    : basePrisma;
+
+
 export const prisma = basePrisma.$extends({
     query: {
         $allModels: {
