@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Decimal } from 'decimal.js';
 
 const { queryRawMock } = vi.hoisted(() => {
@@ -50,7 +50,12 @@ describe('FuzzyDeduplicationService - Critérios de Aceitação', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.FUZZY_DEDUP_MODE;
     service = new FuzzyDeduplicationService();
+  });
+
+  afterEach(() => {
+    delete process.env.FUZZY_DEDUP_MODE;
   });
 
   // ---- CRITÉRIO 1: pg_trgm similarity match ----
@@ -149,6 +154,54 @@ describe('FuzzyDeduplicationService - Critérios de Aceitação', () => {
   });
 
   // ---- CRITÉRIO 5: Isolamento por workspaceId (RLS) ----
+  it('deve honrar FUZZY_DEDUP_MODE=fallback sem tentar similarity()', async () => {
+    process.env.FUZZY_DEDUP_MODE = 'fallback';
+    service = new FuzzyDeduplicationService();
+    queryRawMock.mockResolvedValue([
+      makeMovement({ description: 'POSTO SHELL SA' }),
+    ]);
+
+    const results = await service.findCandidates({
+      workspaceId: 1,
+      description: 'Posto Shell',
+      amount: new Decimal('150.00'),
+      date: baseDate,
+    });
+
+    expect(service.currentMode).toBe('fallback');
+    expect(service.isFallbackActive).toBe(true);
+    expect(results).toHaveLength(1);
+    expect(JSON.stringify(queryRawMock.mock.calls[0])).toContain('LOWER(description) LIKE');
+  });
+
+  it('deve degradar para fallback em timeout e manter o modo seguro nas chamadas seguintes', async () => {
+    queryRawMock
+      .mockRejectedValueOnce(new Error('canceling statement due to statement timeout'))
+      .mockResolvedValueOnce([makeMovement({ description: 'POSTO SHELL SA' })])
+      .mockResolvedValueOnce([makeMovement({ description: 'POSTO SHELL EXPRESS' })]);
+
+    const firstResults = await service.findCandidates({
+      workspaceId: 1,
+      description: 'Posto Shell',
+      amount: new Decimal('150.00'),
+      date: baseDate,
+    });
+
+    const secondResults = await service.findCandidates({
+      workspaceId: 1,
+      description: 'Posto Shell',
+      amount: new Decimal('150.00'),
+      date: baseDate,
+    });
+
+    expect(firstResults).toHaveLength(1);
+    expect(secondResults).toHaveLength(1);
+    expect(service.currentMode).toBe('fallback');
+    expect(service.isFallbackActive).toBe(true);
+    expect(queryRawMock).toHaveBeenCalledTimes(3);
+    expect(JSON.stringify(queryRawMock.mock.calls[2])).toContain('LOWER(description) LIKE');
+  });
+
   it('deve filtrar por workspaceId (isolamento de tenant)', async () => {
     queryRawMock.mockResolvedValue([]);
 

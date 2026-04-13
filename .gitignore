@@ -20,6 +20,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 *.log
+beckend/tests/k6-summary-batch-*.json
 
 # IDEs
 .vscode
@@ -43,7 +44,8 @@ Thumbs.db
 /beckend/dist
 /frontend/dist
 GEMINI.md
-/documentacao
+/documentacao/*
+!/documentacao/benchmark_pg_trgm_staging.md
 relatorio-estado-wsp-finance.md
 relatorio_correções_segurança_ingestão
 

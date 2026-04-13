@@ -14,6 +14,7 @@ import { ExternalDataController } from './controllers/ExternalDataController';
 import { UserController } from './controllers/UserController';
 import { InviteController } from './controllers/InviteController';
 import { BankMovementController } from './controllers/BankMovementController';
+import { OpenFinanceWebhookController } from './controllers/OpenFinanceWebhookController';
 
 // Middlewares
 import { AuthMiddleware } from './middlewares/AuthMiddleware';
@@ -45,6 +46,7 @@ const externalDataController = new ExternalDataController();
 const userController = new UserController();
 const inviteController = new InviteController();
 const bankMovementController = new BankMovementController();
+const openFinanceWebhookController = new OpenFinanceWebhookController();
 
 // ==============================================================================
 // AUTENTICAÇÃO & IDENTIDADE
@@ -126,6 +128,13 @@ router.post('/password/reset', (req, res, next) => {
 // ==============================================================================
 // INTEGRAÇÕES EXTERNAS (Dados e LGPD)
 // ==============================================================================
+router.post('/api/webhooks/open-finance', (req, res, next) => {
+    /* #swagger.tags = ['Webhooks']
+       #swagger.summary = 'Ingestao Open Finance'
+       #swagger.description = 'Recebe lotes JSON de movimentos Open Finance e delega a persistencia para a FinancialIngestionEngine.' */
+    return openFinanceWebhookController.ingest(req, res);
+});
+
 router.get('/external/document/:cnpj', (req, res, next) => {
     /* #swagger.tags = ['Integrações']
        #swagger.summary = 'Consultar CNPJ (Receita Federal)'
