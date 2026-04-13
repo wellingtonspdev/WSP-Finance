@@ -20,6 +20,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 *.log
+beckend/tests/k6-summary-batch-*.json
 
 # IDEs
 .vscode
@@ -43,7 +44,9 @@ Thumbs.db
 /beckend/dist
 /frontend/dist
 GEMINI.md
-/documentacao
+/documentacao/*
+!/documentacao/benchmark_pg_trgm_staging.md
+!/documentacao/ADR_001_justificativa_refatoracao_pr1_pr4.md
 relatorio-estado-wsp-finance.md
 relatorio_correções_segurança_ingestão
 
@@ -68,3 +71,9 @@ relatorio_correções_segurança_ingestão
 /beckend/prisma/migrations/**/migration_lock.toml
 # Package (root)
 package.json
+
+# Scripts e testes de desenvolvimento locais
+/beckend/test-db*.ts
+/beckend/scripts/*test*
+/beckend/scripts/optimize_*.sql
+

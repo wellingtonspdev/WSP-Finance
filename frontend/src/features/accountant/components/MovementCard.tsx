@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Check, X, Merge, Info, Calendar, DollarSign, AlertTriangle, Building2 } from 'lucide-react';
-import { ChevronDown, Check, X, Merge, Info, Calendar, DollarSign, FileText, Building2, AlertTriangle } from 'lucide-react';
+import { ChevronDown, Check, X, Merge, Info, Calendar, DollarSign, AlertTriangle, Building2, FileText } from 'lucide-react';
 import type { BankMovementDTO } from '../api/bankMovements';
 
 interface MovementCardProps {
@@ -38,53 +37,56 @@ export function MovementCard({ movement, duplicates = [], onApprove, onReject, o
     >
       {/* Card Header - Sempre Visível */}
       <div
-        className="flex items-center gap-4 p-4 cursor-pointer select-none"
+        className="flex items-center gap-3 sm:gap-4 p-4 cursor-pointer select-none"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         {/* Indicador de Valor */}
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 ${
           isPositive
             ? 'bg-emerald-500/10 border border-emerald-500/20'
             : 'bg-red-500/10 border border-red-500/20'
         }`}>
-          <DollarSign className={`w-5 h-5 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`} />
+          <DollarSign className={`w-4 h-4 sm:w-5 sm:h-5 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`} />
         </div>
 
         {/* Info Principal */}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white truncate">{movement.description}</p>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs text-slate-400 flex items-center gap-1">
+        <div className="flex-1 min-w-0 block">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-medium text-white line-clamp-2 leading-snug break-words">
+              {movement.description}
+            </p>
+            <span className={`text-sm font-bold tabular-nums shrink-0 whitespace-nowrap pt-0.5 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+              {formatCurrency(movement.amount)}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-1.5">
+            <span className="text-[11px] sm:text-xs text-slate-400 flex items-center gap-1 shrink-0 whitespace-nowrap">
               <Calendar className="w-3 h-3" />
               {formatDate(movement.date)}
             </span>
             {movement.account && (
-              <span className="text-xs text-slate-500 flex items-center gap-1">
-                <Building2 className="w-3 h-3" />
-                {movement.account.name}
+              <span className="text-[11px] sm:text-xs text-slate-500 flex items-center gap-1 min-w-0">
+                <Building2 className="w-3 h-3 shrink-0" />
+                <span className="truncate">{movement.account.name}</span>
+              </span>
+            )}
+            
+            {/* Badge de Duplicata (Movido para dentro dos metadados p/ fluidez no mobile) */}
+            {hasDuplicates && (
+              <span className="bg-amber-500/15 text-amber-400 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0 whitespace-nowrap">
+                <AlertTriangle className="w-[10px] h-[10px]" />
+                {duplicates.length + 1}x
               </span>
             )}
           </div>
         </div>
 
-        {/* Valor */}
-        <span className={`text-sm font-bold tabular-nums ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-          {formatCurrency(movement.amount)}
-        </span>
-
-        {/* Badge de Duplicata */}
-        {hasDuplicates && (
-          <span className="bg-amber-500/15 text-amber-400 text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1">
-            <AlertTriangle className="w-3 h-3" />
-            {duplicates.length + 1}x
-          </span>
-        )}
-
         {/* Chevron */}
         <motion.div
           animate={{ rotate: isExpanded ? 180 : 0 }}
           transition={{ duration: 0.2 }}
-          className="text-slate-500 group-hover:text-slate-300"
+          className="text-slate-500 group-hover:text-slate-300 shrink-0 ml-1"
         >
           <ChevronDown className="w-5 h-5" />
         </motion.div>
@@ -107,13 +109,24 @@ export function MovementCard({ movement, duplicates = [], onApprove, onReject, o
               {/* Detalhes do Payload */}
               {movement.rawPayload && (
                 <div className="bg-white/5 border border-white/5 rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-3">
                     <FileText className="w-4 h-4 text-slate-500" />
-                    <span className="text-xs font-medium text-slate-400">Dados do Extrato</span>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Dados do Extrato</span>
                   </div>
-                  <pre className="text-xs text-slate-500 font-mono overflow-x-auto max-h-24 scrollbar-thin">
-                    {JSON.stringify(movement.rawPayload, null, 2)}
-                  </pre>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {Object.entries(movement.rawPayload)
+                      .filter(([_, value]) => value !== null && value !== '')
+                      .map(([key, value]) => (
+                        <div key={key} className="flex flex-col gap-0.5 bg-black/20 p-2 rounded-lg border border-white/5">
+                          <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider truncate">
+                            {key.replace(/([A-Z])/g, ' $1').trim()}
+                          </span>
+                          <span className="text-xs font-semibold text-slate-200 truncate" title={String(value)}>
+                            {String(value)}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
                 </div>
               )}
 
@@ -150,7 +163,7 @@ export function MovementCard({ movement, duplicates = [], onApprove, onReject, o
               )}
 
               {/* Ações */}
-              <div className="flex items-center gap-2 pt-2">
+              <div className="grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-2 mt-4 pt-4 border-t border-white/5">
                 {hasDuplicates && (
                   <button
                     onClick={() => {
@@ -158,7 +171,7 @@ export function MovementCard({ movement, duplicates = [], onApprove, onReject, o
                       onMerge(selectedKeep, discardIds);
                     }}
                     disabled={isProcessing}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 text-xs font-bold rounded-xl border border-amber-500/20 transition-all disabled:opacity-40"
+                    className="col-span-2 sm:col-span-1 flex items-center justify-center gap-1.5 h-11 sm:h-9 px-4 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 text-sm sm:text-xs font-bold rounded-xl border border-amber-500/20 transition-all disabled:opacity-40"
                   >
                     <Merge className="w-4 h-4" />
                     Mesclar
@@ -166,21 +179,21 @@ export function MovementCard({ movement, duplicates = [], onApprove, onReject, o
                 )}
 
                 <button
-                  onClick={() => onApprove(movement.id)}
-                  disabled={isProcessing}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs font-bold rounded-xl border border-emerald-500/20 transition-all disabled:opacity-40"
-                >
-                  <Check className="w-4 h-4" />
-                  Aprovar
-                </button>
-
-                <button
                   onClick={() => onReject(movement.id)}
                   disabled={isProcessing}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-red-500/15 hover:bg-red-500/25 text-red-400 text-xs font-bold rounded-xl border border-red-500/20 transition-all ml-auto disabled:opacity-40"
+                  className="flex items-center justify-center gap-1.5 h-11 sm:h-9 px-4 bg-red-500/15 hover:bg-red-500/25 text-red-400 text-sm sm:text-xs font-bold rounded-xl border border-red-500/20 transition-all disabled:opacity-40 order-1 sm:order-none"
                 >
                   <X className="w-4 h-4" />
                   Rejeitar
+                </button>
+
+                <button
+                  onClick={() => onApprove(movement.id)}
+                  disabled={isProcessing}
+                  className="flex items-center justify-center gap-1.5 h-11 sm:h-9 px-4 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-sm sm:text-xs font-bold rounded-xl border border-emerald-500/20 transition-all disabled:opacity-40 order-2 sm:order-none"
+                >
+                  <Check className="w-4 h-4" />
+                  Aprovar
                 </button>
               </div>
             </div>

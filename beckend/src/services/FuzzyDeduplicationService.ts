@@ -1,6 +1,8 @@
 import { Prisma, BankMovement } from '@prisma/client';
-import { prisma, ExtendedTransactionClient } from '../lib/prisma';
+import { prisma } from '../lib/prisma';
 import { Decimal } from 'decimal.js';
+
+export type FuzzyDedupMode = 'auto' | 'trgm' | 'fallback';
 
 export interface FuzzyCandidate {
   match: BankMovement;
@@ -13,6 +15,10 @@ interface FuzzySearchParams {
   amount: Decimal;
   date: Date;
   excludeId?: string;
+}
+
+interface FuzzyDeduplicationServiceOptions {
+  mode?: FuzzyDedupMode;
 }
 
 /**
@@ -29,11 +35,18 @@ interface FuzzySearchParams {
  *   - Isolamento por workspaceId (RLS)
  */
 export class FuzzyDeduplicationService {
-  private useFallback = false;
 
   private static readonly SIMILARITY_THRESHOLD = 0.6;
   private static readonly TIME_WINDOW_MS = 2 * 60 * 60 * 1000; // ±2 horas
   private static readonly MIN_AMOUNT = new Decimal('1.00');
+  private static readonly VALID_MODES: FuzzyDedupMode[] = ['auto', 'trgm', 'fallback'];
+
+  private readonly configuredMode: FuzzyDedupMode;
+  private runtimeModeOverride: FuzzyDedupMode | null = null;
+
+  constructor(options: FuzzyDeduplicationServiceOptions = {}) {
+    this.configuredMode = this.resolveMode(options.mode ?? process.env.FUZZY_DEDUP_MODE);
+  }
 
   /**
    * Busca candidatos de duplicata fuzzy para um movimento.
@@ -47,8 +60,9 @@ export class FuzzyDeduplicationService {
 
     const dateFrom = new Date(params.date.getTime() - FuzzyDeduplicationService.TIME_WINDOW_MS);
     const dateTo = new Date(params.date.getTime() + FuzzyDeduplicationService.TIME_WINDOW_MS);
+    const activeMode = this.currentMode;
 
-    if (this.useFallback) {
+    if (activeMode === 'fallback') {
       return this.findWithLikeFallback(params, dateFrom, dateTo);
     }
 
@@ -56,16 +70,16 @@ export class FuzzyDeduplicationService {
       return await this.findWithTrgm(params, dateFrom, dateTo);
     } catch (error: any) {
       // Se pg_trgm não está disponível, ativa fallback permanente
-      if (
+      if (activeMode === 'auto' && (
         error.message?.includes('function similarity') ||
         error.message?.includes('does not exist') ||
-        error.code === '42883' // undefined_function
-      ) {
+        this.shouldFallbackToApplication(error)
+      )) {
         console.warn(
           '[FuzzyDedup] pg_trgm indisponível — ativando fallback LIKE/LOWER. ' +
           'Documentado em .specify/contracts.md'
         );
-        this.useFallback = true;
+        this.activateRuntimeFallback(error);
         return this.findWithLikeFallback(params, dateFrom, dateTo);
       }
       throw error;
@@ -147,13 +161,15 @@ export class FuzzyDeduplicationService {
     `;
 
     // Calcular similaridade aproximada no application layer
-    return rows.map((row) => ({
-      match: row,
-      similarity: this.calculateJaccardSimilarity(
-        params.description.toLowerCase(),
-        row.description.toLowerCase()
-      ),
-    }));
+    return rows
+      .map((row) => ({
+        match: row,
+        similarity: this.calculateJaccardSimilarity(
+          params.description.toLowerCase(),
+          row.description.toLowerCase()
+        ),
+      }))
+      .sort((left, right) => right.similarity - left.similarity);
   }
 
   /**
@@ -178,13 +194,58 @@ export class FuzzyDeduplicationService {
     return trigrams;
   }
 
+  private resolveMode(mode: string | undefined): FuzzyDedupMode {
+    if (mode && FuzzyDeduplicationService.VALID_MODES.includes(mode as FuzzyDedupMode)) {
+      return mode as FuzzyDedupMode;
+    }
+
+    return 'auto';
+  }
+
+  private shouldFallbackToApplication(error: unknown): boolean {
+    const normalizedMessage = `${(error as any)?.message ?? ''}`.toLowerCase();
+    const normalizedCode = `${(error as any)?.code ?? ''}`.toLowerCase();
+
+    return (
+      normalizedMessage.includes('function similarity') ||
+      normalizedMessage.includes('does not exist') ||
+      normalizedMessage.includes('statement timeout') ||
+      normalizedMessage.includes('canceling statement due to statement timeout') ||
+      normalizedMessage.includes('query canceled') ||
+      normalizedMessage.includes('query cancelled') ||
+      normalizedCode === '42883' ||
+      normalizedCode === '57014'
+    );
+  }
+
+  private activateRuntimeFallback(error: unknown): void {
+    if (this.runtimeModeOverride === 'fallback') {
+      return;
+    }
+
+    const normalizedMessage = `${(error as any)?.message ?? ''}`.toLowerCase();
+    const fallbackReason = normalizedMessage.includes('timeout')
+      ? 'timeout no banco'
+      : 'pg_trgm indisponivel';
+
+    console.warn(
+      `[FuzzyDedup] ${fallbackReason} - ativando fallback LIKE/LOWER em modo auto.`
+    );
+
+    this.runtimeModeOverride = 'fallback';
+  }
+
   /** Expõe estado do fallback para testes e observabilidade. */
   get isFallbackActive(): boolean {
-    return this.useFallback;
+    return this.currentMode === 'fallback';
+  }
+
+  get currentMode(): FuzzyDedupMode {
+    return this.runtimeModeOverride ?? this.configuredMode;
   }
 
   /** Força modo fallback (para testes). */
   forceUseFallback(value: boolean): void {
-    this.useFallback = value;
+    this.runtimeModeOverride = value ? 'fallback' : null;
   }
 }

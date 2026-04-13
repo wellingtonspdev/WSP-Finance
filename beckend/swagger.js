@@ -1,4 +1,4 @@
-const swaggerAutogen = require('swagger-autogen')({ openapi: '3.0.0' });
+const { generateSwagger } = require('./swagger.config');
 
 const doc = {
     info: {
@@ -52,6 +52,8 @@ const routes = ['./src/routes.ts'];
 /* NOTE: If you are using the express Router, you must pass in the 'routes.ts'
    only the index, usually containing the app.use(), then the autogen will automatically grab
    the imported controllers */
-swaggerAutogen(outputFile, routes, doc).then(() => {
+generateSwagger().catch((error) => {
+    console.error('Falha ao gerar o Swagger:', error);
+    process.exit(1);
     console.log("📄 Documentação Swagger gerada com sucesso!");
 });

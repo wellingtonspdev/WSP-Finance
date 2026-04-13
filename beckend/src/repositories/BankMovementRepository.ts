@@ -1,5 +1,5 @@
 import { Prisma, BankMovement, MovementStatus } from '@prisma/client';
-import { prisma, ExtendedTransactionClient } from '../lib/prisma';
+import { prisma, sysPrisma, ExtendedTransactionClient } from '../lib/prisma';
 
 export class BankMovementRepository {
   /**
@@ -46,7 +46,7 @@ export class BankMovementRepository {
   ): Promise<BankMovement[]> {
     const limit = options?.limit || 20;
 
-    return prisma.bankMovement.findMany({
+    return sysPrisma.bankMovement.findMany({
       where: {
         status: 'PENDING',
         workspace: {

@@ -149,4 +149,33 @@ describe('FinancialIngestionEngine - Validações e Borda (TDD)', () => {
     expect(prisma.account.update).not.toHaveBeenCalled();
     // E não importa de onde chame, balance nunca é modificado pela Ingestion Engine
   });
+
+  it('deve manter a resiliência (fallback) se o FuzzyDeduplicationService falhar (falha de GIN index)', async () => {
+    const { prisma } = await import('../../src/lib/prisma');
+    vi.mocked(prisma.bankMovement.findMany).mockResolvedValue([]);
+    
+    // Mock do serviço fuzzy para simular erro no DB (ex: falha do GIN index)
+    const fuzzyDedupMock = {
+      findCandidates: vi.fn().mockRejectedValue(new Error('Extension pg_trgm timeout or GIN index failed'))
+    } as any;
+
+    // Injeta o mock via DI
+    const engineWithMock = new FinancialIngestionEngine(undefined, fuzzyDedupMock);
+
+    const payload = [{
+      TRNAMT: '-80.00',
+      DTPOSTED: '20260120153000',
+      MEMO: 'COMPRA SUPERMERCADO',
+      FITID: 'FALLBACK-123'
+    }];
+
+    // Executa no serviço mockado
+    const result = await engineWithMock.ingest(MovementSource.OFX, payload, 1, 1);
+
+    expect(fuzzyDedupMock.findCandidates).toHaveBeenCalled();
+    // Como falhou a deduplicação fuzzy, a resiliência insere o movimento para não perder o lote
+    expect(result.imported).toBe(1);
+    expect(result.failed).toBe(0);
+    expect(result.duplicates).toBe(0);
+  });
 });

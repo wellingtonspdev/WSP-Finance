@@ -3,6 +3,7 @@ import { MovementSource } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { BankMovementRepository } from '../repositories/BankMovementRepository';
+import { FuzzyDeduplicationService } from './FuzzyDeduplicationService';
 import { Decimal } from 'decimal.js';
 
 export interface IngestResult {
@@ -13,9 +14,14 @@ export interface IngestResult {
 
 export class FinancialIngestionEngine {
   private repository: BankMovementRepository;
+  private fuzzyDedup: FuzzyDeduplicationService;
 
-  constructor() {
-    this.repository = new BankMovementRepository();
+  constructor(
+    repository?: BankMovementRepository,
+    fuzzyDedup?: FuzzyDeduplicationService
+  ) {
+    this.repository = repository ?? new BankMovementRepository();
+    this.fuzzyDedup = fuzzyDedup ?? new FuzzyDeduplicationService();
   }
 
   async ingest(
@@ -33,6 +39,7 @@ export class FinancialIngestionEngine {
     
     let importedCount = 0;
     let failedCount = 0;
+    let fuzzyDuplicateCount = 0;
     const CHUNK_SIZE = 50;
     
     // Preparar os mapeamentos (Normalização de Datas + MD5 Hash)
@@ -78,11 +85,34 @@ export class FinancialIngestionEngine {
       };
     });
 
+    // Fase de Pré-processamento: Fuzzy Deduplication antes do batching
+    const filteredMovements: Prisma.BankMovementCreateManyInput[] = [];
+
+    for (const mov of movements) {
+      try {
+        const candidates = await this.fuzzyDedup.findCandidates({
+          workspaceId: mov.workspaceId as number,
+          description: mov.description as string,
+          amount: new Decimal(mov.amount as any),
+          date: mov.date as Date,
+        });
+
+        if (candidates.length > 0) {
+          fuzzyDuplicateCount++;
+        } else {
+          filteredMovements.push(mov);
+        }
+      } catch {
+        // Fallback resiliente: se fuzzy dedup falhar, inclui o movimento
+        filteredMovements.push(mov);
+      }
+    }
+
     const totalExpected = movements.length;
 
     // Edge Case 2: Processar em Chunks de 50 + Transação
-    for (let i = 0; i < movements.length; i += CHUNK_SIZE) {
-      const chunk = movements.slice(i, i + CHUNK_SIZE);
+    for (let i = 0; i < filteredMovements.length; i += CHUNK_SIZE) {
+      const chunk = filteredMovements.slice(i, i + CHUNK_SIZE);
       
       try {
         // O Prisma vai retornar "count" com o que de fato foi inserido.
@@ -99,11 +129,11 @@ export class FinancialIngestionEngine {
       }
     }
 
-    const duplicateCount = totalExpected - importedCount - failedCount;
+    const hashDuplicateCount = totalExpected - importedCount - failedCount - fuzzyDuplicateCount;
 
     return {
       imported: importedCount,
-      duplicates: duplicateCount >= 0 ? duplicateCount : 0,
+      duplicates: (hashDuplicateCount >= 0 ? hashDuplicateCount : 0) + fuzzyDuplicateCount,
       failed: failedCount,
     };
   }
@@ -132,3 +162,4 @@ export class FinancialIngestionEngine {
     return new Date(); // fallback if string is weird
   }
 }
+

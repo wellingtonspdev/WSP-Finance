@@ -27,9 +27,6 @@ export function AccountantSidebar() {
             label: 'Inbox de Aprovação', 
             action: () => handleNavigation('/accountant/inbox')
         },
-        { id: 'hub', icon: Home, label: 'Torre de Controle', action: () => navigate('/accountant/hub') },
-        { id: 'invites', icon: Mail, label: 'Convites', action: () => navigate('/accountant/invites') },
-        { id: 'inbox', icon: Inbox, label: 'Inbox de Aprovação', action: () => navigate('/accountant/hub'), hint: 'Selecione um cliente' },
         { id: 'docs', icon: FileText, label: 'Documentos', action: () => { }, disabled: true },
         { id: 'reports', icon: BarChart2, label: 'Relatórios', action: () => { }, disabled: true },
         { id: 'settings', icon: Settings, label: 'Configurações', action: () => { }, disabled: true },

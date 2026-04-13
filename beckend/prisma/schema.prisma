@@ -378,5 +378,6 @@ model BankMovement {
   @@unique([workspaceId, fitid])
   @@unique([workspaceId, hashDeduplication])
   @@index([workspaceId, status])
+  @@index([workspaceId, status, amount, date(sort: Desc)], map: "idx_bank_movements_workspace_status_amount_date")
   @@index([description(ops: raw("gin_trgm_ops"))], map: "idx_bank_movements_description_trgm", type: Gin)
 }
