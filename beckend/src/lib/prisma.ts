@@ -24,21 +24,7 @@ export const sysPrisma = process.env.DIRECT_URL
 
 
 
-const connectionLimit = process.env.PRISMA_CONNECTION_LIMIT || '1';
-let databaseUrl = process.env.DATABASE_URL;
 
-if (databaseUrl && !databaseUrl.includes('connection_limit=')) {
-    const separator = databaseUrl.includes('?') ? '&' : '?';
-    databaseUrl = `${databaseUrl}${separator}connection_limit=${connectionLimit}`;
-}
-
-const basePrisma = new PrismaClient({
-    datasources: {
-        db: {
-            url: databaseUrl
-        }
-    }
-});
 
 export const prisma = basePrisma.$extends({
     query: {
