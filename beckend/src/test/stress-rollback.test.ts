@@ -1,8 +1,23 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { withEphemeralTransaction } from './transaction-proxy';
-import { applicationClient } from './prisma-test-clients';
+import { applicationClient, managementClient } from './prisma-test-clients';
 
 describe('Performance & Isolation: Transaction Proxy Stress Test', () => {
+  beforeAll(async () => {
+    // Para criar novas tabelas é necessário perfil elevado (PostgreSQL 15+ revogou create do public schema)
+    await managementClient.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS _stress_test_proxy (
+        id TEXT PRIMARY KEY,
+        val TEXT
+      )
+    `);
+    await managementClient.$executeRawUnsafe(`GRANT ALL ON _stress_test_proxy TO PUBLIC`);
+  });
+
+  afterAll(async () => {
+    await managementClient.$executeRawUnsafe(`DROP TABLE IF EXISTS _stress_test_proxy`);
+  });
+
   it('should execute teardown and rollback in under 100ms', async () => {
     let insertedId = "test-rollback-id-123";
     let startTeardownTime = 0;
@@ -16,13 +31,6 @@ describe('Performance & Isolation: Transaction Proxy Stress Test', () => {
       
       // Como não sabemos a modelagem real, testamos a latência criando e revertendo via RAW
       // porque Prisma requer Schema válido, e como QA/DevSecOps eu executo contra DB direto.
-      
-      await tx.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS _stress_test_proxy (
-          id TEXT PRIMARY KEY,
-          val TEXT
-        )
-      `);
       
       await tx.$executeRawUnsafe(`INSERT INTO _stress_test_proxy (id, val) VALUES ($1, $2)`, insertedId, "stressed");
       

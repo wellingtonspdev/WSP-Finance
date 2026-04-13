@@ -54,45 +54,44 @@ describe('INTEGRAÇÃO RLS - Smoke Test de Segurança Zero-Trust', () => {
         });
 
         // Vamos garantir que a base seja resetada (limpar lixo)
-        // Precisaremos de bypass aqui para montar o cenário
-        await tenantContext.run({ bypassRls: true }, async () => {
-            // Criar as 2 contas e a categoria para não quebrar a Foreign Key
-            await prisma.workspace.createMany({
-                data: [
-                    { id: WORKSPACE_A_ID, name: 'Smoke Test WS A' },
-                    { id: WORKSPACE_B_ID, name: 'Smoke Test WS B' }
-                ],
-                skipDuplicates: true
-            });
+        // Usamos managementClient para ignorar o RLS
+        const { managementClient } = await import('../../src/test/prisma-test-clients');
+        
+        // Criar as 2 contas e a categoria para não quebrar a Foreign Key
+        await managementClient.workspace.createMany({
+            data: [
+                { id: WORKSPACE_A_ID, name: 'Smoke Test WS A' },
+                { id: WORKSPACE_B_ID, name: 'Smoke Test WS B' }
+            ],
+            skipDuplicates: true
+        });
 
-            await prisma.category.upsert({
-                where: { id: CATEGORY_ID },
-                update: {},
-                create: { id: CATEGORY_ID, name: 'Smoke Category' }
-            });
+        await managementClient.category.upsert({
+            where: { id: CATEGORY_ID },
+            update: {},
+            create: { id: CATEGORY_ID, name: 'Smoke Category' }
+        });
 
-            await prisma.account.upsert({
-                where: { id: ACCOUNT_ID },
-                update: {},
-                create: { id: ACCOUNT_ID, name: 'Smoke Account', workspaceId: WORKSPACE_A_ID }
-            });
+        await managementClient.account.upsert({
+            where: { id: ACCOUNT_ID },
+            update: {},
+            create: { id: ACCOUNT_ID, name: 'Smoke Account', workspaceId: WORKSPACE_A_ID }
         });
     });
 
     afterAll(async () => {
+        const { managementClient } = await import('../../src/test/prisma-test-clients');
         // Limpeza segura dos dados
-        await tenantContext.run({ bypassRls: true }, async () => {
-            await prisma.transaction.deleteMany({
-                where: { workspaceId: { in: [WORKSPACE_A_ID, WORKSPACE_B_ID] } }
-            });
-            await prisma.account.deleteMany({
-                where: { id: ACCOUNT_ID }
-            });
-            await prisma.workspace.deleteMany({
-                where: { id: { in: [WORKSPACE_A_ID, WORKSPACE_B_ID] } }
-            });
-            await testPrisma?.$disconnect();
+        await managementClient.transaction.deleteMany({
+            where: { workspaceId: { in: [WORKSPACE_A_ID, WORKSPACE_B_ID] } }
         });
+        await managementClient.account.deleteMany({
+            where: { id: ACCOUNT_ID }
+        });
+        await managementClient.workspace.deleteMany({
+            where: { id: { in: [WORKSPACE_A_ID, WORKSPACE_B_ID] } }
+        });
+        await testPrisma?.$disconnect();
     });
 
     it('1. Deve inserir um registro isolado no Workspace A', async () => {

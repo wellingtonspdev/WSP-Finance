@@ -27,7 +27,8 @@ vi.mock('../../src/lib/prisma', () => {
             },
             auditLog: {
                 create: vi.fn().mockResolvedValue(true)
-            }
+            },
+            $executeRaw: vi.fn().mockResolvedValue([])
         }
     };
 });

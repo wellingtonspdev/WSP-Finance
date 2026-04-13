@@ -159,5 +159,6 @@ const startServer = async () => {
     process.exit(1);
   }
 };
-
-void startServer();
+if (process.env.NODE_ENV !== 'test') {
+  void startServer();
+}
