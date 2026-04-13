@@ -36,6 +36,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:password@localhost:5432/wsp_test_db?schema=public
+      DIRECT_URL: postgresql://postgres:password@localhost:5432/wsp_test_db?schema=public
 
     steps:
       - name: Checkout repository
