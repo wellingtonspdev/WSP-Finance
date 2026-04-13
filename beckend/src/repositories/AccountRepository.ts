@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma';
+import { prisma, ExtendedTransactionClient } from '../lib/prisma';
 import { Account, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
@@ -33,10 +33,10 @@ export class AccountRepository {
 
   async updateBalance(
     accountId: number, // MUDANÇA: id number
-    amountDelta: Decimal | number, 
-    tx: Prisma.TransactionClient = prisma
-  ): Promise<void> {
-    await tx.account.update({
+    amountDelta: Decimal | number,
+    tx: ExtendedTransactionClient = prisma
+  ): Promise<Account> {
+    return await tx.account.update({
       where: { id: accountId },
       data: {
         balance: {

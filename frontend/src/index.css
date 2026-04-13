@@ -1,13 +1,6 @@
 @import "tailwindcss";
 
 @theme {
-  --color-wsp-bg-start: #1e0b36;
-  --color-wsp-bg-end: #1a225a;
-  --color-glass-bg: rgba(255, 255, 255, 0.08);
-  --color-glass-border: rgba(255, 255, 255, 0.1);
-  --color-btn-start: #ec4899;
-  --color-btn-end: #3b82f6;
-  
   --animate-blob: blob 10s infinite;
   --animate-fade-in-up: fadeInUp 0.8s ease-out forwards;
 
@@ -25,10 +18,38 @@
 }
 
 @layer base {
+  :root {
+    --color-wsp-bg-start: #1e0b36;
+    --color-wsp-bg-end: #1a225a;
+    --color-glass-bg: rgba(255, 255, 255, 0.08);
+    --color-glass-border: rgba(255, 255, 255, 0.1);
+    --color-btn-start: #ec4899;
+    --color-btn-end: #3b82f6;
+    
+    /* Configurações da Aurora */
+    --color-blob-1: #4c1d95;
+    --color-blob-2: #1e40af;
+    --color-blob-3: #be185d;
+  }
+
+  .theme-business {
+    --color-wsp-bg-start: #0a0a0a;  /* Fundo Escuro Neutro */
+    --color-wsp-bg-end: #111821;    /* Slate Bem Escuro */
+    --color-glass-bg: rgba(25, 120, 229, 0.05);
+    --color-glass-border: rgba(25, 120, 229, 0.15);
+    --color-btn-start: #1978e5;     /* Azul Institucional */
+    --color-btn-end: #0ea5e9;       /* Light Blue */
+    
+    /* Configurações da Aurora Profissional (Ciano e Azul Escuro) */
+    --color-blob-1: #0f172a;
+    --color-blob-2: #1e40af;
+    --color-blob-3: #0284c7;
+  }
+
   body {
-    @apply font-sans text-white min-h-screen overflow-x-hidden bg-wsp-bg-start;
-    /* Gradiente Base */
-    background: linear-gradient(to bottom, #1e1b4b, #312e81);
+    @apply font-sans text-white min-h-screen overflow-x-hidden;
+    background-color: var(--color-wsp-bg-start);
+    background-image: linear-gradient(to bottom, var(--color-wsp-bg-start), var(--color-wsp-bg-end));
   }
   
   .custom-placeholder::placeholder {
@@ -59,6 +80,6 @@
   animation: blob 10s infinite;
 }
 
-.blob-1 { top: -10%; left: -10%; width: 500px; height: 500px; background: #4c1d95; animation-delay: 0s; }
-.blob-2 { bottom: -10%; right: -10%; width: 400px; height: 400px; background: #1e40af; animation-delay: 2s; }
-.blob-3 { top: 40%; left: 40%; width: 300px; height: 300px; background: #be185d; animation-delay: 4s; opacity: 0.2; }
+.blob-1 { top: -10%; left: -10%; width: 500px; height: 500px; background: var(--color-blob-1); animation-delay: 0s; }
+.blob-2 { bottom: -10%; right: -10%; width: 400px; height: 400px; background: var(--color-blob-2); animation-delay: 2s; }
+.blob-3 { top: 40%; left: 40%; width: 300px; height: 300px; background: var(--color-blob-3); animation-delay: 4s; opacity: 0.2; }

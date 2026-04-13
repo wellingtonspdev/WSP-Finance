@@ -1,5 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { env } from '../../config/env';
+import { useWorkspaceStore } from '../stores/useWorkspaceStore';
 
 // Estado local do Token (Memória apenas)
 let accessToken: string | null = null;
@@ -36,16 +37,32 @@ export const setApiToken = (token: string | null) => {
   accessToken = token;
 };
 
-// Interceptor de Request: Injeta o Token da Memória
+// Interceptor de Request: Injeta o Token da Memória e o WorkspaceID da URL
 api.interceptors.request.use((config) => {
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
-  
-  // Injeta o Workspace ID (Este pode ficar no localStorage pois é preferência de UI, não credencial)
-  const workspaceId = localStorage.getItem('wsp_workspace_id');
-  if (workspaceId) {
-    config.headers['x-workspace-id'] = workspaceId;
+
+  // Fonte Única da Verdade (V3): URL é a ÚNICA fonte de workspace ID para rotas normais.
+  // Exemplo de pathname: "/15/dashboard" -> ID = 15
+  // Em rotas como "/accountant/*", o WID pode ser injetado manualmente nas API calls.
+  const pathParts = window.location.pathname.split('/');
+  let possibleWorkspaceId = pathParts[1];
+
+  // Suporte para a rota do Inbox do Contador: /accountant/inbox/15
+  // Isso permite que chamadas genéricas na tela (como getCategories) funcionem magicamente.
+  if (pathParts[1] === 'accountant' && pathParts[2] === 'inbox' && pathParts[3]) {
+      possibleWorkspaceId = pathParts[3];
+  }
+
+  // Só injeta/modifica pela URL se não foi injetado manualmente no config da requisição
+  if (!config.headers['x-workspace-id']) {
+    if (possibleWorkspaceId && !isNaN(parseInt(possibleWorkspaceId, 10))) {
+      config.headers['x-workspace-id'] = possibleWorkspaceId;
+    } else {
+      // Remover para garantir que nenhuma requisição não declarada leve lixo do Axios default
+      delete config.headers['x-workspace-id'];
+    }
   }
 
   return config;
@@ -56,6 +73,16 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+    // Disparo Global de Acesso Negado
+    if (error.response?.status === 403) {
+      useWorkspaceStore.getState().setForbidden(true);
+    }
+
+    // Evita interceptação se for na própria rota de login ou refresh
+    if (originalRequest.url?.includes('/auth/refresh') || originalRequest.url?.includes('/auth/session')) {
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       // Se já houver um refresh em andamento, entra na fila
@@ -74,20 +101,29 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       return new Promise((resolve, reject) => {
-        // Chama a rota de refresh (o cookie vai automaticamente)
-        api.patch<{ token: string }>('/auth/refresh')
+        const storedRefreshToken = localStorage.getItem('wsp_refresh_token');
+        if (!storedRefreshToken) {
+          processQueue(error, null);
+          setApiToken(null);
+          window.location.href = '/login';
+          return reject(error);
+        }
+
+        // Chama a rota de refresh passando o payload Zod corretamente
+        api.patch<{ token: string, refreshToken: string }>('/auth/refresh', { refreshToken: storedRefreshToken })
           .then(({ data }) => {
             const newToken = data.token;
-            
-            // Atualiza a memória local do Axios
+
+            // Atualiza a memória local do Axios e a persistência
             setApiToken(newToken);
-            
+            localStorage.setItem('wsp_refresh_token', data.refreshToken);
+
             // Atualiza o header da requisição original
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            
+
             // Libera a fila com o novo token
             processQueue(null, newToken);
-            
+
             // Reenvia a requisição original
             resolve(api(originalRequest));
           })
@@ -97,7 +133,7 @@ api.interceptors.response.use(
             setApiToken(null);
             // O AuthProvider deve ouvir esse evento ou checar o estado para redirecionar
             // Como estamos fora do React, podemos disparar um evento customizado ou redirecionar direto
-            window.location.href = '/login'; 
+            window.location.href = '/login';
             reject(err);
           })
           .finally(() => {

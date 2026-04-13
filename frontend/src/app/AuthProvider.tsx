@@ -1,17 +1,27 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { api, setApiToken } from '../shared/lib/axios';
 
-interface User {
+interface Membership {
+  id: number;
+  name: string;
+  type: 'PERSONAL' | 'BUSINESS';
+  role: 'OWNER' | 'VIEWER' | 'ACCOUNTANT';
+}
+
+export interface User {
   id: number;
   name: string;
   email: string;
+  type: 'CLIENT' | 'ACCOUNTANT';
+  memberships: Membership[];
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token: string, user: User) => void;
+  login: (token: string, refreshToken: string, user: User) => void;
   logout: () => void;
 }
 
@@ -22,29 +32,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Ao iniciar (F5), tentamos recuperar a sessão via Refresh Token (Cookie)
     const restoreSession = async () => {
       try {
-        // Tenta renovar o token silenciosamente
-        const { data } = await api.patch('/auth/refresh');
-        
-        // Se sucesso, define o token na memória do Axios
+        const storedRefreshToken = localStorage.getItem('wsp_refresh_token');
+        if (!storedRefreshToken) throw new Error('No refresh token found');
+
+        // Envia o refresh token validamente no payload conforme esperado pelo Backend (Zod)
+        const { data } = await api.patch('/auth/refresh', { refreshToken: storedRefreshToken });
+
+        // Backend retorna { token, refreshToken } (Não retorna dados de User)
         setApiToken(data.token);
-        
-        // Recupera dados do usuário (O ideal seria o refresh retornar o user também, 
-        // ou termos uma rota /me. Por enquanto, vamos decodificar ou persistir APENAS o user info no storage)
-        // Como o user info não é sensível (nome/email), podemos manter no storage para UX,
-        // ou melhor: O backend deveria retornar o user no refresh.
-        
+        localStorage.setItem('wsp_refresh_token', data.refreshToken);
+
         // Solução Provisória Segura: Ler do storage APENAS os dados não sensíveis do usuário
         const storedUser = localStorage.getItem('wsp_user_info');
         if (storedUser) {
           setUser(JSON.parse(storedUser));
         }
       } catch (error) {
-        // Se falhar, usuário não está logado
         setApiToken(null);
         setUser(null);
+        localStorage.removeItem('wsp_refresh_token');
       } finally {
         setIsLoading(false);
       }
@@ -53,11 +61,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     restoreSession();
   }, []);
 
-  const login = (token: string, userData: User) => {
-    // Salva token na memória do Axios
+  const login = (token: string, refreshToken: string, userData: User) => {
+    // Salva access token na memória e salva refresh na persistência local
     setApiToken(token);
-    
-    // Salva dados do usuário (não sensíveis) para persistência de UI
+    localStorage.setItem('wsp_refresh_token', refreshToken);
+
+    // Salva dados do usuário para persistência de UI
     localStorage.setItem('wsp_user_info', JSON.stringify(userData));
     setUser(userData);
   };
@@ -65,8 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setApiToken(null);
     localStorage.removeItem('wsp_user_info');
+    localStorage.removeItem('wsp_refresh_token');
     setUser(null);
-    // Opcional: Chamar rota de logout no backend para limpar cookie
     window.location.href = '/login';
   };
 

@@ -4,16 +4,44 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // --- ENUMS ---
+enum UserType {
+  CLIENT
+  ACCOUNTANT
+}
+
 enum WorkspaceType {
   PERSONAL
   BUSINESS
 }
 
+enum DocumentType {
+  CPF
+  CNPJ
+  PASSPORT
+}
+
+// Fechamento e Importações
+enum MovementSource {
+  OFX
+  OPEN_FINANCE
+  OCR
+  MANUAL
+}
+
+enum MovementStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  MERGED
+}
+
+// Master / App Core
 enum TransactionType {
   INCOME
   EXPENSE
@@ -28,15 +56,24 @@ enum AccountType {
 }
 
 enum TransactionStatus {
-  PENDING     // Pendente de conciliação/pagamento
-  COMPLETED   // Efetivado
-  RECONCILED  // Conciliado com extrato bancário
+  PENDING // Pendente de conciliação/pagamento
+  COMPLETED // Efetivado
+  RECONCILED // Conciliado com extrato bancário
 }
 
 enum WorkspaceRole {
-  OWNER   // Acesso total (pode deletar workspace)
-  EDITOR  // Pode criar/editar transações
-  VIEWER  // Somente leitura (Contador)
+  OWNER // Acesso total (pode deletar workspace)
+  EDITOR // Pode criar/editar transações
+  VIEWER // Somente leitura (Contador)
+  ACCOUNTANT // Conta de Contador B2B2C
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+  REJECTED
 }
 
 enum AuditAction {
@@ -45,28 +82,43 @@ enum AuditAction {
   DELETE
   LOGIN
   BRIDGE_TRANSFER // Nova ação para auditoria de ponte
+  ATTACHMENT_VIEW // Fase C: Auditoria de visualização de anexo
+  CATEGORY_UPDATE // Fase C: Auditoria de alteração de categoria
 }
 
 // --- MODELOS ---
 
 // Usuário
 model User {
-  id              Int                       @id @default(autoincrement())
-  email           String                    @unique
+  id              Int       @id @default(autoincrement())
+  email           String    @unique
   name            String
   passwordHash    String
   emailVerifiedAt DateTime?
-  
-  // Relacionamentos
-  memberships     WorkspaceMember[]         // RBAC: Um usuário pode ser membro de vários workspaces
-  refreshTokens   RefreshToken[]
-  resetTokens     PasswordResetToken[]
-  verifyTokens    AccountVerificationToken[]
-  auditLogs       AuditLog[]
-  notifications   Notification[]
+  type            UserType  @default(CLIENT)
 
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
+  // Informações Pessoais & Endereço
+  cpf          String? @unique
+  phone        String?
+  zipCode      String?
+  street       String?
+  number       String?
+  complement   String?
+  neighborhood String?
+  city         String?
+  state        String?
+
+  // Relacionamentos
+  memberships   WorkspaceMember[] // RBAC: Um usuário pode ser membro de vários workspaces
+  refreshTokens RefreshToken[]
+  resetTokens   PasswordResetToken[]
+  verifyTokens  AccountVerificationToken[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  invitesSent   WorkspaceInvite[]          @relation("InvitesSent")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // RBAC: Tabela de Associação Usuário <-> Workspace
@@ -86,111 +138,150 @@ model WorkspaceMember {
 
 // Workspace
 model Workspace {
-  id           Int               @id @default(autoincrement())
-  name         String
-  type         WorkspaceType     @default(PERSONAL)
-  taxRate      Decimal           @db.Decimal(5, 2) @default(0) // Taxa de imposto padrão (%)
-  
+  id      Int           @id @default(autoincrement())
+  name    String
+  type    WorkspaceType @default(PERSONAL)
+  taxRate Decimal       @default(0) @db.Decimal(5, 2) // Taxa de imposto padrão (%)
+
+  // Identidade Fiscal
+  document     String?
+  documentType DocumentType?
+  cnae         String?
+
+  // Endereço Comercial
+  zipCode      String?
+  street       String?
+  number       String?
+  complement   String?
+  neighborhood String?
+  city         String?
+  state        String?
+
+  // Governança e Fecho Fiscal
+  closedUntil DateTime?
+
   // Relacionamentos
-  members      WorkspaceMember[] // Membros do workspace
-  accounts     Account[]
-  categories   Category[]
-  transactions Transaction[]
-  
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  members       WorkspaceMember[] // Membros do workspace
+  accounts      Account[]
+  categories    Category[]
+  transactions  Transaction[]
+  invites       WorkspaceInvite[]
+  bankMovements BankMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Categorias
 model Category {
-  id          Int           @id @default(autoincrement())
-  name        String
-  icon        String?
-  color       String?
-  workspaceId Int?          // Null = Global
-  workspace   Workspace?    @relation(fields: [workspaceId], references: [id])
+  id           Int           @id @default(autoincrement())
+  name         String
+  icon         String?
+  color        String?
+  workspaceId  Int? // Null = Global
+  workspace    Workspace?    @relation(fields: [workspaceId], references: [id])
   transactions Transaction[]
-  
+
   @@index([workspaceId])
 }
 
 // Contas
 model Account {
-  id                Int           @id @default(autoincrement())
+  id                Int            @id @default(autoincrement())
   name              String
-  type              AccountType   @default(CHECKING)
-  balance           Decimal       @db.Decimal(19, 4) @default(0)
-  isIncludedInTotal Boolean       @default(true)
+  type              AccountType    @default(CHECKING)
+  balance           Decimal        @default(0) @db.Decimal(19, 4)
+  isIncludedInTotal Boolean        @default(true)
   workspaceId       Int
-  workspace         Workspace     @relation(fields: [workspaceId], references: [id])
+  workspace         Workspace      @relation(fields: [workspaceId], references: [id])
   transactions      Transaction[]
-  
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  bankMovements     BankMovement[]
+  auditLogsAsFrom   AuditLog[]     @relation("AuditLogFromAccount")
+  auditLogsAsTo     AuditLog[]     @relation("AuditLogToAccount")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([workspaceId])
 }
 
 // Transações
 model Transaction {
-  id                String            @id @default(uuid()) // UUID para segurança externa
-  description       String
-  amount            Decimal           @db.Decimal(19, 4)
-  date              DateTime
-  dueDate           DateTime?         // Data de vencimento (Contas a Pagar/Receber)
-  type              TransactionType
-  status            TransactionStatus @default(COMPLETED)
-  
+  id          String            @id @default(uuid()) // UUID para segurança externa
+  description String
+  amount      Decimal           @db.Decimal(19, 4)
+  date        DateTime
+  dueDate     DateTime? // Data de vencimento (Contas a Pagar/Receber)
+  type        TransactionType
+  status      TransactionStatus @default(COMPLETED)
+
   // Campos Analíticos de Marketplace
-  grossAmount       Decimal?          @db.Decimal(19, 4)
-  marketplaceFee    Decimal?          @db.Decimal(19, 4)
-  shippingCost      Decimal?          @db.Decimal(19, 4)
-  productCost       Decimal?          @db.Decimal(19, 4)
-  taxAmount         Decimal?          @db.Decimal(19, 4) // Valor reservado para impostos
+  grossAmount     Decimal? @db.Decimal(19, 4)
+  marketplaceFee  Decimal? @db.Decimal(19, 4)
+  shippingCost    Decimal? @db.Decimal(19, 4)
+  productCost     Decimal? @db.Decimal(19, 4)
+  taxAmount       Decimal? @db.Decimal(19, 4) // Valor reservado para impostos
+  netValue        Decimal? @db.Decimal(19, 4) // Valor líquido real recebido
+  feeAmount       Decimal? @db.Decimal(19, 4) // Taxa de gateway / intermediador
+  platformFeeRate Decimal? @db.Decimal(5, 2) // % Taxa da plataforma (Shopee, etc)
 
-  isPaid            Boolean           @default(true)
-  isFixed           Boolean           @default(false)
-  isTaxDeductible   Boolean           @default(false)
+  isPaid          Boolean @default(true)
+  isFixed         Boolean @default(false)
+  isTaxDeductible Boolean @default(false)
 
-  attachmentUrl     String?
-  
+  attachmentUrl  String?
+  attachmentSize Int?    @default(0) // Tamanho empírico do arquivo em bytes (V3.8 Governança)
+
   // Deduplicação OFX
-  fitid             String?           // ID único do banco (Financial Institution Transaction ID)
-  hashDeduplication String?           // Fallback MD5
+  fitid             String? // ID único do banco (Financial Institution Transaction ID)
+  hashDeduplication String? // Fallback MD5
 
   // Relacionamentos
-  accountId         Int
-  account           Account           @relation(fields: [accountId], references: [id])
-  categoryId        Int
-  category          Category          @relation(fields: [categoryId], references: [id])
-  workspaceId       Int
-  workspace         Workspace         @relation(fields: [workspaceId], references: [id])
+  accountId   Int
+  account     Account   @relation(fields: [accountId], references: [id])
+  categoryId  Int
+  category    Category  @relation(fields: [categoryId], references: [id])
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
-  createdAt         DateTime          @default(now())
-  deletedAt         DateTime?         // Soft Delete (Auditoria)
+  createdAt DateTime  @default(now())
+  deletedAt DateTime? // Soft Delete (Auditoria)
 
+  @@unique([workspaceId, fitid]) // Garante unicidade do FITID dentro do workspace
+  @@unique([workspaceId, hashDeduplication])
   @@index([workspaceId, date])
   @@index([accountId])
-  @@unique([workspaceId, fitid])    // Garante unicidade do FITID dentro do workspace
-  @@unique([workspaceId, hashDeduplication])
+  @@index([workspaceId, attachmentSize]) // V3.8 Performance Engine: Acelera SUM() de Cota
 }
 
 // Auditoria (Governança)
 model AuditLog {
-  id        String      @id @default(uuid())
-  userId    Int
-  user      User        @relation(fields: [userId], references: [id])
-  action    AuditAction
-  entity    String      // Ex: "Transaction", "Account"
-  entityId  String      // ID da entidade afetada (pode ser Int convertido pra String)
-  oldState  Json?       // Estado anterior (para rollback/histórico)
-  newState  Json?       // Novo estado
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime    @default(now())
+  id             String      @id @default(uuid())
+  userId         Int
+  user           User        @relation(fields: [userId], references: [id])
+  workspaceId    Int?
+  action         AuditAction
+  entity         String // Ex: "Transaction", "Account"
+  entityId       String // ID da entidade afetada (pode ser Int convertido pra String)
+  oldState       Json? // Estado anterior (para rollback/histórico)
+  newState       Json? // Novo estado
+  balanceBefore  Decimal?    @db.Decimal(19, 4)
+  balanceAfter   Decimal?    @db.Decimal(19, 4)
+  delta          Decimal?    @db.Decimal(19, 4)
+  fromAccount    Int?
+  fromAccountRef Account?    @relation("AuditLogFromAccount", fields: [fromAccount], references: [id])
+  toAccount      Int?
+  toAccountRef   Account?    @relation("AuditLogToAccount", fields: [toAccount], references: [id])
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime    @default(now())
 
   @@index([entity, entityId])
   @@index([userId])
+  @@index([workspaceId])
+  @@index([workspaceId, createdAt])
+  @@index([fromAccount])
+  @@index([toAccount])
 }
 
 // Notificações (Automação)
@@ -214,6 +305,7 @@ model RefreshToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresIn Int
   createdAt DateTime @default(now())
+
   @@index([userId])
 }
 
@@ -225,6 +317,7 @@ model PasswordResetToken {
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
+
   @@index([userId])
 }
 
@@ -235,5 +328,56 @@ model AccountVerificationToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+
   @@index([userId])
+}
+
+// Convites Onboarding (Double Handshake)
+model WorkspaceInvite {
+  id     String        @id @default(uuid())
+  email  String
+  role   WorkspaceRole @default(ACCOUNTANT)
+  token  String        @unique
+  status InviteStatus  @default(PENDING)
+
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  inviterId Int
+  inviter   User @relation("InvitesSent", fields: [inviterId], references: [id])
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([token])
+  @@index([workspaceId])
+  @@index([email])
+}
+
+// Importações Bancárias (Área de Staging - Amortecedor)
+model BankMovement {
+  id          String    @id @default(uuid())
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  accountId   Int
+  account     Account   @relation(fields: [accountId], references: [id])
+
+  amount      Decimal        @db.Decimal(19, 4)
+  date        DateTime
+  description String
+  source      MovementSource
+  status      MovementStatus @default(PENDING)
+
+  fitid             String?
+  hashDeduplication String?
+  rawPayload        Json // Payload original do banco/ofx
+
+  createdAt DateTime @default(now())
+
+  @@unique([workspaceId, fitid])
+  @@unique([workspaceId, hashDeduplication])
+  @@index([workspaceId, status])
+  @@index([workspaceId, status, amount, date(sort: Desc)], map: "idx_bank_movements_workspace_status_amount_date")
+  @@index([description(ops: raw("gin_trgm_ops"))], map: "idx_bank_movements_description_trgm", type: Gin)
 }

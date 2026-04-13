@@ -6,12 +6,12 @@ export class UserRepository {
   async createWithWorkspace(data: Prisma.UserCreateInput): Promise<User> {
     try {
       return await prisma.$transaction(async (tx) => {
-        // 1. Cria o usuário
         const user = await tx.user.create({
           data: {
             name: data.name,
             email: data.email,
             passwordHash: data.passwordHash,
+            type: data.type || 'CLIENT',
             // Não criamos o workspace aninhado aqui mais, pois a relação mudou
           }
         });
@@ -46,8 +46,34 @@ export class UserRepository {
     return await prisma.user.findUnique({ where: { email } });
   }
 
+  async findByEmailWithWorkspaces(email: string) {
+    return await prisma.user.findUnique({
+      where: { email },
+      include: {
+        memberships: {
+          include: {
+            workspace: true
+          }
+        }
+      }
+    });
+  }
+
   async findById(id: number): Promise<User | null> {
     return await prisma.user.findUnique({ where: { id } });
+  }
+
+  async findByIdWithWorkspaces(id: number) {
+    return await prisma.user.findUnique({
+      where: { id },
+      include: {
+        memberships: {
+          include: {
+            workspace: true
+          }
+        }
+      }
+    });
   }
 
   async updatePassword(userId: number, passwordHash: string): Promise<void> {
@@ -80,9 +106,9 @@ export class UserRepository {
   }
 
   async deleteRefreshToken(id: string): Promise<void> {
-    await prisma.refreshToken.delete({ where: { id } });
+    await prisma.refreshToken.deleteMany({ where: { id } });
   }
-  
+
   async deleteRefreshTokensByUserId(userId: number): Promise<void> {
     await prisma.refreshToken.deleteMany({ where: { userId } });
   }
@@ -144,7 +170,7 @@ export class UserRepository {
   }
 
   async deleteVerificationToken(tokenId: string): Promise<void> {
-    await prisma.accountVerificationToken.delete({
+    await prisma.accountVerificationToken.deleteMany({
       where: { id: tokenId }
     });
   }

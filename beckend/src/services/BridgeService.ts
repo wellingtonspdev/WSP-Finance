@@ -2,7 +2,7 @@ import { prisma } from '../lib/prisma';
 import { AccountRepository } from '../repositories/AccountRepository';
 import { CategoryRepository } from '../repositories/CategoryRepository';
 import { Decimal } from '@prisma/client/runtime/library';
-import { TransactionType, AuditAction } from '@prisma/client';
+import { AuditLogService } from './AuditLogService';
 
 interface BridgeTransferDTO {
   fromWorkspaceId: number;
@@ -14,6 +14,12 @@ interface BridgeTransferDTO {
   date: Date;
 }
 
+import { AppError } from '../errors/AppError';
+import dayjs from 'dayjs';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+
+dayjs.extend(isSameOrBefore);
+
 export class BridgeService {
   private accountRepository: AccountRepository;
   private categoryRepository: CategoryRepository;
@@ -24,33 +30,51 @@ export class BridgeService {
   }
 
   async executeTransfer(userId: number, dto: BridgeTransferDTO) {
-    // 1. RBAC Integrado: Validação de OWNER em ambos os workspaces
+    // 1. RBAC Integrado: Validação de Pertencimento em ambos os workspaces
     const memberships = await prisma.workspaceMember.findMany({
       where: {
         userId,
         workspaceId: { in: [dto.fromWorkspaceId, dto.toWorkspaceId] },
-        role: 'OWNER'
-      }
+        role: { in: ['OWNER', 'ACCOUNTANT'] } // Contador também pode operar
+      },
+      include: { workspace: true }
     });
 
-    if (memberships.length !== 2) {
-      throw new Error('Permissão negada: Você deve ser OWNER de ambos os workspaces para realizar transferências.');
+    const fromMembership = memberships.find(m => m.workspaceId === dto.fromWorkspaceId);
+    const toMembership = memberships.find(m => m.workspaceId === dto.toWorkspaceId);
+
+    if (!fromMembership || !toMembership) {
+      throw new AppError('Permissão negada: Você deve ter nível OWNER ou ACCOUNTANT em ambos os workspaces para transferir.', 403);
     }
+
+    // 1.5. Guardião de Período Fiscal (Duplo Check Atômico)
+    const validateClosedUntil = (workspace: any, role: string, transferDate: Date) => {
+      if (workspace.closedUntil) {
+        const isAccountantBypass = role === 'ACCOUNTANT' && workspace.type === 'BUSINESS';
+        const isTargetDateClosed = dayjs(transferDate).isSameOrBefore(dayjs(workspace.closedUntil), 'day');
+        
+        if (isTargetDateClosed && !isAccountantBypass) {
+          throw new AppError(`Acesso negado: Transferência afeta um período fiscal já fechado no Workspace ID ${workspace.id}.`, 403);
+        }
+      }
+    };
+
+    const targetDate = dto.date || new Date();
+    validateClosedUntil(fromMembership.workspace, fromMembership.role, targetDate);
+    validateClosedUntil(toMembership.workspace, toMembership.role, targetDate);
 
     // 2. Validação de Contas e Saldo
     const fromAccount = await this.accountRepository.findByIdAndWorkspace(dto.fromAccountId, dto.fromWorkspaceId);
-    if (!fromAccount) throw new Error('Conta de origem inválida ou não pertence ao workspace.');
+    if (!fromAccount) throw new AppError('Conta de origem inválida ou não pertence ao workspace.', 404);
 
     const toAccount = await this.accountRepository.findByIdAndWorkspace(dto.toAccountId, dto.toWorkspaceId);
-    if (!toAccount) throw new Error('Conta de destino inválida ou não pertence ao workspace.');
+    if (!toAccount) throw new AppError('Conta de destino inválida ou não pertence ao workspace.', 404);
 
     if (fromAccount.balance.toNumber() < dto.amount) {
-      throw new Error('Saldo insuficiente na conta de origem.');
+      throw new AppError('Saldo insuficiente na conta de origem.', 400);
     }
 
     // 3. Auto-Category: Buscar categorias adequadas
-    // Tenta achar categorias globais ou do workspace. 
-    // Idealmente teríamos categorias específicas "Transferência", mas vamos pegar a primeira válida para não travar.
     const fromCategory = await prisma.category.findFirst({
       where: { OR: [{ workspaceId: dto.fromWorkspaceId }, { workspaceId: null }] }
     });
@@ -59,7 +83,7 @@ export class BridgeService {
     });
 
     if (!fromCategory || !toCategory) {
-      throw new Error('Não foi possível identificar categorias válidas para a transferência.');
+      throw new AppError('Não foi possível identificar categorias válidas para a transferência.', 400);
     }
 
     // 4. Transação Atômica com Auditoria de Snapshot
@@ -77,6 +101,7 @@ export class BridgeService {
           amount: amountDecimal,
           description: dto.description || `Transferência para Workspace ${dto.toWorkspaceId}`,
           isPaid: true,
+          date: dto.date || new Date(),
           fitid: `BRIDGE_OUT_${bridgeId}` // Rastreabilidade
         }
       });
@@ -91,43 +116,77 @@ export class BridgeService {
           amount: amountDecimal,
           description: dto.description || `Recebimento do Workspace ${dto.fromWorkspaceId}`,
           isPaid: true,
+          date: dto.date || new Date(),
           fitid: `BRIDGE_IN_${bridgeId}`
         }
       });
 
       // C. Atualização de Saldos
-      await tx.account.update({
+      const updatedFromAccount = await tx.account.update({
         where: { id: dto.fromAccountId },
         data: { balance: { decrement: amountDecimal } }
       });
 
-      await tx.account.update({
+      const updatedToAccount = await tx.account.update({
         where: { id: dto.toAccountId },
         data: { balance: { increment: amountDecimal } }
       });
 
-      // D. Auditoria de Snapshot (Antes e Depois)
-      // Nota: O 'depois' é calculado, pois o banco só retorna após o commit.
-      const fromBalanceBefore = fromAccount.balance.toNumber();
-      const toBalanceBefore = toAccount.balance.toNumber();
+      // D. Auditoria estruturada da partida dobrada: uma linha para cada perna da ponte.
+      const fromBalanceBefore = new Decimal(fromAccount.balance.toString());
+      const toBalanceBefore = new Decimal(toAccount.balance.toString());
 
-      await tx.auditLog.create({
-        data: {
-          userId,
-          action: 'BRIDGE_TRANSFER',
-          entity: 'Transaction',
-          entityId: bridgeId, // Usamos o ID da ponte como referência
-          oldState: {
-            fromAccount: { id: dto.fromAccountId, balance: fromBalanceBefore },
-            toAccount: { id: dto.toAccountId, balance: toBalanceBefore }
-          },
-          newState: {
-            fromAccount: { id: dto.fromAccountId, balance: fromBalanceBefore - dto.amount },
-            toAccount: { id: dto.toAccountId, balance: toBalanceBefore + dto.amount }
-          },
-          details: { bridgeId, amount: dto.amount }
-        }
-      });
+      await AuditLogService.logSync({
+        userId,
+        workspaceId: dto.fromWorkspaceId,
+        action: 'BRIDGE_TRANSFER',
+        entity: 'Transaction',
+        entityId: bridgeId,
+        oldState: {
+          bridgeId,
+          leg: 'DEBIT',
+          accountId: dto.fromAccountId,
+          balance: fromBalanceBefore.toString(),
+        },
+        newState: {
+          bridgeId,
+          leg: 'DEBIT',
+          transactionId: debitTx.id,
+          amount: amountDecimal.toString(),
+          balance: updatedFromAccount.balance.toString(),
+        },
+        balanceBefore: fromBalanceBefore,
+        balanceAfter: updatedFromAccount.balance,
+        delta: amountDecimal.negated(),
+        fromAccount: dto.fromAccountId,
+        toAccount: dto.toAccountId,
+      }, tx);
+
+      await AuditLogService.logSync({
+        userId,
+        workspaceId: dto.toWorkspaceId,
+        action: 'BRIDGE_TRANSFER',
+        entity: 'Transaction',
+        entityId: bridgeId,
+        oldState: {
+          bridgeId,
+          leg: 'CREDIT',
+          accountId: dto.toAccountId,
+          balance: toBalanceBefore.toString(),
+        },
+        newState: {
+          bridgeId,
+          leg: 'CREDIT',
+          transactionId: creditTx.id,
+          amount: amountDecimal.toString(),
+          balance: updatedToAccount.balance.toString(),
+        },
+        balanceBefore: toBalanceBefore,
+        balanceAfter: updatedToAccount.balance,
+        delta: amountDecimal,
+        fromAccount: dto.fromAccountId,
+        toAccount: dto.toAccountId,
+      }, tx);
 
       return { debitTx, creditTx };
     });

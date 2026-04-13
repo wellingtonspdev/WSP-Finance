@@ -14,7 +14,7 @@ export class AuthService {
   }
 
   // --- Caso de Uso: Registro ---
-  async register(name: string, email: string, password: string) {
+  async register(name: string, email: string, password: string, type: 'CLIENT' | 'ACCOUNTANT' = 'CLIENT') {
     const userExists = await this.userRepository.findByEmail(email);
     if (userExists) {
       throw new Error('User already exists');
@@ -27,12 +27,11 @@ export class AuthService {
       name,
       email,
       passwordHash,
+      type,
     });
 
-    // LOG PARA DEBUG: Mostrar o ID do Workspace criado
-    if (user.workspaces && user.workspaces.length > 0) {
-      console.log(`🔑 [DEBUG] Workspace ID criado para ${user.email}: ${user.workspaces[0].id}`);
-    }
+    // LOG PARA DEBUG mantido fora de workspace legado
+    console.log(`🔑 [DEBUG] User Registration Initiated: ${user.email}`);
 
     // 2. Envia o e-mail de verificação
     await this.verificationService.sendVerificationCode(user.id, user.email, user.name);
@@ -48,8 +47,8 @@ export class AuthService {
 
   // --- Caso de Uso: Login ---
   async authenticate(email: string, password: string) {
-    const user = await this.userRepository.findByEmail(email);
-    
+    const user = await this.userRepository.findByEmailWithWorkspaces(email);
+
     if (!user) {
       throw new Error('Invalid credentials');
     }
@@ -69,11 +68,22 @@ export class AuthService {
     const token = this.generateAccessToken(user.id);
     const refreshToken = await this.generateRefreshToken(user.id);
 
+    // Mapeamento Multi-tenant (Ponte)
+    const mappedWorkspaces = user.memberships.map(m => ({
+      id: m.workspace.id,
+      name: m.workspace.name,
+      type: m.workspace.type,
+      role: m.role,
+      closedUntil: m.workspace.closedUntil ?? null
+    }));
+
     return {
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
+        type: user.type,
+        memberships: mappedWorkspaces
       },
       token,
       refreshToken: refreshToken.id
@@ -95,13 +105,33 @@ export class AuthService {
     }
 
     await this.userRepository.deleteRefreshToken(refreshTokenId);
-    
+
     const newAccessToken = this.generateAccessToken(refreshToken.userId);
     const newRefreshToken = await this.generateRefreshToken(refreshToken.userId);
 
     return {
       token: newAccessToken,
       refreshToken: newRefreshToken.id
+    };
+  }
+
+  // --- Caso de Uso: Get Me (Sincronização de Sessão) ---
+  async getMe(userId: number) {
+    const user = await this.userRepository.findByIdWithWorkspaces(userId);
+    if (!user) throw new Error('User not found');
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      type: user.type,
+      memberships: user.memberships.map((m: any) => ({
+        id: m.workspace.id,
+        name: m.workspace.name,
+        type: m.workspace.type,
+        role: m.role,
+        closedUntil: m.workspace.closedUntil ?? null
+      }))
     };
   }
 
@@ -113,7 +143,7 @@ export class AuthService {
   }
 
   private async generateRefreshToken(userId: number) {
-    const expiresIn = Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 30); 
+    const expiresIn = Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 30);
     return await this.userRepository.createRefreshToken(userId, expiresIn);
   }
 }

@@ -1,0 +1,3486 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "API WSP Finance",
+    "version": "1.0.0",
+    "description": "API para gestao financeira hibrida com autenticacao, workspaces, operacao financeira, uploads e fila de aprovacao.\n\nComo usar esta documentacao:\n- O resumo explica o resultado esperado da rota.\n- A descricao explica o que a rota faz e por que ela existe no fluxo do produto.\n- Rotas protegidas usam JWT bearer token.\n- Rotas de workspace tambem exigem o cabecalho x-workspace-id."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3333",
+      "description": "Servidor de desenvolvimento local"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Autenticacao",
+      "description": "Entrada, renovacao de sessao e leitura do perfil autenticado."
+    },
+    {
+      "name": "Recuperacao",
+      "description": "Recuperacao de acesso via envio e validacao de codigo por e-mail."
+    },
+    {
+      "name": "Integracoes",
+      "description": "Consulta de dados externos para acelerar cadastros."
+    },
+    {
+      "name": "Webhooks",
+      "description": "Entradas assincronas vindas de integracoes externas."
+    },
+    {
+      "name": "Perfil do Usuario",
+      "description": "Dados cadastrais globais do usuario autenticado."
+    },
+    {
+      "name": "Workspaces",
+      "description": "Ambientes de trabalho pessoais ou empresariais associados ao usuario."
+    },
+    {
+      "name": "Convites",
+      "description": "Gestao do ciclo de vida de convites e membros."
+    },
+    {
+      "name": "Categorias",
+      "description": "Catalogo de classificacao financeira por workspace."
+    },
+    {
+      "name": "Contas",
+      "description": "Contas bancarias, caixas e carteiras usadas no controle financeiro."
+    },
+    {
+      "name": "Transacoes",
+      "description": "Lancamentos financeiros e consultas de extrato."
+    },
+    {
+      "name": "Dashboard",
+      "description": "Indicadores consolidados para visao gerencial."
+    },
+    {
+      "name": "Uploads",
+      "description": "Reserva de upload e consulta de anexos."
+    },
+    {
+      "name": "Bridge",
+      "description": "Transferencias internas entre workspaces do mesmo usuario."
+    },
+    {
+      "name": "Importacao",
+      "description": "Importacao de extratos e arquivos operacionais."
+    },
+    {
+      "name": "Inbox Aprovacao",
+      "description": "Triagem de movimentos antes de virarem transacoes definitivas."
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "Autenticacao"
+        ],
+        "summary": "Criar conta e iniciar onboarding",
+        "description": "Cria um novo usuario, registra a credencial inicial e dispara o fluxo de verificacao por e-mail. Esta rota existe para abrir o primeiro acesso com um cadastro minimo e seguro.",
+        "responses": {
+          "201": {
+            "description": "Conta criada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/MessageResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "userId": {
+                          "type": "integer",
+                          "example": 1
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Falha de validacao do cadastro.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ja existe usuario com o e-mail informado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "User already exists"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Maria Silva"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "maria@empresa.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "senha123"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "CLIENT",
+                      "ACCOUNTANT"
+                    ],
+                    "default": "CLIENT"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/session": {
+      "post": {
+        "tags": [
+          "Autenticacao"
+        ],
+        "summary": "Autenticar usuario e abrir sessao",
+        "description": "Valida e-mail e senha e retorna os tokens da sessao autenticada. Esta rota existe para transformar credenciais em uma sessao reutilizavel pelo frontend e pelo Swagger.",
+        "responses": {
+          "200": {
+            "description": "Sessao autenticada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object"
+                    },
+                    "token": {
+                      "type": "string"
+                    },
+                    "refreshToken": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Corpo da requisicao invalido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais invalidas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Conta ainda nao verificada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "E-mail nao verificado. Por favor, ative sua conta."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "maria@empresa.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "senha123"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "patch": {
+        "tags": [
+          "Autenticacao"
+        ],
+        "summary": "Renovar sessao sem novo login",
+        "description": "Recebe um refresh token valido e devolve uma sessao atualizada. Esta rota existe para reduzir atrito do usuario sem pedir senha a cada expiracao do token curto.",
+        "responses": {
+          "200": {
+            "description": "Sessao renovada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refresh token malformado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refresh token expirado ou invalido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Sessao expirada ou invalida"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "refreshToken"
+                ],
+                "properties": {
+                  "refreshToken": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/verify": {
+      "post": {
+        "tags": [
+          "Autenticacao"
+        ],
+        "summary": "Confirmar codigo de verificacao",
+        "description": "Ativa a conta apos a validacao do codigo enviado por e-mail. Esta rota existe para impedir acesso com e-mails nao comprovados.",
+        "responses": {
+          "200": {
+            "description": "Conta verificada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Account verified successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Codigo invalido, expirado ou payload incorreto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Codigo invalido ou expirado."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "code"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 6,
+                    "example": "123456"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/resend-verification": {
+      "post": {
+        "tags": [
+          "Autenticacao"
+        ],
+        "summary": "Reenviar codigo de verificacao",
+        "description": "Gera e envia um novo codigo para o e-mail informado. Esta rota existe para recuperar o onboarding quando o codigo anterior expirou ou nao chegou.",
+        "responses": {
+          "200": {
+            "description": "Processamento do reenvio concluido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "If the email exists, a new code has been sent."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Conta ja estava verificada ou payload invalido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Esta conta ja esta verificada."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "Autenticacao"
+        ],
+        "summary": "Ler perfil da sessao atual",
+        "description": "Retorna os dados do usuario autenticado e suas memberships. Esta rota existe para hidratar o frontend apos login, refresh ou recarga da pagina.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Perfil retornado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, invalido ou expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Token invalido ou expirado"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario nao encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Usuario nao encontrado"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/password/forgot": {
+      "post": {
+        "tags": [
+          "Recuperacao"
+        ],
+        "summary": "Solicitar recuperacao de senha",
+        "description": "Recebe um e-mail e inicia o envio do codigo de redefinicao. Esta rota existe para recuperar o acesso sem expor se o e-mail esta cadastrado.",
+        "responses": {
+          "204": {
+            "description": "Solicitacao aceita. Nenhum conteudo e retornado para nao expor se o e-mail existe."
+          },
+          "400": {
+            "description": "Payload invalido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/password/reset": {
+      "post": {
+        "tags": [
+          "Recuperacao"
+        ],
+        "summary": "Definir nova senha com codigo",
+        "description": "Valida o codigo de recuperacao e grava uma nova senha. Esta rota existe para concluir o fluxo de retomada de acesso com prova de posse do e-mail.",
+        "responses": {
+          "204": {
+            "description": "Senha redefinida com sucesso."
+          },
+          "400": {
+            "description": "Codigo, e-mail ou nova senha invalidos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Codigo invalido, expirado ou e-mail incorreto."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "code",
+                  "newPassword"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 6,
+                    "example": "123456"
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "format": "password",
+                    "minLength": 6
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/webhooks/open-finance": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Receber movimentos do Open Finance",
+        "description": "Recebe lotes de movimentos bancarios vindos de uma integracao externa autenticada por token compartilhado. Esta rota existe para alimentar a fila de conciliacao sem depender de importacao manual.",
+        "security": [
+          {
+            "WebhookAuthorization": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workspaceId",
+                  "accountId",
+                  "movements"
+                ],
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "OPEN_FINANCE"
+                    ],
+                    "default": "OPEN_FINANCE"
+                  },
+                  "workspaceId": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "accountId": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "movements": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "date",
+                        "description",
+                        "amount"
+                      ],
+                      "properties": {
+                        "transactionId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "date": {
+                          "type": "string",
+                          "example": "2026-04-13"
+                        },
+                        "description": {
+                          "type": "string",
+                          "example": "Pagamento recebido"
+                        },
+                        "amount": {
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ],
+                          "example": "150.90"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Lote recebido e processado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Open Finance webhook processed."
+                    },
+                    "details": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload invalido para o webhook.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid Open Finance webhook payload."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token do webhook invalido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Webhook authorization failed."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external/document/{cnpj}": {
+      "get": {
+        "tags": [
+          "Integracoes"
+        ],
+        "summary": "Consultar dados de CNPJ",
+        "description": "Busca dados cadastrais de empresa a partir do CNPJ informado. Esta rota existe para acelerar o cadastro de workspaces empresariais e reduzir digitacao manual.",
+        "parameters": [
+          {
+            "name": "cnpj",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dados do CNPJ retornados com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Falha ao consultar a fonte externa.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Erro Interno ao buscar CNPJ"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/external/location/{cep}": {
+      "get": {
+        "tags": [
+          "Integracoes"
+        ],
+        "summary": "Consultar endereco por CEP",
+        "description": "Busca endereco completo a partir de um CEP. Esta rota existe para autopreencher enderecos e diminuir erros de cadastro.",
+        "parameters": [
+          {
+            "name": "cep",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dados do CEP retornados com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Falha ao consultar a fonte externa.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Erro Interno ao buscar CEP"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/users/profile": {
+      "put": {
+        "tags": [
+          "Perfil do Usuario"
+        ],
+        "summary": "Atualizar dados globais do usuario",
+        "description": "Atualiza telefone, documento e endereco do usuario autenticado. Esta rota existe para manter o cadastro base do usuario consistente em qualquer workspace.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Perfil atualizado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Falha de validacao ou regra de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Erro Interno ao atualizar perfil"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Usuario nao autenticado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Token invalido ou expirado"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cpf": {
+                    "type": "string",
+                    "example": "12345678900"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "example": "11999999999"
+                  },
+                  "address": {
+                    "type": "object",
+                    "properties": {
+                      "zipCode": {
+                        "type": "string",
+                        "example": "01001000"
+                      },
+                      "street": {
+                        "type": "string",
+                        "example": "Rua Exemplo"
+                      },
+                      "number": {
+                        "type": "string",
+                        "example": "100"
+                      },
+                      "complement": {
+                        "type": "string",
+                        "example": "Sala 12"
+                      },
+                      "neighborhood": {
+                        "type": "string",
+                        "example": "Centro"
+                      },
+                      "city": {
+                        "type": "string",
+                        "example": "Sao Paulo"
+                      },
+                      "state": {
+                        "type": "string",
+                        "example": "SP"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces": {
+      "get": {
+        "tags": [
+          "Workspaces"
+        ],
+        "summary": "Listar workspaces acessiveis",
+        "description": "Retorna todos os workspaces vinculados ao usuario autenticado. Esta rota existe para montar a troca de contexto entre ambiente pessoal, empresarial e contabil.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Lista de workspaces retornada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Workspaces"
+        ],
+        "summary": "Criar novo workspace",
+        "description": "Cria um workspace pessoal ou empresarial e o vincula ao usuario atual. Esta rota existe para abrir um novo espaco de operacao financeira dentro da conta.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Workspace criado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Falha na criacao do workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Bad request"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Empresa XPTO"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "PERSONAL",
+                      "BUSINESS"
+                    ],
+                    "default": "PERSONAL"
+                  },
+                  "fiscalIdentity": {
+                    "type": "object",
+                    "properties": {
+                      "documentType": {
+                        "type": "string",
+                        "enum": [
+                          "CPF",
+                          "CNPJ"
+                        ]
+                      },
+                      "document": {
+                        "type": "string",
+                        "example": "12345678000190"
+                      },
+                      "cnae": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "6201501"
+                      }
+                    }
+                  },
+                  "address": {
+                    "type": "object",
+                    "properties": {
+                      "zipCode": {
+                        "type": "string"
+                      },
+                      "street": {
+                        "type": "string"
+                      },
+                      "number": {
+                        "type": "string"
+                      },
+                      "complement": {
+                        "type": "string"
+                      },
+                      "neighborhood": {
+                        "type": "string"
+                      },
+                      "city": {
+                        "type": "string"
+                      },
+                      "state": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{id}": {
+      "put": {
+        "tags": [
+          "Workspaces"
+        ],
+        "summary": "Atualizar metadados do workspace",
+        "description": "Atualiza nome e tipo do workspace informado. Esta rota existe para manter o contexto organizacional alinhado com a operacao real.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace atualizado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload incompleto ou invalido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Name and Type are required for update"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Usuario sem acesso ao workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Workspace not found or access denied"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "type"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Workspace atualizado"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "PERSONAL",
+                      "BUSINESS"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{id}/invites": {
+      "post": {
+        "tags": [
+          "Convites"
+        ],
+        "summary": "Gerar convite de acesso ao workspace",
+        "description": "Cria um convite para que outra pessoa entre no workspace com uma role especifica. Esta rota existe para compartilhar a operacao com contador, editor ou visualizador sem compartilhar senha.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Convite criado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invite generated successfully"
+                    },
+                    "token": {
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload invalido para convite.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Bad request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Usuario sem permissao ou convite invalido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Access denied"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "contador@empresa.com"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "ACCOUNTANT",
+                      "EDITOR",
+                      "VIEWER"
+                    ],
+                    "default": "ACCOUNTANT"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Convites"
+        ],
+        "summary": "Listar convites emitidos pelo workspace",
+        "description": "Retorna o historico de convites criados para o workspace. Esta rota existe para acompanhar quem foi convidado, por qual papel e em qual status.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do workspace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Convites emitidos retornados com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ]
+      }
+    },
+    "/workspaces/{id}/invites/{inviteId}/revoke": {
+      "post": {
+        "tags": [
+          "Convites"
+        ],
+        "summary": "Revogar convite pendente",
+        "description": "Invalida um convite antes de ele ser aceito. Esta rota existe para cortar acesso antes da entrada efetiva quando um convite foi enviado por engano ou ficou exposto.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "inviteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Convite revogado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invite revoked successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Convite nao pode ser revogado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Access denied"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ]
+      }
+    },
+    "/invites/accept": {
+      "post": {
+        "tags": [
+          "Convites"
+        ],
+        "summary": "Aceitar convite recebido",
+        "description": "Consome o token do convite e cria a membership correspondente. Esta rota existe para transformar um convite externo em acesso real ao workspace.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Convite aceito com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invite accepted successfully"
+                    },
+                    "workspaceId": {
+                      "type": "integer",
+                      "example": 3
+                    },
+                    "role": {
+                      "type": "string",
+                      "example": "ACCOUNTANT"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Token de convite invalido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Bad request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Convite expirado, revogado ou com e-mail divergente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Convite nao permitido."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "example": "invite-token"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/invites/received": {
+      "get": {
+        "tags": [
+          "Convites"
+        ],
+        "summary": "Listar convites recebidos",
+        "description": "Retorna os convites direcionados ao usuario logado. Esta rota existe para centralizar as pendencias de entrada em workspaces de terceiros.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Convites recebidos retornados com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario autenticado nao encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "User not found"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/invites/{id}/reject": {
+      "post": {
+        "tags": [
+          "Convites"
+        ],
+        "summary": "Recusar convite recebido",
+        "description": "Marca um convite como rejeitado sem criar membership. Esta rota existe para dar ao destinatario controle explicito sobre o acesso oferecido.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "UUID do convite"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Convite rejeitado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invite rejected successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Convite nao pode ser rejeitado pelo usuario atual.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Convite nao permitido."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Convite nao encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invite not found"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/workspaces/{id}/members": {
+      "get": {
+        "tags": [
+          "Convites"
+        ],
+        "summary": "Listar membros do workspace",
+        "description": "Retorna quem atualmente possui acesso ao workspace. Esta rota existe para auditoria operacional e gestao de permissoes.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do workspace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Membros retornados com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ]
+      }
+    },
+    "/workspaces/{id}/members/{userId}": {
+      "delete": {
+        "tags": [
+          "Convites"
+        ],
+        "summary": "Remover membro do workspace",
+        "description": "Remove o acesso de um membro existente. Esta rota existe para desligamento, troca de contador ou ajuste de governanca do ambiente.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do workspace"
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do utilizador a ser removido"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Membro removido com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Usuario sem permissao para remover o membro.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Operacao nao permitida."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario alvo nao e membro do workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Target user not a member of this workspace"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ]
+      }
+    },
+    "/categories": {
+      "get": {
+        "tags": [
+          "Categorias"
+        ],
+        "summary": "Listar categorias financeiras",
+        "description": "Retorna as categorias disponiveis no workspace ativo. Esta rota existe para classificar entradas e saidas com consistencia.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Categorias retornadas com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Categorias"
+        ],
+        "summary": "Criar categoria personalizada",
+        "description": "Cria uma nova categoria do workspace. Esta rota existe para adaptar a classificacao financeira ao jeito real de operar do cliente.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Categoria criada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Falha na criacao da categoria.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Bad request"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Marketing"
+                  },
+                  "icon": {
+                    "type": "string",
+                    "example": "megaphone"
+                  },
+                  "color": {
+                    "type": "string",
+                    "example": "#0EA5E9"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/categories/{id}": {
+      "delete": {
+        "tags": [
+          "Categorias"
+        ],
+        "summary": "Excluir categoria customizada",
+        "description": "Remove uma categoria que nao deve mais ser usada. Esta rota existe para manter o catalogo limpo sem afetar categorias globais protegidas.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Categoria removida com sucesso."
+          },
+          "403": {
+            "description": "Categoria protegida ou inexistente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Nao e possivel deletar esta categoria."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ]
+      }
+    },
+    "/accounts": {
+      "get": {
+        "tags": [
+          "Contas"
+        ],
+        "summary": "Listar contas e carteiras",
+        "description": "Retorna as contas financeiras do workspace ativo. Esta rota existe para compor saldos, filtros e lancamentos vinculados a origem do dinheiro.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Contas retornadas com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Contas"
+        ],
+        "summary": "Cadastrar nova conta financeira",
+        "description": "Cria uma conta bancara, caixa ou carteira com saldo inicial. Esta rota existe para iniciar o controle financeiro por origem de recurso.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Conta criada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Falha na criacao da conta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Bad request"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "type"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Banco principal"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "CHECKING",
+                      "SAVINGS",
+                      "CASH",
+                      "CREDIT_CARD",
+                      "INVESTMENT"
+                    ]
+                  },
+                  "initialBalance": {
+                    "type": "number",
+                    "default": 0,
+                    "example": 1500.5
+                  },
+                  "isIncludedInTotal": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounts/{id}": {
+      "put": {
+        "tags": [
+          "Contas"
+        ],
+        "summary": "Atualizar dados principais da conta",
+        "description": "Atualiza nome, tipo e participacao no total da conta informada. Esta rota existe para manter a apresentacao e o comportamento da conta coerentes com a operacao.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Conta atualizada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Nenhum campo valido foi enviado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "No data provided for update"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Conta nao encontrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Account not found"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Conta atualizada"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "CHECKING",
+                      "SAVINGS",
+                      "CASH",
+                      "CREDIT_CARD",
+                      "INVESTMENT"
+                    ]
+                  },
+                  "isIncludedInTotal": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Contas"
+        ],
+        "summary": "Atualizar parcialmente uma conta",
+        "description": "Aplica ajustes pontuais em uma conta sem recriar o registro. Esta rota existe para permitir manutencao incremental da configuracao financeira.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Conta atualizada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Nenhum campo valido foi enviado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "No data provided for update"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Conta nao encontrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Account not found"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Conta atualizada"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "CHECKING",
+                      "SAVINGS",
+                      "CASH",
+                      "CREDIT_CARD",
+                      "INVESTMENT"
+                    ]
+                  },
+                  "isIncludedInTotal": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Contas"
+        ],
+        "summary": "Excluir conta do workspace",
+        "description": "Remove uma conta que nao deve mais participar da operacao. Esta rota existe para encerrar fontes de saldo sem manter cadastros obsoletos.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Conta removida com sucesso."
+          },
+          "404": {
+            "description": "Conta nao encontrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Account not found"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ]
+      }
+    },
+    "/transactions/all": {
+      "get": {
+        "tags": [
+          "Transacoes"
+        ],
+        "summary": "Listar transacoes de todos os workspaces do usuario",
+        "description": "Retorna uma visao agregada das transacoes acessiveis ao usuario. Esta rota existe para auditoria pessoal e consultas globais sem trocar de contexto.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Transacoes globais retornadas com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/transactions": {
+      "get": {
+        "tags": [
+          "Transacoes"
+        ],
+        "summary": "Consultar extrato do workspace",
+        "description": "Lista as transacoes do workspace ativo com filtros por periodo, conta, categoria, tipo e pagina. Esta rota existe para alimentar extrato, relatorios e buscas operacionais.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "startDate",
+            "required": false,
+            "description": "Data inicial do filtro.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "required": false,
+            "description": "Data final do filtro.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "in": "query",
+            "name": "accountId",
+            "required": false,
+            "description": "Filtra por conta.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "categoryId",
+            "required": false,
+            "description": "Filtra por categoria.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "description": "Filtra por tipo de transacao.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INCOME",
+                "EXPENSE"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "description": "Cursor da proxima pagina.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "description": "Quantidade maxima de registros.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Extrato retornado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Transacoes"
+        ],
+        "summary": "Criar transacao manual",
+        "description": "Cria um lancamento financeiro e ajusta os efeitos necessarios no saldo associado. Esta rota existe para registrar receitas, despesas e eventos financeiros nao importados automaticamente.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Transacao criada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Falha de validacao ou referencia invalida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid transaction payload"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "description",
+                  "amount",
+                  "date",
+                  "type",
+                  "accountId",
+                  "categoryId"
+                ],
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "example": "Recebimento de cliente"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 2500.9
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "INCOME",
+                      "EXPENSE"
+                    ]
+                  },
+                  "accountId": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "categoryId": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "isPaid": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "grossAmount": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "marketplaceFee": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "shippingCost": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "productCost": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "platformFeeRate": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "attachmentUrl": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "attachmentSize": {
+                    "type": "integer",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transactions/{id}": {
+      "delete": {
+        "tags": [
+          "Transacoes"
+        ],
+        "summary": "Excluir transacao",
+        "description": "Remove uma transacao e desfaz seus efeitos financeiros associados. Esta rota existe para corrigir erros de lancamento e manter o saldo reconciliado.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Transacao removida com sucesso."
+          },
+          "400": {
+            "description": "Transacao nao encontrada ou acesso negado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Transaction not found or access denied"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ]
+      }
+    },
+    "/transactions/{id}/attachment": {
+      "get": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "Gerar link de visualizacao do anexo",
+        "description": "Retorna uma URL assinada para visualizar o comprovante vinculado a uma transacao. Esta rota existe para expor o arquivo com seguranca e tempo de acesso controlado.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "URL assinada retornada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "expiresInSeconds": {
+                      "type": "integer",
+                      "example": 300
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Anexo nao encontrado ou sem permissao.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Falha ao processar assinatura de visualizacao."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ]
+      }
+    },
+    "/dashboard/summary": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Gerar resumo gerencial do workspace",
+        "description": "Consolida indicadores e recortes do periodo informado. Esta rota existe para alimentar a visao executiva sem o frontend recalcular saldos e totais.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "description": "Mes de referencia.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            }
+          },
+          {
+            "in": "query",
+            "name": "year",
+            "required": false,
+            "description": "Ano de referencia.",
+            "schema": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 2100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resumo gerencial retornado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Falha ao consolidar o dashboard.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Error generating dashboard summary"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ]
+      }
+    },
+    "/uploads/presigned": {
+      "post": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "Reservar upload de arquivo",
+        "description": "Valida metadados do arquivo e devolve a instrucao de upload. Esta rota existe para controlar tamanho, destino e custo antes da transferencia do binario.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Instrucao de upload gerada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Metadados do arquivo invalidos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Bad request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Limite ou politica comercial impediu o upload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Upload blocked by billing policy"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "fileName",
+                  "contentType",
+                  "folderType",
+                  "fileSize"
+                ],
+                "properties": {
+                  "fileName": {
+                    "type": "string",
+                    "example": "comprovante.pdf"
+                  },
+                  "contentType": {
+                    "type": "string",
+                    "example": "application/pdf"
+                  },
+                  "folderType": {
+                    "type": "string",
+                    "enum": [
+                      "AVATAR",
+                      "RECEIPT",
+                      "INVOICE",
+                      "CERTIFICATE",
+                      "ASSET"
+                    ]
+                  },
+                  "fileSize": {
+                    "type": "integer",
+                    "maximum": 10485760,
+                    "example": 350000
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/uploads/{filename}": {
+      "put": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "Receber arquivo em modo local",
+        "description": "Recebe o binario diretamente no ambiente local de desenvolvimento. Esta rota existe apenas para simular o fluxo de upload quando nao ha armazenamento externo ativo.",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Arquivo recebido com sucesso no modo local."
+          },
+          "500": {
+            "description": "Falha no recebimento do arquivo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Erro ao salvar o arquivo"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bridge/transfer": {
+      "post": {
+        "tags": [
+          "Bridge"
+        ],
+        "summary": "Transferir valores entre workspaces",
+        "description": "Cria uma transferencia interna entre dois workspaces do mesmo usuario. Esta rota existe para refletir movimentacoes como pro-labore e repasses internos sem duplicidade manual.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Transferencia criada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Transferencia realizada com sucesso"
+                    },
+                    "details": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Transferencia invalida ou saldo insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "A transferencia deve ser entre workspaces diferentes."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Usuario sem permissao para um dos workspaces.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Permissao negada"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Falha interna ao processar a transferencia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Erro interno ao processar transferencia."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "fromWorkspaceId",
+                  "toWorkspaceId",
+                  "fromAccountId",
+                  "toAccountId",
+                  "amount"
+                ],
+                "properties": {
+                  "fromWorkspaceId": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "toWorkspaceId": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "fromAccountId": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "toAccountId": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 1200
+                  },
+                  "description": {
+                    "type": "string",
+                    "default": "Transferencia entre Workspaces"
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transactions/import": {
+      "post": {
+        "tags": [
+          "Importacao"
+        ],
+        "summary": "Importar extrato OFX",
+        "description": "Processa um arquivo OFX previamente enviado e converte seus movimentos. Esta rota existe para acelerar a entrada de dados bancarios historicos sem digitacao manual.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Arquivo OFX importado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Importacao concluida"
+                    },
+                    "details": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Arquivo ou conta invalidos para importacao.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Bad request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Arquivo informado nao foi encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Arquivo nao encontrado. Faca o upload primeiro."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "fileName",
+                  "accountId"
+                ],
+                "properties": {
+                  "fileName": {
+                    "type": "string",
+                    "example": "extrato.ofx"
+                  },
+                  "accountId": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accountant/bank-movements/pending": {
+      "get": {
+        "tags": [
+          "Inbox Aprovacao"
+        ],
+        "summary": "Listar pendencias globais do contador",
+        "description": "Retorna movimentos pendentes de todos os workspaces onde o usuario atua como contador. Esta rota existe para concentrar a fila operacional contabil em um unico painel.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "description": "Cursor da proxima pagina.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "description": "Quantidade maxima de registros.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pendencias globais retornadas com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bank-movements": {
+      "get": {
+        "tags": [
+          "Inbox Aprovacao"
+        ],
+        "summary": "Listar pendencias do workspace atual",
+        "description": "Retorna movimentos ainda nao aprovados no workspace ativo. Esta rota existe para a triagem antes da conversao em transacoes definitivas.",
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "description": "Cursor da proxima pagina.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "description": "Quantidade maxima de registros.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pendencias do workspace retornadas com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bank-movements/{id}/merge": {
+      "post": {
+        "tags": [
+          "Inbox Aprovacao"
+        ],
+        "summary": "Mesclar movimentos duplicados",
+        "description": "Consolida varios movimentos em um registro principal. Esta rota existe para tratar duplicidades antes da aprovacao contabil.",
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "UUID do movimento principal que sera mantido.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "keepId",
+                  "discardIds"
+                ],
+                "properties": {
+                  "keepId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "discardIds": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Movimentos mesclados com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "O parametro da rota nao bate com o keepId ou payload invalido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "O param :id deve corresponder ao keepId do body"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bank-movements/{id}/approve": {
+      "post": {
+        "tags": [
+          "Inbox Aprovacao"
+        ],
+        "summary": "Aprovar movimento e gerar transacao",
+        "description": "Transforma um movimento pendente em transacao oficial. Esta rota existe para fechar a conciliacao entre ingestao bancaria e lancamento financeiro confiavel.",
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "UUID do movimento a ser aprovado.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "categoryId"
+                ],
+                "properties": {
+                  "categoryId": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Movimento ja estava aprovado e foi retornado de forma idempotente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Movimento aprovado e convertido em transacao.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bank-movements/{id}/reject": {
+      "post": {
+        "tags": [
+          "Inbox Aprovacao"
+        ],
+        "summary": "Rejeitar movimento pendente",
+        "description": "Marca um movimento como rejeitado sem gerar transacao. Esta rota existe para descartar ruido, duplicidade ou entrada indevida na fila de aprovacao.",
+        "security": [
+          {
+            "bearerAuth": [],
+            "WorkspaceHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "UUID do movimento a ser rejeitado.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Movimento rejeitado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "WorkspaceHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-workspace-id",
+        "description": "ID do workspace ativo no qual a operacao sera executada."
+      },
+      "WebhookAuthorization": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "authorization",
+        "description": "Token compartilhado com o provedor Open Finance para autenticar o webhook."
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Operacao nao permitida."
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "validation_error"
+          },
+          "message": {
+            "type": "string",
+            "example": "Erro de validacao nos dados enviados."
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Required"
+                },
+                "path": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "example": [
+                    "email"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "MessageResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Operacao realizada com sucesso."
+          }
+        }
+      },
+      "TokenPair": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "example": "jwt-token"
+          },
+          "refreshToken": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "CursorPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,22 +1,24 @@
-import { prisma } from '../lib/prisma';
+import { prisma, ExtendedTransactionClient } from '../lib/prisma';
 import { Prisma, Transaction } from '@prisma/client';
 
 export class TransactionRepository {
   async create(
-    data: Prisma.TransactionCreateInput, 
-    tx: Prisma.TransactionClient = prisma
+    data: Prisma.TransactionCreateInput,
+    tx: ExtendedTransactionClient = prisma
   ): Promise<Transaction> {
     return await tx.transaction.create({ data });
   }
 
   async findManyByWorkspace(
-    workspaceId: number, 
+    workspaceId: number,
     filters?: {
       startDate?: Date;
       endDate?: Date;
       accountId?: number;
       categoryId?: number;
       type?: 'INCOME' | 'EXPENSE';
+      cursor?: string;
+      limit?: number;
     }
   ): Promise<Transaction[]> {
     const where: Prisma.TransactionWhereInput = {
@@ -36,6 +38,11 @@ export class TransactionRepository {
 
     return await prisma.transaction.findMany({
       where,
+      take: filters?.limit || 21,
+      ...(filters?.cursor && {
+        cursor: { id: filters.cursor },
+        skip: 1,
+      }),
       orderBy: { date: 'desc' },
       include: {
         category: { select: { name: true, icon: true, color: true } },
@@ -70,7 +77,7 @@ export class TransactionRepository {
     });
   }
 
-  async delete(id: string, tx: Prisma.TransactionClient = prisma): Promise<void> {
+  async delete(id: string, tx: ExtendedTransactionClient = prisma): Promise<void> {
     await tx.transaction.delete({ where: { id } });
   }
 }

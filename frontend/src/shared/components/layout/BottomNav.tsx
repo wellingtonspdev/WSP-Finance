@@ -1,15 +1,22 @@
 import { Home, Receipt, Plus, BarChart2, User } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useUI } from '../../context/UIProvider';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export function BottomNav() {
-  const activeTab = 'home'; // Por enquanto estático
+  const { openTransactionModal } = useUI();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Active tab inference from pathname
+  const activeTab = location.pathname.includes('/transactions') ? 'extract' : 'home';
 
   const navItems = [
-    { id: 'home', icon: Home, label: 'Home' },
-    { id: 'extract', icon: Receipt, label: 'Extrato' },
-    { id: 'add', icon: Plus, label: '', isFab: true },
-    { id: 'analytics', icon: BarChart2, label: 'Análises' },
-    { id: 'profile', icon: User, label: 'Perfil' },
+    { id: 'home', icon: Home, label: 'Home', action: () => navigate('/') },
+    { id: 'extract', icon: Receipt, label: 'Extrato', action: () => navigate('/transactions') },
+    { id: 'add', icon: Plus, label: '', isFab: true, action: openTransactionModal },
+    { id: 'analytics', icon: BarChart2, label: 'Análises', action: () => { } },
+    { id: 'profile', icon: User, label: 'Perfil', action: () => { } },
   ];
 
   return (
@@ -19,7 +26,10 @@ export function BottomNav() {
           if (item.isFab) {
             return (
               <div key={item.id} className="relative -top-6">
-                <button className="w-14 h-14 rounded-full bg-gradient-to-r from-[#D946EF] to-[#3B82F6] shadow-lg shadow-purple-500/30 flex items-center justify-center text-white transform hover:scale-105 transition-transform">
+                <button
+                  onClick={item.action}
+                  className="w-14 h-14 rounded-full bg-gradient-to-r from-[#D946EF] to-[#3B82F6] shadow-lg shadow-purple-500/30 flex items-center justify-center text-white transform hover:scale-105 transition-transform"
+                >
                   <item.icon className="w-8 h-8" />
                 </button>
               </div>
@@ -30,6 +40,7 @@ export function BottomNav() {
           return (
             <button
               key={item.id}
+              onClick={item.action}
               className={clsx(
                 "flex flex-col items-center gap-1 w-12 transition-colors",
                 isActive ? "text-[#3B82F6]" : "text-slate-500 hover:text-slate-300"
