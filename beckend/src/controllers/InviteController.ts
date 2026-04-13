@@ -103,8 +103,6 @@ export class InviteController {
         try {
             const userId = req.user.id;
             // Precisa buscar o email do user pelo ID (vem do JWT)
-            const { PrismaClient } = require('@prisma/client');
-            const prisma = new PrismaClient();
             const user = await prisma.user.findUnique({ where: { id: userId } });
             if (!user) return res.status(404).json({ message: 'User not found' });
 

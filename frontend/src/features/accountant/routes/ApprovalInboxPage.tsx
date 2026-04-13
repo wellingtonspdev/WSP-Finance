@@ -11,10 +11,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Inbox, Loader2, RefreshCw, CheckCircle2, AlertTriangle, Filter } from 'lucide-react';
 import { AppLayout } from '../../../shared/components/layout/AppLayout';
-import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 import { MovementCard } from '../components/MovementCard';
 import {
-  fetchPendingMovements,
+  fetchGlobalPendingMovements,
   mergeMovements,
   approveMovement,
   rejectMovement,
@@ -76,11 +75,7 @@ export function ApprovalInboxPage() {
   const clientName = "Todos os Clientes (Visão Global)";
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const navigate = useNavigate();
-  const { memberships } = useWorkspaceStore();
-
-  const wsId = Number(workspaceId);
-  const membership = memberships.find(m => m.id === wsId);
-  const clientName = membership?.name || `Workspace #${wsId}`;
+  const clientName = "Todos os Clientes (Visão Global)";
 
   const [movements, setMovements] = useState<BankMovementDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -119,7 +114,7 @@ export function ApprovalInboxPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [wsId, addToast]);
+  }, [addToast]);
 
   useEffect(() => { loadMovements(); }, [loadMovements]);
 
@@ -133,7 +128,7 @@ export function ApprovalInboxPage() {
       // Mock: usa accountId do próprio movimento e categoryId = 1
       const mov = movements.find(m => m.id === id);
       if (!mov) return;
-      await approveMovement(wsId, id, mov.accountId, 1);
+      await approveMovement(mov.workspaceId, id, 1);
       setMovements(prev => prev.filter(m => m.id !== id));
       addToast('Movimento aprovado e convertido em Transação');
     } catch {
@@ -303,16 +298,40 @@ export function ApprovalInboxPage() {
         {/* Lista de Movimentos Agrupados */}
         <div className="space-y-3">
           <AnimatePresence mode="popLayout">
-            {groups.map(group => (
-              <MovementCard
-                key={group.primary.id}
-                movement={group.primary}
-                duplicates={group.duplicates}
-                onApprove={handleApprove}
-                onReject={handleReject}
-                onMerge={handleMerge}
-                isProcessing={isProcessing === group.primary.id}
-              />
+            {groupedByWorkspace.map(section => (
+              <motion.div 
+                key={section.wsId}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-black/20 border border-white/5 rounded-3xl p-4 lg:p-6"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1978e5] to-[#0ea5e9] flex items-center justify-center shrink-0">
+                    <span className="text-white font-bold text-lg">{section.wsName.charAt(0).toUpperCase()}</span>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-white leading-tight">{section.wsName}</h2>
+                    <p className="text-xs text-slate-400">
+                      {section.items.length} pacote{section.items.length !== 1 ? 's' : ''} pendente{section.items.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {section.items.map(group => (
+                    <MovementCard
+                      key={group.primary.id}
+                      movement={group.primary}
+                      duplicates={group.duplicates}
+                      onApprove={handleApprove}
+                      onReject={handleReject}
+                      onMerge={handleMerge}
+                      isProcessing={isProcessing === group.primary.id}
+                    />
+                  ))}
+                </div>
+              </motion.div>
             ))}
           </AnimatePresence>
         </div>
