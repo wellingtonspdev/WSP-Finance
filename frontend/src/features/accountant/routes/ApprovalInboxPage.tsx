@@ -1,14 +1,4 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Loader2, RefreshCw, CheckCircle2, AlertTriangle, Filter } from 'lucide-react';
-import { AppLayout } from '../../../shared/components/layout/AppLayout';
-import { MovementCard } from '../components/MovementCard';
-
-import {
-  fetchGlobalPendingMovements,
-  fetchPendingMovements,
-import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Inbox, Loader2, RefreshCw, CheckCircle2, AlertTriangle, Filter } from 'lucide-react';
@@ -16,6 +6,7 @@ import { AppLayout } from '../../../shared/components/layout/AppLayout';
 import { MovementCard } from '../components/MovementCard';
 import {
   fetchGlobalPendingMovements,
+  fetchPendingMovements,
   mergeMovements,
   approveMovement,
   rejectMovement,
@@ -42,25 +33,48 @@ interface WorkspaceGroup {
 }
 
 /**
- * Agrupamento simplificado de duplicatas via nome + valor próximo.
- * No futuro, o backend pode retornar diretamente os clusters fuzzy.
+ * Agrupamento client-side via valor igual e data no mesmo range de ~2 horas.
  */
 function groupDuplicates(movements: BankMovementDTO[]): DuplicateGroup[] {
-  // Mock simplificado 1-1 para evitar quebra de renderização
-  return movements.map(m => ({ primary: m, duplicates: [] }));
+  const groups: DuplicateGroup[] = [];
+  const processedIds = new Set<string>();
+
+  for (let i = 0; i < movements.length; i++) {
+    const primary = movements[i];
+    if (processedIds.has(primary.id)) continue;
+    
+    const duplicates: BankMovementDTO[] = [];
+    const primaryDate = new Date(primary.date).getTime();
+
+    for (let j = i + 1; j < movements.length; j++) {
+      const candidate = movements[j];
+      if (processedIds.has(candidate.id)) continue;
+      if (candidate.workspaceId !== primary.workspaceId) continue;
+      
+      const candidateDate = new Date(candidate.date).getTime();
+      const timeDiff = Math.abs(primaryDate - candidateDate);
+      const isWithin2Hours = timeDiff <= 2 * 60 * 60 * 1000;
+      const isSameAmount = candidate.amount === primary.amount;
+      
+      if (isWithin2Hours && isSameAmount) {
+        duplicates.push(candidate);
+        processedIds.add(candidate.id);
+      }
+    }
+    
+    groups.push({ primary, duplicates });
+    processedIds.add(primary.id);
+  }
+  
+  return groups;
 }
 
 export function ApprovalInboxPage() {
   const navigate = useNavigate();
-  const { workspaceId } = useParams();
+  const { workspaceId } = useParams<{ workspaceId: string }>();
   
   const isGlobal = !workspaceId;
   const clientName = isGlobal ? "Todos os Clientes (Visão Global)" : "Inbox de Aprovação";
-
-  const clientName = "Todos os Clientes (Visão Global)";
-  const { workspaceId } = useParams<{ workspaceId: string }>();
-  const navigate = useNavigate();
-  const clientName = "Todos os Clientes (Visão Global)";
 
   const [movements, setMovements] = useState<BankMovementDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,21 +116,15 @@ export function ApprovalInboxPage() {
       setIsLoading(false);
     }
   }, [addToast, isGlobal, workspaceId]);
-  }, [addToast]);
 
   useEffect(() => { loadMovements(); }, [loadMovements]);
 
-  const handleApprove = async (id: string) => {
+  const handleApprove = async (id: string, categoryId: number) => {
     setIsProcessing(id);
     try {
       const mov = movements.find(m => m.id === id);
       if (!mov) return;
-      await approveMovement(mov.workspaceId, id, 1);
-      // Para uma implementação completa, precisa selecionar conta e categoria.
-      // Mock: usa accountId do próprio movimento e categoryId = 1
-      const mov = movements.find(m => m.id === id);
-      if (!mov) return;
-      await approveMovement(mov.workspaceId, id, 1);
+      await approveMovement(mov.workspaceId, id, categoryId);
       setMovements(prev => prev.filter(m => m.id !== id));
       addToast('Movimento aprovado e convertido em Transação');
     } catch {
@@ -244,44 +252,8 @@ export function ApprovalInboxPage() {
           </motion.div>
         )}
 
-        <div className="space-y-8">
-          <AnimatePresence mode="popLayout">
-            {groupedByWorkspace.map(section => (
-              <motion.div 
-                key={section.wsId}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="bg-black/20 border border-white/5 rounded-3xl p-4 lg:p-6"
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1978e5] to-[#0ea5e9] flex items-center justify-center shrink-0">
-                    <span className="text-white font-bold text-lg">{section.wsName.charAt(0).toUpperCase()}</span>
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-white leading-tight">{section.wsName}</h2>
-                    <p className="text-xs text-slate-400">
-                      {section.items.length} pacote{section.items.length !== 1 ? 's' : ''} pendente{section.items.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {section.items.map(group => (
-                    <MovementCard
-                      key={group.primary.id}
-                      movement={group.primary}
-                      duplicates={group.duplicates}
-                      onApprove={handleApprove}
-                      onReject={handleReject}
-                      onMerge={handleMerge}
-                      isProcessing={isProcessing === group.primary.id}
-                    />
-                  ))}
-                </div>
-              </motion.div>
         {/* Lista de Movimentos Agrupados */}
-        <div className="space-y-3">
+        <div className="space-y-8">
           <AnimatePresence mode="popLayout">
             {groupedByWorkspace.map(section => (
               <motion.div 

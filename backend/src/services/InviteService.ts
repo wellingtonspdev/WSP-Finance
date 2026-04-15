@@ -138,7 +138,7 @@ export class InviteService {
         // 3. Insere como Membro da Workspace bloqueando Privilege Escalation
         // Independente do que o Hacker mandar na requisição, nós pegamos a ROLE de drento do invite seguro.
 
-        const newMembership = await prisma.$transaction(async (tx) => {
+        const newMembership = await prisma.$transaction(async (tx: any) => {
             // A - Cria Associação
             const member = await tx.workspaceMember.create({
                 data: {

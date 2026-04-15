@@ -89,7 +89,7 @@ Erros de negócio devem usar a classe `AppError` com códigos HTTP semânticos:
 
 ### 4.2 Estrutura de Ficheiros (Backend)
 ```
-beckend/
+backend/
 ├── prisma/ (schema, seed/modules)
 ├── src/
 │   ├── context/ (tenantContext)

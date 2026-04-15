@@ -1,4 +1,5 @@
 # 💰 WSP Finance
+![CI/CD](https://github.com/wellingtonspdev/WSP-Finance/actions/workflows/ci.yml/badge.svg)
 
 O **WSP Finance** é uma plataforma de gestão financeira híbrida (SaaS), projetada para atender o "Empreendedor Híbrido": aquele que precisa gerenciar suas finanças **Pessoais (CPF)** e **Empresariais (CNPJ)** em um único lugar, com isolamento total de dados e inteligência de mercado.
 
@@ -33,7 +34,7 @@ Siga os passos abaixo para rodar o projeto completo localmente.
 
 ```bash
 # 1. Entre na pasta do backend
-cd beckend
+cd backend
 
 # 2. Instale as dependências
 pnpm install
