@@ -77,3 +77,10 @@ package.json
 /backend/scripts/*test*
 /backend/scripts/optimize_*.sql
 
+# Local dev scripts (not part of the project)
+launch_ag.bat
+scripts/launch_ag.bat
+
+# Test output artifacts
+backend/vitest-result.txt
+
