@@ -21,7 +21,7 @@ PR3 executado em `2026-04-12` com foco em:
 
 ## Validacao de fallback
 
-Arquivo validado: `beckend/tests/services/FuzzyDeduplicationService.test.ts`
+Arquivo validado: `backend/tests/services/FuzzyDeduplicationService.test.ts`
 
 Casos explicitamente cobertos:
 
@@ -40,7 +40,7 @@ Status:
    - batch `1`
    - batch `100`
    - batch `1000`
-3. Como o runtime local usa `postgres` superuser, o benchmark HTTP foi executado em um harness temporario (`beckend/tests/openFinanceWebhookHarness.ts`) para nao afrouxar a checagem de privilegios do `server.ts`.
+3. Como o runtime local usa `postgres` superuser, o benchmark HTTP foi executado em um harness temporario (`backend/tests/openFinanceWebhookHarness.ts`) para nao afrouxar a checagem de privilegios do `server.ts`.
 4. Depois do gate positivo do GIN, foi adicionada a migration do indice B-Tree:
    - `idx_bank_movements_workspace_status_amount_date`
 5. Os lotes foram rerodados para que os numeros finais refletissem a configuracao pronta para revisao.
@@ -99,9 +99,9 @@ Motivos:
 
 ## Artefatos gerados
 
-- `beckend/tests/stress-test.k6.js`
-- `beckend/tests/k6-summary-batch-1.json`
-- `beckend/tests/k6-summary-batch-100.json`
-- `beckend/tests/k6-summary-batch-1000.json`
+- `backend/tests/stress-test.k6.js`
+- `backend/tests/k6-summary-batch-1.json`
+- `backend/tests/k6-summary-batch-100.json`
+- `backend/tests/k6-summary-batch-1000.json`
 - `scripts/benchmark_pg_trgm.sql`
-- `beckend/prisma/migrations/20260412220500_add_bank_movement_fuzzy_prefilter_btree/migration.sql`
+- `backend/prisma/migrations/20260412220500_add_bank_movement_fuzzy_prefilter_btree/migration.sql`
