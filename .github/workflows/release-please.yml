@@ -23,9 +23,6 @@ jobs:
       - name: Run Release Please
         uses: googleapis/release-please-action@v4
         with:
-          # Tipo do lançamento: um projeto Node simples versionado na raiz
-          release-type: node
-          # Definir explicitamente versão inicial caso não exista nenhuma tag prévia
-          initial-version: "0.1.0"
-          # O uso nativo do token bloqueia triggers subsequentes em push
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
           token: ${{ secrets.GITHUB_TOKEN }}
