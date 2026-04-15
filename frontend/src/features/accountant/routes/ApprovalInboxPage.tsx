@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Inbox, Loader2, RefreshCw, CheckCircle2, AlertTriangle, Filter } from 'lucide-react';
+import { ArrowLeft, Loader2, RefreshCw, CheckCircle2, AlertTriangle, Filter } from 'lucide-react';
 import { AppLayout } from '../../../shared/components/layout/AppLayout';
 import { MovementCard } from '../components/MovementCard';
 import {
