@@ -1,6 +1,4 @@
 import { Home, Mail, FileText, BarChart2, Settings, ShieldCheck, LogOut, Inbox, X, Users } from 'lucide-react';
-import { Home, Mail, FileText, BarChart2, Settings, ShieldCheck, LogOut, Inbox, X } from 'lucide-react';
-import { Home, Mail, Users, FileText, BarChart2, Settings, ShieldCheck, LogOut, Inbox } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '../../../app/AuthProvider';
 import { useNavigate, useLocation } from 'react-router-dom';

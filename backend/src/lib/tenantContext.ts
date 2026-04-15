@@ -5,6 +5,7 @@ export interface TenantContext {
     userRole?: string;
     workspaceType?: string;
     bypassRls?: boolean;
+    inTransaction?: boolean;
 }
 
 export const tenantContext = new AsyncLocalStorage<TenantContext>();

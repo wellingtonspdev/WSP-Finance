@@ -87,7 +87,7 @@ export class BridgeService {
     }
 
     // 4. Transação Atômica com Auditoria de Snapshot
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx: any) => {
       const amountDecimal = new Decimal(dto.amount);
       const bridgeId = crypto.randomUUID(); // ID de correlação
 

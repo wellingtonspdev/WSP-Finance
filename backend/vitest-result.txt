@@ -1,9 +1,9 @@
 
-> beckend@1.0.0 test
+> backend@1.0.0 test
 > vitest run tests/services/FinancialIngestionEngine.test.ts
 
 
-[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mD:/Sistema_G_Financeiro/beckend[39m
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mD:/Sistema_G_Financeiro/backend[39m
 
  [32mÔ£ô[39m tests/services/FinancialIngestionEngine.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 11[2mms[22m[39m
 

@@ -55,25 +55,25 @@ jobs:
           pnpm -v
 
       - name: Install dependencies (Backend)
-        working-directory: ./beckend
+        working-directory: ./backend
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma Client
-        working-directory: ./beckend
+        working-directory: ./backend
         run: npx prisma generate
 
       - name: Strict Typecheck (TSC)
-        working-directory: ./beckend
+        working-directory: ./backend
         run: pnpm exec tsc --noEmit
 
       - name: Setup Database (Migrate & Seed)
-        working-directory: ./beckend
+        working-directory: ./backend
         run: |
           npx prisma migrate deploy
           npx prisma db seed
 
       - name: Run tests with coverage (Backend)
-        working-directory: ./beckend
+        working-directory: ./backend
         run: pnpm test -- --coverage
 
       - name: Upload backend coverage artifact
@@ -81,7 +81,7 @@ jobs:
         with:
           name: backend-coverage
           path: |
-            beckend/coverage/**
+            backend/coverage/**
           if-no-files-found: warn
 
   frontend-tests:
@@ -158,7 +158,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: backend-coverage
-          path: beckend/coverage
+          path: backend/coverage
 
       - name: Download frontend coverage artifact
         uses: actions/download-artifact@v4
@@ -170,7 +170,7 @@ jobs:
         shell: bash
         run: |
           echo "==== Coverage files (backend) ===="
-          find beckend/coverage -maxdepth 4 -type f -name "lcov.info" -print || true
+          find backend/coverage -maxdepth 4 -type f -name "lcov.info" -print || true
           echo ""
           echo "==== Coverage files (frontend) ===="
           find frontend/coverage -maxdepth 4 -type f -name "lcov.info" -print || true
