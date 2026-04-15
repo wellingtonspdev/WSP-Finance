@@ -1,12 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Check, X, Merge, Info, Calendar, DollarSign, AlertTriangle, Building2, FileText } from 'lucide-react';
+import { ChevronDown, Check, X, Merge, Info, Calendar, DollarSign, AlertTriangle, Building2, FileText, Tag } from 'lucide-react';
 import type { BankMovementDTO } from '../api/bankMovements';
+import { api } from '../../../shared/lib/axios';
+
+interface Category {
+  id: number;
+  name: string;
+}
 
 interface MovementCardProps {
   movement: BankMovementDTO;
   duplicates?: BankMovementDTO[];
-  onApprove: (id: string) => void;
+  onApprove: (id: string, categoryId: number) => void;
   onReject: (id: string) => void;
   onMerge: (keepId: string, discardIds: string[]) => void;
   isProcessing?: boolean;
@@ -23,8 +29,19 @@ function formatDate(dateStr: string) {
 export function MovementCard({ movement, duplicates = [], onApprove, onReject, onMerge, isProcessing }: MovementCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedKeep, setSelectedKeep] = useState<string>(movement.id);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryId, setCategoryId] = useState<number | null>(null);
+
   const hasDuplicates = duplicates.length > 0;
   const isPositive = movement.amount >= 0;
+
+  useEffect(() => {
+    if (isExpanded && categories.length === 0) {
+      api.get('/categories', { headers: { 'x-workspace-id': String(movement.workspaceId) } })
+        .then(res => setCategories(res.data))
+        .catch(console.error);
+    }
+  }, [isExpanded, movement.workspaceId, categories.length]);
 
   return (
     <motion.div
@@ -162,6 +179,26 @@ export function MovementCard({ movement, duplicates = [], onApprove, onReject, o
                 </div>
               )}
 
+              {/* Categoria */}
+              <div className="bg-white/5 border border-white/5 rounded-xl p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <Tag className="w-4 h-4 text-slate-500" />
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Categoria</span>
+                </div>
+                <select
+                  value={categoryId || ''}
+                  onChange={(e) => setCategoryId(Number(e.target.value))}
+                  className="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#1978e5]"
+                >
+                  <option value="" disabled>Selecione uma categoria</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Ações */}
               <div className="grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-2 mt-4 pt-4 border-t border-white/5">
                 {hasDuplicates && (
@@ -188,8 +225,8 @@ export function MovementCard({ movement, duplicates = [], onApprove, onReject, o
                 </button>
 
                 <button
-                  onClick={() => onApprove(movement.id)}
-                  disabled={isProcessing}
+                  onClick={() => onApprove(movement.id, categoryId!)}
+                  disabled={isProcessing || !categoryId}
                   className="flex items-center justify-center gap-1.5 h-11 sm:h-9 px-4 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-sm sm:text-xs font-bold rounded-xl border border-emerald-500/20 transition-all disabled:opacity-40 order-2 sm:order-none"
                 >
                   <Check className="w-4 h-4" />

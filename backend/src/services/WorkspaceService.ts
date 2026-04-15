@@ -50,7 +50,7 @@ export class WorkspaceService {
     }
 
     // Transação para criar workspace e vincular membro
-    const workspace = await prisma.$transaction(async (tx) => {
+    const workspace = await prisma.$transaction(async (tx: any) => {
       const ws = await tx.workspace.create({
         data: {
           name: payload.name,
