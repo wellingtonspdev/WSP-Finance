@@ -101,29 +101,29 @@ Conclusao executiva: a refatoracao converteu uma esteira fragil de ingestao em u
 
 ### Consolidado no codigo atual
 
-- `beckend/prisma/schema.prisma`
+- `backend/prisma/schema.prisma`
   - datasource com `DATABASE_URL` e `DIRECT_URL`
   - indice B-Tree `@@index([workspaceId, status, amount, date(sort: Desc)], map: "idx_bank_movements_workspace_status_amount_date")`
   - indice GIN `@@index([description(ops: raw("gin_trgm_ops"))], map: "idx_bank_movements_description_trgm", type: Gin)`
-- `beckend/prisma/migrations/20260412021800_enable_pg_trgm_fuzzy_index/migration.sql`
+- `backend/prisma/migrations/20260412021800_enable_pg_trgm_fuzzy_index/migration.sql`
   - `CREATE EXTENSION IF NOT EXISTS pg_trgm`
   - `CREATE INDEX ... USING gin (description gin_trgm_ops)`
-- `beckend/prisma/migrations/20260412220500_add_bank_movement_fuzzy_prefilter_btree/migration.sql`
+- `backend/prisma/migrations/20260412220500_add_bank_movement_fuzzy_prefilter_btree/migration.sql`
   - indice B-Tree com `date DESC`
-- `beckend/src/lib/checkEnvironment.ts`
+- `backend/src/lib/checkEnvironment.ts`
   - validacao de `rolsuper` e `rolbypassrls`
-- `beckend/src/server.ts`
+- `backend/src/server.ts`
   - hard crash com `process.exit(1)` no startup em caso de privilegio excessivo
-- `beckend/src/lib/prisma.ts`
+- `backend/src/lib/prisma.ts`
   - runtime Prisma limitado por `connection_limit`
-- `beckend/src/services/FuzzyDeduplicationService.ts`
+- `backend/src/services/FuzzyDeduplicationService.ts`
   - caminho preferencial com `pg_trgm`
   - fallback `LIKE/LOWER()` e chaveamento automatico em timeout/indisponibilidade
-- `beckend/src/services/FinancialIngestionEngine.ts`
+- `backend/src/services/FinancialIngestionEngine.ts`
   - ingestao resiliente que nao perde o lote se a deduplicacao fuzzy falhar
-- `beckend/src/services/TransactionService.ts`
-- `beckend/src/services/BankMovementService.ts`
-- `beckend/src/services/BridgeService.ts`
+- `backend/src/services/TransactionService.ts`
+- `backend/src/services/BankMovementService.ts`
+- `backend/src/services/BridgeService.ts`
   - gravacao atomica de `balanceBefore`, `balanceAfter` e `delta`
 - `scripts/reconcile_account_balances.sql`
   - reconstrucao de saldo a partir do historico
@@ -132,10 +132,10 @@ Conclusao executiva: a refatoracao converteu uma esteira fragil de ingestao em u
 
 ### Cobertura de testes encontrada no repositorio
 
-- `beckend/tests/integration/prisma-runtime-role.test.ts`
-- `beckend/tests/services/BridgeService.balance-audit.test.ts`
-- `beckend/tests/services/FinancialIngestionEngine.test.ts`
-- `beckend/tests/services/FuzzyDeduplicationService.test.ts`
+- `backend/tests/integration/prisma-runtime-role.test.ts`
+- `backend/tests/services/BridgeService.balance-audit.test.ts`
+- `backend/tests/services/FinancialIngestionEngine.test.ts`
+- `backend/tests/services/FuzzyDeduplicationService.test.ts`
 
 ## Achados de Governanca Antes do Aceite Final
 
@@ -144,7 +144,7 @@ Conclusao executiva: a refatoracao converteu uma esteira fragil de ingestao em u
 As migrations versionadas de RLS ainda usam `current_setting('app.current_workspace_id', true)::int` de forma direta. O padrao cacheavel com subquery `(SELECT current_setting(...))`, que reduz penalidade do planner sob RLS, aparece em:
 
 - `scripts/db_health_check.sql`
-- `beckend/prisma/migrations/20260413052239_optimize_rls_and_statistics/migration.sql`
+- `backend/prisma/migrations/20260413052239_optimize_rls_and_statistics/migration.sql`
 
 Porem, essa migration `20260413052239_optimize_rls_and_statistics` esta presente apenas no working tree local e ainda nao foi adicionada ao controle de versao.
 
@@ -152,7 +152,7 @@ Impacto: o racional de PR4 esta correto, mas a evidencia consolidada no repositr
 
 ### Gap 2: script de ANALYZE/autovacuum preventivo ainda nao esta versionado
 
-O arquivo `beckend/scripts/optimize_vacuum_analyze.sql` contem:
+O arquivo `backend/scripts/optimize_vacuum_analyze.sql` contem:
 
 - `ANALYZE` nas tabelas criticas
 - ajuste de `autovacuum_vacuum_scale_factor`
@@ -189,6 +189,6 @@ Impacto: existe risco de governanca de merge/sincronizacao entre o discurso de "
 Este ADR deve ser aprovado como justificativa executiva da priorizacao do Plano de Estabilizacao. Porem, o aceite final do rito de governanca deve ficar condicionado a dois fechamentos tecnicos:
 
 1. versionar a migration `20260413052239_optimize_rls_and_statistics`
-2. versionar o script `beckend/scripts/optimize_vacuum_analyze.sql`
+2. versionar o script `backend/scripts/optimize_vacuum_analyze.sql`
 
 Sem esses dois itens, a narrativa arquitetural esta correta, mas a consolidacao de PR4 ainda nao pode ser considerada encerrada de forma irrefutavel.
