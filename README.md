@@ -86,7 +86,7 @@ O script de seed cria um cenário completo com transações, contas e dois works
 
 1.  **Multi-tenancy Híbrido:** Alterne entre "Pessoal" e "Empresa" com um clique. Dados e relatórios são totalmente isolados.
 2.  **Bridge Service:** Transfira dinheiro entre workspaces (ex: Pro-labore) com rastreabilidade e auditoria.
-3.  **Inteligência PACT:** Cálculo automático de margem líquida para vendas de Marketplace (Shopee/ML).
+3.  **Inteligência:** Cálculo automático de margem líquida para vendas de Marketplace (Shopee/ML).
 4.  **Automação:** Alertas diários de contas a pagar e risco de caixa (Saldo projetado negativo).
 5.  **Importação OFX:** Importe extratos bancários com deduplicação inteligente.
 
