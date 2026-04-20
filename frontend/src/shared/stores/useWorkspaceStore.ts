@@ -5,7 +5,7 @@ interface Membership {
     id: number;
     name: string;
     type: 'PERSONAL' | 'BUSINESS';
-    role: 'OWNER' | 'VIEWER' | 'ACCOUNTANT';
+    role: 'OWNER' | 'EDITOR' | 'VIEWER' | 'ACCOUNTANT';
     closedUntil: string | null; // ISO date string do período fiscal fechado
     cnai?: string;
 }
@@ -32,7 +32,9 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             isForbidden: false as boolean,
 
             setMemberships: (memberships: Membership[]) => {
-                set({ memberships });
+                const { activeWorkspaceId } = get();
+                const activeMembership = memberships.find((membership: Membership) => membership.id === activeWorkspaceId) || null;
+                set({ memberships, activeMembership });
             },
 
             setActiveWorkspaceId: (id: number | null) => {

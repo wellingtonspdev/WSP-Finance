@@ -50,19 +50,36 @@ export const resetPasswordSchema = z.object({
 export type ResetPasswordDTO = z.infer<typeof resetPasswordSchema>;
 
 // --- API RESPONSES ---
+export interface DashboardCacheEntry {
+  id: number;
+  userId: number;
+  workspaceId: number;
+  pendingMovements: number;
+  missingAttachments: number;
+  cashRiskAlert: boolean;
+  totalBalance: string;
+  updatedAt: string;
+}
+
+export interface AuthMembership {
+  id: number;
+  name: string;
+  type: 'PERSONAL' | 'BUSINESS';
+  role: 'OWNER' | 'EDITOR' | 'VIEWER' | 'ACCOUNTANT';
+  closedUntil: string | null;
+}
+
+export interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+  type: 'CLIENT' | 'ACCOUNTANT';
+  memberships: AuthMembership[];
+}
+
 export interface AuthResponse {
-  user: {
-    id: number;
-    name: string;
-    email: string;
-    type: 'CLIENT' | 'ACCOUNTANT';
-    memberships: {
-      id: number;
-      name: string;
-      type: 'PERSONAL' | 'BUSINESS';
-      role: 'OWNER' | 'VIEWER';
-    }[];
-  };
+  user: AuthUser;
   token: string;
   refreshToken: string;
+  dashboardCache?: DashboardCacheEntry[];
 }
