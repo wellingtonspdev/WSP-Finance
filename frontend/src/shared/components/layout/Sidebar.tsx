@@ -4,7 +4,7 @@ import { useAuth } from '../../../app/AuthProvider';
 import { useUI } from '../../../shared/context/UIProvider';
 import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 import { useNavigate, useLocation } from 'react-router-dom';
-import logo from '../../../assets/wsp_finance_sem_fundo.svg';
+import logo from '../../../assets/wsp_finance_sem_fundo.png';
 
 export function Sidebar() {
   const { logout } = useAuth();

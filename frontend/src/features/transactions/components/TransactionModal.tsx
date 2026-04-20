@@ -14,7 +14,6 @@ import { Input } from '../../../shared/components/ui/Input';
 import { Button } from '../../../shared/components/ui/Button';
 import { CustomSelect } from '../../../shared/components/ui/CustomSelect';
 import { useToast } from '../../../shared/hooks/useToast';
-import imageCompression from 'browser-image-compression';
 import { useEffect } from 'react';
 
 import {
@@ -294,6 +293,7 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
                                                                         fileType: file.type
                                                                     };
                                                                     try {
+                                                                        const { default: imageCompression } = await import('browser-image-compression');
                                                                         const compressedBlob = await imageCompression(file, options);
                                                                         file = new File([compressedBlob], file.name, {
                                                                             type: file.type,

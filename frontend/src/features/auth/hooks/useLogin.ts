@@ -17,7 +17,7 @@ export function useLogin() {
   return useMutation({
     mutationFn: loginFn,
     onSuccess: (data) => {
-      login(data.token, data.refreshToken, data.user);
+      login(data.token, data.refreshToken, data.user, data.dashboardCache);
       navigate('/');
     },
     onError: (error: AxiosError<{ message: string }>) => {
