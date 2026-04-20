@@ -58,6 +58,7 @@ design_system.md
 .agignore
 .agpro-rules
 /.opencode
+/.codex/skills/wsp-finance-token-ops/
 
 # Reports (Temporários)
 relatorio-estado-wsp-finance.md
