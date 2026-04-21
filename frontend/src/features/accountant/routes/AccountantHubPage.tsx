@@ -12,7 +12,7 @@ import type { ActivityEvent } from '../components/ActivityFeed';
 import { InviteClientModal } from '../components/InviteClientModal';
 
 export function AccountantHubPage() {
-    const { user } = useAuth();
+    const { user, dashboardCache } = useAuth();
     const navigate = useNavigate();
     const { memberships, setActiveWorkspaceId } = useWorkspaceStore();
     const [showInviteModal, setShowInviteModal] = useState(false);
@@ -20,17 +20,21 @@ export function AccountantHubPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDING' | 'OK'>('ALL');
 
+    const resolvedMemberships = memberships.length > 0 ? memberships : (user?.memberships ?? []);
+
     // Filtra as memberships para pegar apenas aquelas onde o user é ACCOUNTANT
-    const clientMemberships = memberships.filter(m => m.role === 'ACCOUNTANT');
+    const clientMemberships = resolvedMemberships.filter(m => m.role === 'ACCOUNTANT');
 
     // Aplicação dos filtros
-    const filteredMemberships = clientMemberships.filter((membership, index) => {
+    const filteredMemberships = clientMemberships.filter((membership) => {
         const matchesSearch = membership.name.toLowerCase().includes(searchQuery.toLowerCase());
         
-        // Mock health metrics based on index (same as UI render)
-        const isCritical = index === 0;
-        const isPending = index === 1;
-        const isOk = index >= 2;
+        const cacheEntry = dashboardCache?.find(c => c.workspaceId === membership.id);
+        const wPending = (cacheEntry?.pendingMovements || 0) + (cacheEntry?.missingAttachments || 0);
+
+        const isCritical = cacheEntry?.cashRiskAlert || false;
+        const isPending = wPending > 0;
+        const isOk = !isCritical && wPending === 0;
 
         if (!matchesSearch) return false;
 
@@ -47,15 +51,29 @@ export function AccountantHubPage() {
         localStorage.removeItem('wsp_active_workspace');
     }, [setActiveWorkspaceId]);
 
-    // Se ele não for contador de ninguém, ele não deveria nem estar aqui, mas mostraremos vazio.
     const activeClients = clientMemberships.length;
-    // O número de pendências e OK é derivado da lógica de mock para ter números fiéis na tela
-    const pendingCount = clientMemberships.filter((_, idx) => idx === 0 || idx === 1).length;
-    const okCount = clientMemberships.filter((_, idx) => idx >= 2).length;
 
-    // Esses valores podem vir da API no futuro (/accountant/summary), faremos mock realista por enquanto
-    const pendingDocs = pendingCount * 3;
-    const criticalAlerts = clientMemberships.length > 0 ? 2 : 0;
+    // Aggregates real data from cache
+    let pendingDocs = 0;
+    let criticalAlerts = 0;
+    let pendingCount = 0;
+    let okCount = 0;
+
+    clientMemberships.forEach(m => {
+        const c = dashboardCache?.find(entry => entry.workspaceId === m.id);
+        const wPending = (c?.pendingMovements || 0) + (c?.missingAttachments || 0);
+        pendingDocs += wPending;
+
+        const isCritical = c?.cashRiskAlert || false;
+        if (isCritical) {
+            criticalAlerts++;
+            pendingCount++;
+        } else if (wPending > 0) {
+            pendingCount++;
+        } else {
+            okCount++;
+        }
+    });
 
     const handleAccessClient = (workspaceId: number) => {
         navigate(`/${workspaceId}/dashboard`);
@@ -219,18 +237,28 @@ export function AccountantHubPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    {clientMemberships.findIndex(m => m.id === membership.id) === 0 ? (
-                                                        <HealthStatusBadge status="urgent" label="Furo Contábil" />
-                                                    ) : clientMemberships.findIndex(m => m.id === membership.id) === 1 ? (
-                                                        <HealthStatusBadge status="attention" label="Revisar" />
-                                                    ) : (
-                                                        <HealthStatusBadge status="stable" label="Sincronizado" />
-                                                    )}
+                                                    {(() => {
+                                                        const c = dashboardCache?.find(entry => entry.workspaceId === membership.id);
+                                                        const isCritical = c?.cashRiskAlert || false;
+                                                        const wPending = (c?.pendingMovements || 0) + (c?.missingAttachments || 0);
+
+                                                        if (isCritical) {
+                                                            return <HealthStatusBadge status="urgent" label="Furo Contábil" />;
+                                                        } else if (wPending > 0) {
+                                                            return <HealthStatusBadge status="attention" label="Revisar" />;
+                                                        } else {
+                                                            return <HealthStatusBadge status="stable" label="Sincronizado" />;
+                                                        }
+                                                    })()}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex flex-col">
                                                         <span className="text-sm text-slate-300">Rotina diária concluída</span>
-                                                        <span className="text-[10px] text-slate-500 mt-0.5">há {clientMemberships.findIndex(m => m.id === membership.id) + 1} dia(s)</span>
+                                                        <span className="text-[10px] text-slate-500 mt-0.5">
+                                                            {dashboardCache?.find(c => c.workspaceId === membership.id)?.updatedAt
+                                                                ? new Date(dashboardCache.find(c => c.workspaceId === membership.id)!.updatedAt).toLocaleDateString()
+                                                                : 'N/A'}
+                                                        </span>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
@@ -287,22 +315,34 @@ export function AccountantHubPage() {
                                             <div>
                                                 <h4 className="font-bold text-sm text-white truncate max-w-[150px]">{membership.name}</h4>
                                                 <div className="flex items-center gap-2 mt-0.5">
-                                                    {index === 0 ? (
-                                                        <>
-                                                            <span className="px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[10px] font-bold uppercase tracking-wider border border-red-500/20">Crítico</span>
-                                                            <span className="text-[10px] text-slate-500">Urgente</span>
-                                                        </>
-                                                    ) : index === 1 ? (
-                                                        <>
-                                                            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wider border border-amber-500/20">Pendente</span>
-                                                            <span className="text-[10px] text-slate-500">Aguardando NFs</span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/20">OK</span>
-                                                            <span className="text-[10px] text-slate-500">Tudo em dia</span>
-                                                        </>
-                                                    )}
+                                                    {(() => {
+                                                        const c = dashboardCache?.find(entry => entry.workspaceId === membership.id);
+                                                        const isCritical = c?.cashRiskAlert || false;
+                                                        const wPending = (c?.pendingMovements || 0) + (c?.missingAttachments || 0);
+
+                                                        if (isCritical) {
+                                                            return (
+                                                                <>
+                                                                    <span className="px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[10px] font-bold uppercase tracking-wider border border-red-500/20">Crítico</span>
+                                                                    <span className="text-[10px] text-slate-500">Urgente</span>
+                                                                </>
+                                                            );
+                                                        } else if (wPending > 0) {
+                                                            return (
+                                                                <>
+                                                                    <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wider border border-amber-500/20">Pendente</span>
+                                                                    <span className="text-[10px] text-slate-500">Aguardando NFs</span>
+                                                                </>
+                                                            );
+                                                        } else {
+                                                            return (
+                                                                <>
+                                                                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/20">OK</span>
+                                                                    <span className="text-[10px] text-slate-500">Tudo em dia</span>
+                                                                </>
+                                                            );
+                                                        }
+                                                    })()}
                                                 </div>
                                             </div>
                                         </div>
@@ -310,7 +350,11 @@ export function AccountantHubPage() {
                                         <div className="flex items-center gap-4">
                                             <div className="hidden md:block text-right">
                                                 <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Última Atividade</p>
-                                                <p className="text-xs font-medium text-slate-300">há {index + 1} dia(s)</p>
+                                                <p className="text-xs font-medium text-slate-300">
+                                                    {dashboardCache?.find(c => c.workspaceId === membership.id)?.updatedAt
+                                                        ? new Date(dashboardCache.find(c => c.workspaceId === membership.id)!.updatedAt).toLocaleDateString()
+                                                        : 'N/A'}
+                                                </p>
                                             </div>
                                             <button
                                                 onClick={() => navigate(`/accountant/inbox/${membership.id}`)}

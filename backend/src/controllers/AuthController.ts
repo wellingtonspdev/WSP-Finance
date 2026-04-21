@@ -43,12 +43,13 @@ export class AuthController {
     const { email, password } = authBodySchema.parse(req.body);
 
     try {
-      const { user, token, refreshToken } = await this.authService.authenticate(email, password);
+      const result = await this.authService.authenticate(email, password);
 
       return res.status(200).json({
-        user,
-        token,
-        refreshToken
+        user: result.user,
+        token: result.token,
+        refreshToken: result.refreshToken,
+        ...(result.dashboardCache ? { dashboardCache: result.dashboardCache } : {})
       });
     } catch (err: any) {
       if (err.message === 'Invalid credentials') {
@@ -85,6 +86,7 @@ export class AuthController {
     try {
       const userId = req.user.id;
       const userData = await this.authService.getMe(userId);
+      // Retorna tanto o contexto de User, Tokens se houverem, ou Dash Cache.
       return res.status(200).json(userData);
     } catch (err: any) {
       if (err.message === 'User not found') {

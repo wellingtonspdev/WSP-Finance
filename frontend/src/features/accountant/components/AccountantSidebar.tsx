@@ -2,7 +2,7 @@ import { Home, Mail, FileText, BarChart2, Settings, ShieldCheck, LogOut, Inbox, 
 import { clsx } from 'clsx';
 import { useAuth } from '../../../app/AuthProvider';
 import { useNavigate, useLocation } from 'react-router-dom';
-import logo from '../../../assets/wsp_finance_sem_fundo.svg';
+import logo from '../../../assets/wsp_finance_sem_fundo.png';
 import { useUI } from '../../../shared/context/UIProvider';
 
 export function AccountantSidebar() {
