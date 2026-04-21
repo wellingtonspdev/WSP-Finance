@@ -1,86 +1,138 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import type { AuthUser, DashboardCacheEntry } from '../features/auth/types';
 import { api, setApiToken } from '../shared/lib/axios';
+import { useWorkspaceStore } from '../shared/stores/useWorkspaceStore';
 
-interface Membership {
-  id: number;
-  name: string;
-  type: 'PERSONAL' | 'BUSINESS';
-  role: 'OWNER' | 'VIEWER' | 'ACCOUNTANT';
-}
+export type User = AuthUser;
 
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  type: 'CLIENT' | 'ACCOUNTANT';
-  memberships: Membership[];
-}
+type RestoredSession = {
+  token: string;
+  refreshToken: string;
+  meData: User & { dashboardCache?: DashboardCacheEntry[] | null };
+};
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token: string, refreshToken: string, user: User) => void;
+  dashboardCache: DashboardCacheEntry[] | null;
+  login: (token: string, refreshToken: string, user: User, cache?: DashboardCacheEntry[]) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
+let restoreSessionInFlight: Promise<RestoredSession | null> | null = null;
+
+async function restoreSessionSnapshot(): Promise<RestoredSession | null> {
+  const storedRefreshToken = localStorage.getItem('wsp_refresh_token');
+
+  if (!storedRefreshToken) {
+    return null;
+  }
+
+  if (!restoreSessionInFlight) {
+    restoreSessionInFlight = (async () => {
+      const { data } = await api.patch('/auth/refresh', { refreshToken: storedRefreshToken });
+      setApiToken(data.token);
+
+      const { data: meData } = await api.get('/auth/me');
+
+      return {
+        token: data.token,
+        refreshToken: data.refreshToken,
+        meData,
+      };
+    })().finally(() => {
+      restoreSessionInFlight = null;
+    });
+  }
+
+  return restoreSessionInFlight;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [dashboardCache, setDashboardCache] = useState<DashboardCacheEntry[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const setMemberships = useWorkspaceStore((state) => state.setMemberships);
+
+  const persistDashboardCache = (cache?: DashboardCacheEntry[] | null) => {
+    if (cache) {
+      localStorage.setItem('wsp_dashboard_cache', JSON.stringify(cache));
+      setDashboardCache(cache);
+      return;
+    }
+
+    localStorage.removeItem('wsp_dashboard_cache');
+    setDashboardCache(null);
+  };
 
   useEffect(() => {
+    setMemberships(user?.memberships ?? []);
+  }, [user, setMemberships]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
     const restoreSession = async () => {
       try {
-        const storedRefreshToken = localStorage.getItem('wsp_refresh_token');
-        if (!storedRefreshToken) throw new Error('No refresh token found');
+        const restoredSession = await restoreSessionSnapshot();
+        if (isCancelled) return;
 
-        // Envia o refresh token validamente no payload conforme esperado pelo Backend (Zod)
-        const { data } = await api.patch('/auth/refresh', { refreshToken: storedRefreshToken });
-
-        // Backend retorna { token, refreshToken } (Não retorna dados de User)
-        setApiToken(data.token);
-        localStorage.setItem('wsp_refresh_token', data.refreshToken);
-
-        // Solução Provisória Segura: Ler do storage APENAS os dados não sensíveis do usuário
-        const storedUser = localStorage.getItem('wsp_user_info');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
+        if (!restoredSession) {
+          throw new Error('No refresh token found');
         }
+
+        localStorage.setItem('wsp_refresh_token', restoredSession.refreshToken);
+        localStorage.setItem('wsp_user_info', JSON.stringify(restoredSession.meData));
+
+        setUser(restoredSession.meData);
+        persistDashboardCache(restoredSession.meData.dashboardCache ?? null);
       } catch (error) {
+        if (isCancelled) return;
+
         setApiToken(null);
         setUser(null);
+        persistDashboardCache(null);
+        localStorage.removeItem('wsp_user_info');
         localStorage.removeItem('wsp_refresh_token');
       } finally {
-        setIsLoading(false);
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
       }
     };
 
     restoreSession();
+
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
-  const login = (token: string, refreshToken: string, userData: User) => {
-    // Salva access token na memória e salva refresh na persistência local
+  const login = (token: string, refreshToken: string, userData: User, cache?: DashboardCacheEntry[]) => {
     setApiToken(token);
     localStorage.setItem('wsp_refresh_token', refreshToken);
-
-    // Salva dados do usuário para persistência de UI
     localStorage.setItem('wsp_user_info', JSON.stringify(userData));
     setUser(userData);
+
+    persistDashboardCache(cache ?? null);
   };
 
   const logout = () => {
     setApiToken(null);
     localStorage.removeItem('wsp_user_info');
     localStorage.removeItem('wsp_refresh_token');
+    localStorage.removeItem('wsp_dashboard_cache');
     setUser(null);
+    setDashboardCache(null);
     window.location.href = '/login';
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, dashboardCache, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

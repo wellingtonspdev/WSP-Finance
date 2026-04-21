@@ -116,6 +116,7 @@ model User {
   auditLogs     AuditLog[]
   notifications Notification[]
   invitesSent   WorkspaceInvite[]          @relation("InvitesSent")
+  dashboardCaches AccountantDashboardCache[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -167,6 +168,7 @@ model Workspace {
   transactions  Transaction[]
   invites       WorkspaceInvite[]
   bankMovements BankMovement[]
+  dashboardCaches AccountantDashboardCache[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -399,4 +401,20 @@ model AccountantDashboardCache {
 
   @@unique([userId, workspaceId])
   @@index([userId])
+// Cache de Dashboard do Contador (Agregação Multi-Workspace)
+model AccountantDashboardCache {
+  id                 Int       @id @default(autoincrement())
+  userId             Int
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId        Int
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pendingMovements   Int       @default(0)
+  missingAttachments Int       @default(0)
+  cashRiskAlert      Boolean   @default(false)
+  totalBalance       Decimal   @default(0) @db.Decimal(19, 4)
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([userId, workspaceId])
+  @@index([userId])
+  @@index([workspaceId])
 }

@@ -2,7 +2,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { tenantContext } from './tenantContext';
 import 'dotenv/config';
 
-const connectionLimit = process.env.PRISMA_CONNECTION_LIMIT || '1';
+const connectionLimit = process.env.PRISMA_CONNECTION_LIMIT || '5';
 let databaseUrl = process.env.DATABASE_URL;
 
 if (databaseUrl && !databaseUrl.includes('connection_limit=')) {

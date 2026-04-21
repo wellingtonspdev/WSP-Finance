@@ -3,6 +3,16 @@ import jwt from 'jsonwebtoken';
 import { UserRepository } from '../repositories/UserRepository';
 import { VerificationService } from './VerificationService';
 
+type UserMembershipWithWorkspace = {
+  role: 'OWNER' | 'EDITOR' | 'VIEWER' | 'ACCOUNTANT';
+  workspace: {
+    id: number;
+    name: string;
+    type: 'PERSONAL' | 'BUSINESS';
+    closedUntil: Date | null;
+  };
+};
+
 export class AuthService {
   private userRepository: UserRepository;
   private verificationService: VerificationService;
@@ -31,7 +41,7 @@ export class AuthService {
     });
 
     // LOG PARA DEBUG mantido fora de workspace legado
-    console.log(`🔑 [DEBUG] User Registration Initiated: ${user.email}`);
+    console.log(`[DEBUG] User Registration Initiated: ${user.email}`);
 
     // 2. Envia o e-mail de verificação
     await this.verificationService.sendVerificationCode(user.id, user.email, user.name);
@@ -68,14 +78,10 @@ export class AuthService {
     const token = this.generateAccessToken(user.id);
     const refreshToken = await this.generateRefreshToken(user.id);
 
-    // Mapeamento Multi-tenant (Ponte)
-    const mappedWorkspaces = user.memberships.map(m => ({
-      id: m.workspace.id,
-      name: m.workspace.name,
-      type: m.workspace.type,
-      role: m.role,
-      closedUntil: m.workspace.closedUntil ?? null
-    }));
+    const mappedWorkspaces = this.mapMemberships(user.memberships);
+    const dashboardCache = user.type === 'ACCOUNTANT'
+      ? await this.loadAccountantCache(user.id, user.memberships.map((membership) => membership.workspace.id))
+      : undefined;
 
     return {
       user: {
@@ -86,8 +92,46 @@ export class AuthService {
         memberships: mappedWorkspaces
       },
       token,
-      refreshToken: refreshToken.id
+      refreshToken: refreshToken.id,
+      ...(dashboardCache !== undefined ? { dashboardCache } : {})
     };
+  }
+
+  /**
+   * Carrega cache do dashboard do contador.
+   * - Se o cache não estiver populado para todos os workspaces atuais, espera a criação sincronamente.
+   * - Se já existir para o conjunto esperado, lê do cache (rápido) enquanto o refresh roda em background.
+   */
+  private async loadAccountantCache(userId: number, expectedWorkspaceIds: number[]) {
+    const { AccountantCacheService } = await import('./AccountantCacheService');
+    const cacheService = new AccountantCacheService();
+    const expectedWorkspaceIdSet = new Set(expectedWorkspaceIds);
+    const expectedWorkspaceCount = expectedWorkspaceIdSet.size;
+
+    if (expectedWorkspaceCount === 0) {
+      return [];
+    }
+
+    let cachedData = await cacheService.getCachedDashboard(userId);
+    let scopedCache = this.filterDashboardCache(cachedData, expectedWorkspaceIdSet);
+
+    if (scopedCache.length !== expectedWorkspaceCount) {
+      console.log(`[AuthService/AccountantCache] Await Refresh triggered for user ${userId}. Scoped length (${scopedCache.length}) != expected (${expectedWorkspaceCount})`);
+      await cacheService.refreshCache(userId);
+      cachedData = await cacheService.getCachedDashboard(userId);
+      scopedCache = this.filterDashboardCache(cachedData, expectedWorkspaceIdSet);
+
+      if (scopedCache.length !== expectedWorkspaceCount) {
+        throw new Error(`Accountant dashboard cache incomplete after refresh for user ${userId}`);
+      }
+    } else {
+      // Fire-and-forget: atualiza no background sem travar o login
+      cacheService.refreshCache(userId).catch((err) => {
+        console.error(`[AccountantCache] Falha no refresh em background para user ${userId}:`, err);
+      });
+    }
+
+    return scopedCache;
   }
 
   // --- Caso de Uso: Refresh Token ---
@@ -120,19 +164,36 @@ export class AuthService {
     const user = await this.userRepository.findByIdWithWorkspaces(userId);
     if (!user) throw new Error('User not found');
 
+    const mappedMemberships = this.mapMemberships(user.memberships);
+    const dashboardCache = user.type === 'ACCOUNTANT'
+      ? await this.loadAccountantCache(user.id, user.memberships.map((membership) => membership.workspace.id))
+      : undefined;
+
     return {
       id: user.id,
       name: user.name,
       email: user.email,
       type: user.type,
-      memberships: user.memberships.map((m: any) => ({
-        id: m.workspace.id,
-        name: m.workspace.name,
-        type: m.workspace.type,
-        role: m.role,
-        closedUntil: m.workspace.closedUntil ?? null
-      }))
+      memberships: mappedMemberships,
+      ...(dashboardCache !== undefined ? { dashboardCache } : {})
     };
+  }
+
+  private mapMemberships(memberships: UserMembershipWithWorkspace[]) {
+    return memberships.map((membership) => ({
+      id: membership.workspace.id,
+      name: membership.workspace.name,
+      type: membership.workspace.type,
+      role: membership.role,
+      closedUntil: membership.workspace.closedUntil ?? null
+    }));
+  }
+
+  private filterDashboardCache<T extends { workspaceId: number }>(
+    cachedData: T[],
+    expectedWorkspaceIds: Set<number>
+  ) {
+    return cachedData.filter((entry) => expectedWorkspaceIds.has(entry.workspaceId));
   }
 
   private generateAccessToken(userId: number): string {
