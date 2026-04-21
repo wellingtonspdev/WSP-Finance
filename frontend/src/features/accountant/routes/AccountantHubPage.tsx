@@ -52,7 +52,7 @@ export function AccountantHubPage() {
     }, [setActiveWorkspaceId]);
 
     const activeClients = clientMemberships.length;
-    
+
     // Aggregates real data from cache
     let pendingDocs = 0;
     let criticalAlerts = 0;
@@ -255,7 +255,7 @@ export function AccountantHubPage() {
                                                     <div className="flex flex-col">
                                                         <span className="text-sm text-slate-300">Rotina diária concluída</span>
                                                         <span className="text-[10px] text-slate-500 mt-0.5">
-                                                            {dashboardCache?.find(c => c.workspaceId === membership.id)?.updatedAt 
+                                                            {dashboardCache?.find(c => c.workspaceId === membership.id)?.updatedAt
                                                                 ? new Date(dashboardCache.find(c => c.workspaceId === membership.id)!.updatedAt).toLocaleDateString()
                                                                 : 'N/A'}
                                                         </span>
@@ -351,7 +351,7 @@ export function AccountantHubPage() {
                                             <div className="hidden md:block text-right">
                                                 <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Última Atividade</p>
                                                 <p className="text-xs font-medium text-slate-300">
-                                                    {dashboardCache?.find(c => c.workspaceId === membership.id)?.updatedAt 
+                                                    {dashboardCache?.find(c => c.workspaceId === membership.id)?.updatedAt
                                                         ? new Date(dashboardCache.find(c => c.workspaceId === membership.id)!.updatedAt).toLocaleDateString()
                                                         : 'N/A'}
                                                 </p>

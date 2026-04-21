@@ -2,6 +2,16 @@ import { Decimal } from 'decimal.js';
 import { sysPrisma } from '../lib/prisma';
 import { AccountantCacheRepository } from '../repositories/AccountantCacheRepository';
 
+export interface RefreshCacheResult {
+  ok: boolean;
+  workspacesProcessed: number;
+  errors: { workspaceId: number; message: string }[];
+}
+
+type WorkspaceRefreshResult =
+  | { ok: true; workspaceId: number }
+  | { ok: false; workspaceId: number; message: string };
+
 /**
  * Materializes accountant KPIs per workspace so login does not trigger
  * multiple heavy dashboard queries at once.
@@ -18,9 +28,10 @@ export class AccountantCacheService {
 
   /**
    * Refreshes cache rows for every workspace currently assigned to the accountant.
-   * Stale rows are pruned only after a successful refresh of the current set.
+   * Workspace-level failures are returned to callers so orchestration can report
+   * partial refreshes without treating them as full success.
    */
-  async refreshCache(userId: number): Promise<void> {
+  async refreshCache(userId: number): Promise<RefreshCacheResult> {
     const memberships = await sysPrisma.workspaceMember.findMany({
       where: { userId },
       select: { workspaceId: true },
@@ -28,17 +39,56 @@ export class AccountantCacheService {
 
     if (memberships.length === 0) {
       await this.cacheRepo.deleteCacheForUser(userId);
-      return;
+      return { ok: true, workspacesProcessed: 0, errors: [] };
     }
 
     const workspaceIds = [...new Set(memberships.map((membership) => membership.workspaceId))];
+    const errors: RefreshCacheResult['errors'] = [];
+    let workspacesProcessed = 0;
 
     for (let i = 0; i < workspaceIds.length; i += AccountantCacheService.BATCH_SIZE) {
       const batch = workspaceIds.slice(i, i + AccountantCacheService.BATCH_SIZE);
-      await Promise.all(batch.map((workspaceId) => this.aggregateWorkspace(userId, workspaceId)));
+      const results = await Promise.all(
+        batch.map((workspaceId) => this.refreshWorkspace(userId, workspaceId))
+      );
+
+      for (const result of results) {
+        if (result.ok) {
+          workspacesProcessed++;
+        } else {
+          errors.push({ workspaceId: result.workspaceId, message: result.message });
+        }
+      }
     }
 
-    await this.cacheRepo.deleteStaleCacheEntries(userId, workspaceIds);
+    if (errors.length === 0) {
+      await this.cacheRepo.deleteStaleCacheEntries(userId, workspaceIds);
+    }
+
+    return { ok: true, workspacesProcessed, errors };
+  }
+
+  /**
+   * Fast read path used during accountant login/session restore.
+   */
+  async getCachedDashboard(userId: number) {
+    return this.cacheRepo.getCachedDashboard(userId);
+  }
+
+  private async refreshWorkspace(
+    userId: number,
+    workspaceId: number
+  ): Promise<WorkspaceRefreshResult> {
+    try {
+      await this.aggregateWorkspace(userId, workspaceId);
+      return { ok: true, workspaceId };
+    } catch (error) {
+      return {
+        ok: false,
+        workspaceId,
+        message: getErrorMessage(error),
+      };
+    }
   }
 
   /**
@@ -78,11 +128,16 @@ export class AccountantCacheService {
       totalBalance,
     });
   }
+}
 
-  /**
-   * Fast read path used during accountant login/session restore.
-   */
-  async getCachedDashboard(userId: number) {
-    return this.cacheRepo.getCachedDashboard(userId);
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
   }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  return 'Unknown error';
 }

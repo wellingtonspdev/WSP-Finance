@@ -58,8 +58,9 @@ describe('AccountantCacheService', () => {
     vi.mocked(sysPrisma.accountantDashboardCache.upsert).mockResolvedValue({} as any);
     vi.mocked(sysPrisma.accountantDashboardCache.deleteMany).mockResolvedValue({ count: 0 } as any);
 
-    await service.refreshCache(1);
+    const result = await service.refreshCache(1);
 
+    expect(result).toEqual({ ok: true, workspacesProcessed: 12, errors: [] });
     expect(sysPrisma.accountantDashboardCache.upsert).toHaveBeenCalledTimes(12);
     expect(sysPrisma.accountantDashboardCache.deleteMany).toHaveBeenCalledWith({
       where: {
@@ -107,12 +108,45 @@ describe('AccountantCacheService', () => {
     vi.mocked(sysPrisma.workspaceMember.findMany).mockResolvedValue([]);
     vi.mocked(sysPrisma.accountantDashboardCache.deleteMany).mockResolvedValue({ count: 2 } as any);
 
-    await service.refreshCache(999);
+    const result = await service.refreshCache(999);
 
+    expect(result).toEqual({ ok: true, workspacesProcessed: 0, errors: [] });
     expect(sysPrisma.accountantDashboardCache.upsert).not.toHaveBeenCalled();
     expect(sysPrisma.accountantDashboardCache.deleteMany).toHaveBeenCalledWith({
       where: { userId: 999 },
     });
+  });
+
+  it('returns workspace errors without throwing when one workspace refresh fails', async () => {
+    vi.mocked(sysPrisma.workspaceMember.findMany).mockResolvedValue([
+      { workspaceId: 1 },
+      { workspaceId: 2 },
+    ] as any);
+    vi.mocked(sysPrisma.bankMovement.count).mockImplementation((args: any) => {
+      if (args.where.workspaceId === 2) {
+        return Promise.reject(new Error('workspace read failed'));
+      }
+
+      return Promise.resolve(3);
+    });
+    vi.mocked(sysPrisma.transaction.count).mockResolvedValue(1);
+    vi.mocked(sysPrisma.account.aggregate).mockResolvedValue({
+      _sum: { balance: { toString: () => '100.00' } },
+      _count: null as any,
+      _avg: null as any,
+      _min: null as any,
+      _max: null as any,
+    } as any);
+    vi.mocked(sysPrisma.accountantDashboardCache.upsert).mockResolvedValue({} as any);
+
+    const result = await service.refreshCache(7);
+
+    expect(result).toEqual({
+      ok: true,
+      workspacesProcessed: 1,
+      errors: [{ workspaceId: 2, message: 'workspace read failed' }],
+    });
+    expect(sysPrisma.accountantDashboardCache.deleteMany).not.toHaveBeenCalled();
   });
 
   it('reads from cache without triggering heavy queries', async () => {

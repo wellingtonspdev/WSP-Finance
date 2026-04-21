@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { Workspace } from '../types';
-import { api } from '../../../shared/lib/axios';
 import { useAuth } from '../../../app/AuthProvider';
 
 interface WorkspaceContextType {
@@ -15,14 +14,14 @@ const WorkspaceContext = createContext<WorkspaceContextType>({} as WorkspaceCont
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  // const queryClient = useQueryClient(); // Removido por não ser mais necessário
+  // const queryClient = useQueryClient(); // Removido por nÃ£o ser mais necessÃ¡rio
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
 
-  // PACT V3: Varrendo memberships direto do Payload de Autenticação (Zero Request)
+  // PACT V3: Varrendo memberships direto do Payload de AutenticaÃ§Ã£o (Zero Request)
   const workspaces = user?.memberships || [];
-  const isLoading = false; // Como é local, não há loading async
+  const isLoading = false; // Como Ã© local, nÃ£o hÃ¡ loading async
 
-  // Efeito de Inicialização e Seleção Automática
+  // Efeito de InicializaÃ§Ã£o e SeleÃ§Ã£o AutomÃ¡tica
   useEffect(() => {
     if (workspaces.length > 0 && !activeWorkspace) {
       // Tenta recuperar do storage ou pega o primeiro
@@ -33,13 +32,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       // Define o workspace inicial
       setActiveWorkspace(target);
-
-      // Sync Header Inicial
-      api.defaults.headers.common['x-workspace-id'] = target.id.toString();
     }
   }, [workspaces, activeWorkspace]);
 
-  // Função de Troca de Contexto (Hard Reset)
+  // FunÃ§Ã£o de Troca de Contexto (Hard Reset)
   const switchWorkspace = (workspaceId: number) => {
     const target = workspaces.find((w: any) => w.id === workspaceId);
     if (!target) return;
@@ -48,12 +44,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setActiveWorkspace(target);
     localStorage.setItem('wsp_active_workspace', workspaceId.toString());
 
-    // 2. Sync Header (Axios)
-    api.defaults.headers.common['x-workspace-id'] = workspaceId.toString();
-
-    // 3. O React Query já segmenta os dados por [workspaceId] em queryKeys.ts
-    // Não precisamos de removeQueries() aqui, o que evita destruir fetches ativos.
-    // queryClient.invalidateQueries(); 
+    // 2. O React Query jÃ¡ segmenta os dados por [workspaceId] em queryKeys.ts
+    // NÃ£o precisamos de removeQueries() aqui, o que evita destruir fetches ativos.
+    // queryClient.invalidateQueries();
   };
 
   return (

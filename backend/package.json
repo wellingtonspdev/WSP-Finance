@@ -10,7 +10,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "swagger": "node swagger.js",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "prisma:validate": "prisma validate",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:status": "prisma migrate status"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
