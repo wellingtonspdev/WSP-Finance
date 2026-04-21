@@ -2,16 +2,28 @@ import cron from 'node-cron';
 import { prisma } from '../lib/prisma';
 import { NotificationRepository } from '../repositories/NotificationRepository';
 import { addDays, startOfDay, endOfDay } from 'date-fns';
+import { AccountantCacheService, RefreshCacheResult } from './AccountantCacheService';
+import { sysPrisma } from '../lib/prisma';
 
 export class CronService {
   private notificationRepository: NotificationRepository;
+  private accountantCacheService: AccountantCacheService;
+  private isCacheRefreshRunning = false;
+  private isStarted = false;
 
-  constructor() {
+  constructor(accountantCacheService?: AccountantCacheService) {
     this.notificationRepository = new NotificationRepository();
+    this.accountantCacheService = accountantCacheService || new AccountantCacheService();
   }
 
   // Inicia os agendamentos
   start() {
+    if (this.isStarted) {
+      console.warn('⏰ Cron Service já foi iniciado. Ignorando dupla execução.');
+      return;
+    }
+    this.isStarted = true;
+
     console.log('⏰ Cron Service iniciado...');
 
     // Executa todos os dias às 08:00 AM
@@ -19,6 +31,87 @@ export class CronService {
       console.log('Running Daily Financial Health Check...');
       await this.checkFinancialHealth();
     });
+
+    // Atualização de cache a cada 30 minutos
+    cron.schedule('*/30 * * * *', async () => {
+      console.log('[CronCache] Running Accountant Cache Refresh...');
+      await this.refreshAccountantCaches();
+    });
+  }
+
+  private CACHE_REFRESH_TIMEOUT_MS = 25000;
+
+  private async withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error('TIMEOUT'));
+      }, ms);
+      promise.then(
+        (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        (err) => {
+          clearTimeout(timer);
+          reject(err);
+        }
+      );
+    });
+  }
+
+  async refreshAccountantCaches() {
+    if (this.isCacheRefreshRunning) {
+      console.warn('[CronCache] Refresh already running, skipping this round.');
+      return;
+    }
+
+    this.isCacheRefreshRunning = true;
+    const startTime = Date.now();
+    let successes = 0;
+    let errors = 0;
+    let timeouts = 0;
+
+    try {
+      let accountants;
+      try {
+        accountants = await sysPrisma.user.findMany({
+          where: { type: 'ACCOUNTANT' },
+          select: { id: true, name: true }
+        });
+      } catch (roundErr: any) {
+        console.error(`[CronCache] CRITICAL ERROR: Accountant Cache refresh round failed entirely. Reason: ${roundErr?.message}`);
+        return; // Exits to the finally block natively, skipping the summary logs
+      }
+
+      for (const accountant of accountants) {
+        try {
+          const result: RefreshCacheResult = await this.withTimeout(
+            this.accountantCacheService.refreshCache(accountant.id),
+            this.CACHE_REFRESH_TIMEOUT_MS
+          );
+
+          if (result && result.errors && result.errors.length > 0) {
+            console.warn(`[CronCache] Partial success for accountant ${accountant.id}: ${result.errors.length} workspace(s) failed.`);
+            errors++;
+          } else {
+            console.log(`[CronCache] Successfully refreshed cache for accountant ${accountant.id}`);
+            successes++;
+          }
+        } catch (err: any) {
+          if (err.message === 'TIMEOUT') {
+            console.warn(`[CronCache] Timeout (${this.CACHE_REFRESH_TIMEOUT_MS}ms) refreshing cache for accountant ${accountant.id}`);
+            timeouts++;
+          } else {
+            console.error(`[CronCache] Error refreshing cache for accountant ${accountant.id}: ${err?.message}`);
+            errors++;
+          }
+        }
+      }
+      const duration = Date.now() - startTime;
+      console.log(`[CronCache] Finished refresh round: ${duration}ms | ${successes} success, ${errors} errors, ${timeouts} timeouts`);
+    } finally {
+      this.isCacheRefreshRunning = false;
+    }
   }
 
   // Lógica de Verificação
