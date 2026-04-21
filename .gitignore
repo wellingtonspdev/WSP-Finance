@@ -20,6 +20,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 *.log
+.*.log
 backend/tests/k6-summary-batch-*.json
 
 # IDEs
@@ -62,6 +63,9 @@ design_system.md
 # Reports (Temporários)
 relatorio-estado-wsp-finance.md
 relatorio_correções_segurança_ingestão
+project_files_manifest.txt
+project_inventory.csv
+large_files.csv
 
 # Root package.json (monorepo root)
 /package.json
