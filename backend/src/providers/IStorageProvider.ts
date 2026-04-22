@@ -21,4 +21,10 @@ export interface IStorageProvider {
     downloadUrl: string;
     headers?: Record<string, string>;
   }>;
+
+  /**
+   * Criptografa e faz upload direto via buffer (Server-Side), ideal para arquivos sensíveis como Certificados A1
+   * Retorna a object key salva.
+   */
+  uploadSecureBuffer?(buffer: Buffer, workspaceId: number, folderType: string, contentType?: string): Promise<string>;
 }

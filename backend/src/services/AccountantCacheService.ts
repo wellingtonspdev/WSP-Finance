@@ -95,7 +95,7 @@ export class AccountantCacheService {
    * Aggregates one workspace worth of dashboard data and persists it in cache.
    */
   private async aggregateWorkspace(userId: number, workspaceId: number): Promise<void> {
-    const [, pendingMovements, missingAttachments, totalBalanceResult] = await sysPrisma.$transaction([
+    const [, pendingMovements, missingAttachments, totalBalanceResult, workspaceResult] = await sysPrisma.$transaction([
       sysPrisma.$executeRaw`SELECT set_config('app.current_workspace_id', ${workspaceId.toString()}, true)`,
       sysPrisma.bankMovement.count({
         where: { workspaceId, status: 'PENDING' },
@@ -110,6 +110,10 @@ export class AccountantCacheService {
       sysPrisma.account.aggregate({
         where: { workspaceId, isIncludedInTotal: true },
         _sum: { balance: true },
+      }),
+      sysPrisma.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { certificateExpiresAt: true },
       }),
     ]);
 
@@ -126,6 +130,7 @@ export class AccountantCacheService {
       missingAttachments,
       cashRiskAlert,
       totalBalance,
+      certificateExpiresAt: workspaceResult?.certificateExpiresAt ?? null,
     });
   }
 }

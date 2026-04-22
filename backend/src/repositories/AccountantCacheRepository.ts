@@ -12,6 +12,7 @@ export class AccountantCacheRepository {
     missingAttachments: number;
     cashRiskAlert: boolean;
     totalBalance: number;
+    certificateExpiresAt: Date | null;
   }) {
     return sysPrisma.accountantDashboardCache.upsert({
       where: {
@@ -25,6 +26,7 @@ export class AccountantCacheRepository {
         missingAttachments: data.missingAttachments,
         cashRiskAlert: data.cashRiskAlert,
         totalBalance: data.totalBalance,
+        certificateExpiresAt: data.certificateExpiresAt,
       },
       create: data,
     });

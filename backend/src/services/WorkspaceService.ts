@@ -1,6 +1,10 @@
 import { prisma } from '../lib/prisma';
 import { WorkspaceRepository } from '../repositories/WorkspaceRepository';
 import { WorkspaceType, DocumentType } from '@prisma/client';
+import { CertificateService } from './CertificateService';
+import { AccountantCacheService } from './AccountantCacheService';
+import { IStorageProvider } from '../providers/IStorageProvider';
+import { S3StorageProvider } from '../providers/S3StorageProvider';
 
 export interface CreateWorkspaceDTO {
   name: string;
@@ -23,9 +27,14 @@ export interface CreateWorkspaceDTO {
 
 export class WorkspaceService {
   private workspaceRepository: WorkspaceRepository;
+  private storageProvider: IStorageProvider;
+  private cacheService: AccountantCacheService;
 
   constructor() {
     this.workspaceRepository = new WorkspaceRepository();
+    // Injeção de dependência via provider/services (mockáveis nos testes)
+    this.storageProvider = new S3StorageProvider();
+    this.cacheService = new AccountantCacheService();
   }
 
   async create(payload: CreateWorkspaceDTO, userId: number) {
@@ -107,5 +116,102 @@ export class WorkspaceService {
       name,
       type
     });
+  }
+
+  /**
+   * Orquestra o upload de um certificado A1.
+   */
+  async uploadCertificate(
+    workspaceId: number,
+    userId: number,
+    reqWorkspaceId: number,
+    fileBuffer: Buffer,
+    password: string
+  ): Promise<{ workspaceId: number; certificateExpiresAt: Date; expiresInDays: number; alertLevel: string }> {
+    // 1 e 2. Validações de Workspace
+    if (workspaceId !== reqWorkspaceId) {
+      throw new Error('Mismatch: req.workspaceId differs from target workspaceId');
+    }
+
+    const workspace = await prisma.workspace.findFirst({ where: { id: workspaceId } });
+    if (!workspace) {
+      throw new Error('Workspace not found or access denied');
+    }
+
+    // 3. Validar se usuário é OWNER (Apenas owner pode fazer upload de certificados sensíveis)
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { workspaceId, userId }
+    });
+
+    if (!membership || membership.role !== 'OWNER') {
+      throw new Error('Apenas o OWNER pode alterar o certificado do Workspace');
+    }
+
+    // 4 e 5. Validar arquivo e extrair a validade
+    const { notAfter, expiresInDays, alertLevel } = CertificateService.parseAndExtractValidity(fileBuffer, password);
+
+    let newObjectKey: string;
+    if (this.storageProvider.uploadSecureBuffer) {
+      newObjectKey = await this.storageProvider.uploadSecureBuffer(fileBuffer, workspaceId, 'CERTIFICATE', 'application/x-pkcs12');
+    } else {
+      throw new Error('Storage provider does not support secure buffer upload');
+    }
+
+    // Opcional: Se já existe um certificado, guarda a key para apagar somente após sucesso total
+    const oldCertificateKey = workspace.certificateObjectKey;
+
+    // 8. Persistir no Workspace (Fonte da Verdade)
+    try {
+      await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: {
+          certificateObjectKey: newObjectKey,
+          certificateExpiresAt: notAfter
+        }
+      });
+    } catch (err) {
+      try {
+        await this.storageProvider.deleteFile(newObjectKey);
+      } catch (cleanupErr) {
+        console.warn(`[WorkspaceService] Falha nÃ£o crÃ­tica ao limpar certificado novo nÃ£o persistido ${newObjectKey}:`, cleanupErr);
+      }
+
+      throw err;
+    }
+
+    // 9. Atualizar os Caches Impactados (Best effort: Falha não reverte o upload que deu certo)
+    // Buscamos todos os contadores deste workspace para atualizar seus respectivos caches
+    try {
+      const impactedAccountants = await prisma.workspaceMember.findMany({
+        where: { workspaceId, role: 'ACCOUNTANT' }
+      });
+
+      const refreshPromises = impactedAccountants.map(acc =>
+        this.cacheService.refreshCache(acc.userId).catch(err => {
+          console.warn(`[WorkspaceService] Falha não crítica ao atualizar cache para o contador ${acc.userId}:`, err);
+        })
+      );
+
+      await Promise.allSettled(refreshPromises);
+    } catch (err) {
+      console.warn(`[WorkspaceService] Falha não crítica na orquestração de cache para Workspace ${workspaceId}:`, err);
+    }
+
+    // 10. Deletar certificado antigo (Best effort também, ocorre após salvar o novo caso haja)
+    if (oldCertificateKey) {
+      try {
+        await this.storageProvider.deleteFile(oldCertificateKey);
+      } catch (err) {
+        console.warn(`[WorkspaceService] Falha não crítica ao deletar certificado antigo ${oldCertificateKey}:`, err);
+      }
+    }
+
+    // 11. Retornar payload esperado
+    return {
+      workspaceId,
+      certificateExpiresAt: notAfter,
+      expiresInDays,
+      alertLevel
+    };
   }
 }

@@ -12,7 +12,7 @@ export const createWorkspaceSchema = z.object({
   fiscalIdentity: z.object({
     documentType: z.enum(['CPF', 'CNPJ']),
     document: z.string().min(11, 'Documento inválido'),
-    cnae: z.string().nullable().optional()
+    cnae: z.string().nullable().optional(),
   }).optional(),
   address: z.object({
     zipCode: z.string().optional(),
@@ -22,7 +22,22 @@ export const createWorkspaceSchema = z.object({
     neighborhood: z.string().optional(),
     city: z.string().optional(),
     state: z.string().optional(),
-  }).optional()
+  }).optional(),
 });
 
 export type CreateWorkspaceDTO = z.infer<typeof createWorkspaceSchema>;
+
+export type CertificateAlertLevel = 'ok' | 'warning' | 'expired';
+
+export interface CertificateUploadResponse {
+  workspaceId: number;
+  certificateExpiresAt: string;
+  expiresInDays: number;
+  alertLevel: CertificateAlertLevel;
+}
+
+export const certificateUploadSchema = z.object({
+  password: z.string().min(1, 'Senha do certificado é obrigatória'),
+});
+
+export type CertificateUploadFormData = z.infer<typeof certificateUploadSchema>;
