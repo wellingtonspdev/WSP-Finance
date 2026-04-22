@@ -24,6 +24,9 @@ vi.mock('../../src/lib/prisma', () => ({
     account: {
       aggregate: vi.fn(),
     },
+    workspace: {
+      findUnique: vi.fn(),
+    },
     accountantDashboardCache: {
       upsert: vi.fn(),
       findMany: vi.fn(),
@@ -55,6 +58,9 @@ describe('AccountantCacheService', () => {
       _min: null as any,
       _max: null as any,
     } as any);
+    vi.mocked(sysPrisma.workspace.findUnique).mockResolvedValue({
+      certificateExpiresAt: new Date('2026-12-31T23:59:59.000Z')
+    } as any);
     vi.mocked(sysPrisma.accountantDashboardCache.upsert).mockResolvedValue({} as any);
     vi.mocked(sysPrisma.accountantDashboardCache.deleteMany).mockResolvedValue({ count: 0 } as any);
 
@@ -78,6 +84,7 @@ describe('AccountantCacheService', () => {
       missingAttachments: 1,
       cashRiskAlert: false,
       totalBalance: 10000.5,
+      certificateExpiresAt: new Date('2026-12-31T23:59:59.000Z'),
     });
   });
 
@@ -93,6 +100,9 @@ describe('AccountantCacheService', () => {
       _avg: null as any,
       _min: null as any,
       _max: null as any,
+    } as any);
+    vi.mocked(sysPrisma.workspace.findUnique).mockResolvedValue({
+      certificateExpiresAt: null
     } as any);
     vi.mocked(sysPrisma.accountantDashboardCache.upsert).mockResolvedValue({} as any);
     vi.mocked(sysPrisma.accountantDashboardCache.deleteMany).mockResolvedValue({ count: 0 } as any);
@@ -137,6 +147,9 @@ describe('AccountantCacheService', () => {
       _min: null as any,
       _max: null as any,
     } as any);
+    vi.mocked(sysPrisma.workspace.findUnique).mockResolvedValue({
+      certificateExpiresAt: null
+    } as any);
     vi.mocked(sysPrisma.accountantDashboardCache.upsert).mockResolvedValue({} as any);
 
     const result = await service.refreshCache(7);
@@ -159,6 +172,7 @@ describe('AccountantCacheService', () => {
         missingAttachments: 2,
         cashRiskAlert: false,
         totalBalance: 30000,
+        certificateExpiresAt: new Date('2026-10-10T00:00:00.000Z'),
         updatedAt: new Date(),
       },
     ];
@@ -186,6 +200,9 @@ describe('AccountantCacheService', () => {
       _avg: null as any,
       _min: null as any,
       _max: null as any,
+    } as any);
+    vi.mocked(sysPrisma.workspace.findUnique).mockResolvedValue({
+      certificateExpiresAt: null
     } as any);
     vi.mocked(sysPrisma.accountantDashboardCache.upsert).mockResolvedValue({} as any);
     vi.mocked(sysPrisma.accountantDashboardCache.deleteMany).mockResolvedValue({ count: 0 } as any);

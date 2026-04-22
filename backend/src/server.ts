@@ -13,6 +13,7 @@ import { Prisma } from '@prisma/client';
 import { AuditLogService } from './services/AuditLogService';
 
 const app = express();
+export { app };
 
 // Middlewares Globais
 // CORREÇÃO CORS: Permitir credenciais e origem específica

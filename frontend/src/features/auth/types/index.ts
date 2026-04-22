@@ -59,6 +59,7 @@ export interface DashboardCacheEntry {
   cashRiskAlert: boolean;
   totalBalance: string;
   updatedAt: string;
+  certificateExpiresAt: string | null;  // Issue #17 — projetado pelo AccountantCacheService
 }
 
 export interface AuthMembership {

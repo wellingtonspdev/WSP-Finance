@@ -81,6 +81,8 @@ package.json
 /backend/test-db*.ts
 /backend/scripts/*test*
 /backend/scripts/optimize_*.sql
+/backend/*.p12
+/backend/*.pfx
 
 # Local dev scripts (not part of the project)
 launch_ag.bat

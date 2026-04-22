@@ -6,6 +6,7 @@ import { useAuth } from '../../../app/AuthProvider';
 import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 import { AppLayout } from '../../../shared/components/layout/AppLayout';
 import { HealthStatusBadge } from '../components/HealthStatusBadge';
+import { CertificateAlertBadge } from '../components/CertificateAlertBadge';
 import { ActivityFeed } from '../components/ActivityFeed';
 import { AccountantMobileHeader } from '../components/AccountantMobileHeader';
 import type { ActivityEvent } from '../components/ActivityFeed';
@@ -205,14 +206,15 @@ export function AccountantHubPage() {
                                         <tr className="bg-white/5 border-b border-white/10">
                                             <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Cliente</th>
                                             <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Status Linter</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Última Atividade</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Certificado A1</th>
+                                             <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Última Atividade</th>
                                             <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
                                         {filteredMemberships.length === 0 && (
                                             <tr>
-                                                <td colSpan={4} className="px-6 py-10 text-center text-slate-400">
+                                                <td colSpan={5} className="px-6 py-10 text-center text-slate-400">
                                                     Nenhum cliente encontrado.
                                                 </td>
                                             </tr>
@@ -250,6 +252,9 @@ export function AccountantHubPage() {
                                                             return <HealthStatusBadge status="stable" label="Sincronizado" />;
                                                         }
                                                     })()}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {(() => { const c = dashboardCache?.find(entry => entry.workspaceId === membership.id); return <CertificateAlertBadge certificateExpiresAt={c?.certificateExpiresAt ?? null} />; })()}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex flex-col">
@@ -345,6 +350,10 @@ export function AccountantHubPage() {
                                                     })()}
                                                 </div>
                                             </div>
+                                        </div>
+
+                                                                                <div className="mt-2 pl-1">
+                                            <CertificateAlertBadge certificateExpiresAt={dashboardCache?.find(c => c.workspaceId === membership.id)?.certificateExpiresAt ?? null} />
                                         </div>
 
                                         <div className="flex items-center gap-4">

@@ -10,6 +10,7 @@ type UserMembershipWithWorkspace = {
     name: string;
     type: 'PERSONAL' | 'BUSINESS';
     closedUntil: Date | null;
+    certificateExpiresAt: Date | null;
   };
 };
 
@@ -185,7 +186,8 @@ export class AuthService {
       name: membership.workspace.name,
       type: membership.workspace.type,
       role: membership.role,
-      closedUntil: membership.workspace.closedUntil ?? null
+      closedUntil: membership.workspace.closedUntil ?? null,
+      certificateExpiresAt: membership.workspace.certificateExpiresAt ?? null
     }));
   }
 

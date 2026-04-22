@@ -19,7 +19,23 @@ import { OpenFinanceWebhookController } from './controllers/OpenFinanceWebhookCo
 // Middlewares
 import { AuthMiddleware } from './middlewares/AuthMiddleware';
 import { WorkspaceMiddleware } from './middlewares/WorkspaceMiddleware';
+import { RbacMiddleware } from './middlewares/RbacMiddleware';
 import rateLimit from 'express-rate-limit';
+import multer from 'multer';
+
+// V3.8 Configuração de multer para Certificados
+const certUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB para pfx
+    fileFilter: (_req, file, cb) => {
+        const name = file.originalname.toLowerCase();
+        if (name.endsWith('.p12') || name.endsWith('.pfx')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Extensão inválida. Apenas arquivos .p12 e .pfx são aceitos.'));
+        }
+    }
+});
 
 const router = Router();
 
@@ -179,6 +195,20 @@ router.put('/workspaces/:id', AuthMiddleware, (req, res, next) => {
        #swagger.summary = 'Modificar Workspace'
        #swagger.description = 'Edita metadados da instância fiscal.' */
     return workspaceController.update(req, res);
+});
+
+router.post('/workspaces/:id/certificate-a1', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('OWNER'), (req, res, next) => {
+    certUpload.single('certificate')(req, res, (err: any) => {
+        if (err) {
+            return res.status(400).json({ message: err.message });
+        }
+        next();
+    });
+}, (req, res, next) => {
+    /* #swagger.tags = ['Workspaces']
+       #swagger.summary = 'Upload de Certificado A1'
+       #swagger.description = 'Autoriza apenas o OWNER a fazer upload de certificado digital em memória (máx 10MB) sem persistência de disco local.' */
+    return workspaceController.uploadCertificate(req, res);
 });
 
 // --- WORKSPACE INVITES (Gerenciamento de Membros) ---
