@@ -197,7 +197,7 @@ router.put('/workspaces/:id', AuthMiddleware, (req, res, next) => {
     return workspaceController.update(req, res);
 });
 
-router.post('/workspaces/:id/certificate-a1', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('OWNER', 'ACCOUNTANT'), (req, res, next) => {
+router.post('/workspaces/:id/certificate-a1', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('OWNER'), (req, res, next) => {
     /* #swagger.tags = ['Workspaces']
        #swagger.summary = 'Upload de Certificado A1'
        #swagger.description = 'Autoriza apenas o OWNER a fazer upload de certificado digital em memória (máx 10MB) sem persistência de disco local.'
