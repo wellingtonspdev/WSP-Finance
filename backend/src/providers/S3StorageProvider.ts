@@ -1,9 +1,11 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, PutObjectCommandInput, GetObjectCommandInput } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { IStorageProvider } from './IStorageProvider';
 import crypto from 'crypto';
 
 export class S3StorageProvider implements IStorageProvider {
+    private static readonly MIN_VAULT_MASTER_KEY_LENGTH = 32;
+
     private client: S3Client;
     private bucketName: string;
     private baseUrl: string;
@@ -32,6 +34,21 @@ export class S3StorageProvider implements IStorageProvider {
         this.baseUrl = process.env.R2_PUBLIC_DEV_URL || 'https://r2.dev';
     }
 
+    private getVaultCustomerKeyMaterial(): { keyBase64: string; keyMd5: string } {
+        const rawSecret = process.env.VAULT_MASTER_KEY?.trim();
+
+        if (!rawSecret || rawSecret.length < S3StorageProvider.MIN_VAULT_MASTER_KEY_LENGTH) {
+            throw new Error('VAULT_MASTER_KEY is required and must contain at least 32 characters for certificate storage.');
+        }
+
+        const aesKeyBuffer = crypto.createHash('sha256').update(rawSecret).digest();
+
+        return {
+            keyBase64: aesKeyBuffer.toString('base64'),
+            keyMd5: crypto.createHash('md5').update(aesKeyBuffer).digest('base64')
+        };
+    }
+
     async generateUploadUrl(filename: string, contentType: string, folderType?: string, contentLength?: number): Promise<{ uploadUrl: string; publicUrl: string; headers?: Record<string, string> }> {
 
         // Tratamento Seguro: Permitimos a barra '/' para sub-diretórios, mas eliminamos '../' e caracteres estranhos para evitar Path Traversal
@@ -40,7 +57,7 @@ export class S3StorageProvider implements IStorageProvider {
             .replace(/[^a-zA-Z0-9.\-\/]/g, '_'); // Permite diretórios criados de forma lícita
 
         // Montando as propriedades base do PutObject
-        const commandParams: any = {
+        const commandParams: PutObjectCommandInput = {
             Bucket: this.bucketName,
             Key: objectKey,
             ContentType: contentType, // VITAL: Trava o MIME Type na assinatura V4.
@@ -57,20 +74,16 @@ export class S3StorageProvider implements IStorageProvider {
         // --- Lógica de Criptografia SSE-C Isolada Opcional ---
         // Se for um certificado fiscal, exigimos criptografia Simétrica C/ Key do Cliente
         if (folderType === 'CERTIFICATE' || contentType === 'application/x-pkcs12' || contentType === 'application/x-pem-file') {
-            const rawSecret = process.env.VAULT_MASTER_KEY || 'default-insecure-32-byte-secret-key!!';
-            // Garantir 32 bytes (256 bits)
-            const aesKeyBuffer = crypto.createHash('sha256').update(rawSecret).digest();
-            const aesKeyBase64 = aesKeyBuffer.toString('base64');
-            const aesKeyMd5 = crypto.createHash('md5').update(aesKeyBuffer).digest('base64');
+            const { keyBase64, keyMd5 } = this.getVaultCustomerKeyMaterial();
 
             commandParams.SSECustomerAlgorithm = 'AES256';
-            commandParams.SSECustomerKey = aesKeyBase64;
-            commandParams.SSECustomerKeyMD5 = aesKeyMd5;
+            commandParams.SSECustomerKey = keyBase64;
+            commandParams.SSECustomerKeyMD5 = keyMd5;
 
             // O navegador precisará repassar esses exatos Headers no momento do Axios PUT
             headersToReturn['x-amz-server-side-encryption-customer-algorithm'] = 'AES256';
-            headersToReturn['x-amz-server-side-encryption-customer-key'] = aesKeyBase64;
-            headersToReturn['x-amz-server-side-encryption-customer-key-MD5'] = aesKeyMd5;
+            headersToReturn['x-amz-server-side-encryption-customer-key'] = keyBase64;
+            headersToReturn['x-amz-server-side-encryption-customer-key-MD5'] = keyMd5;
         }
 
         const command = new PutObjectCommand(commandParams);
@@ -108,7 +121,7 @@ export class S3StorageProvider implements IStorageProvider {
         else if (lowerUrl.endsWith('.png')) responseContentType = 'image/png';
         else if (lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) responseContentType = 'image/jpeg';
 
-        const commandParams: any = {
+        const commandParams: GetObjectCommandInput = {
             Bucket: this.bucketName,
             Key: url,
             ResponseContentType: responseContentType,
@@ -118,19 +131,16 @@ export class S3StorageProvider implements IStorageProvider {
 
         // Se for certificado (vault), o GET precisa das mesmas chaves do SSE-C que usamos no PUT
         if (isCertificate || url.includes('/vault/')) {
-            const rawSecret = process.env.VAULT_MASTER_KEY || 'default-insecure-32-byte-secret-key!!';
-            const aesKeyBuffer = crypto.createHash('sha256').update(rawSecret).digest();
-            const aesKeyBase64 = aesKeyBuffer.toString('base64');
-            const aesKeyMd5 = crypto.createHash('md5').update(aesKeyBuffer).digest('base64');
+            const { keyBase64, keyMd5 } = this.getVaultCustomerKeyMaterial();
 
             commandParams.SSECustomerAlgorithm = 'AES256';
-            commandParams.SSECustomerKey = aesKeyBase64;
-            commandParams.SSECustomerKeyMD5 = aesKeyMd5;
+            commandParams.SSECustomerKey = keyBase64;
+            commandParams.SSECustomerKeyMD5 = keyMd5;
 
             // O navegador (Frontend Axios Fetch) precisará incluir esses headers para passar a chave e visualizar
             headersToReturn['x-amz-server-side-encryption-customer-algorithm'] = 'AES256';
-            headersToReturn['x-amz-server-side-encryption-customer-key'] = aesKeyBase64;
-            headersToReturn['x-amz-server-side-encryption-customer-key-MD5'] = aesKeyMd5;
+            headersToReturn['x-amz-server-side-encryption-customer-key'] = keyBase64;
+            headersToReturn['x-amz-server-side-encryption-customer-key-MD5'] = keyMd5;
         }
 
         const command = new GetObjectCommand(commandParams);
@@ -142,5 +152,34 @@ export class S3StorageProvider implements IStorageProvider {
             downloadUrl: signedUrl,
             headers: Object.keys(headersToReturn).length > 0 ? headersToReturn : undefined
         };
+    }
+
+    async uploadSecureBuffer(buffer: Buffer, workspaceId: number, folderType: string, contentType?: string): Promise<string> {
+        // Gera um UUID ou usa timestamp
+        const finalContentType = contentType || 'application/octet-stream';
+        const ext = finalContentType === 'application/x-pkcs12' ? 'p12' : 'bin';
+        const objectKey = `workspaces/${workspaceId}/vault/${crypto.randomUUID() || Date.now()}.${ext}`;
+
+        const commandParams: PutObjectCommandInput = {
+            Bucket: this.bucketName,
+            Key: objectKey,
+            Body: buffer,
+            ContentType: finalContentType,
+            ContentLength: buffer.length,
+        };
+
+        // Lógica de Criptografia SSE-C Isolada Opcional
+        if (folderType === 'CERTIFICATE' || finalContentType === 'application/x-pkcs12' || finalContentType === 'application/x-pem-file') {
+            const { keyBase64, keyMd5 } = this.getVaultCustomerKeyMaterial();
+
+            commandParams.SSECustomerAlgorithm = 'AES256';
+            commandParams.SSECustomerKey = keyBase64;
+            commandParams.SSECustomerKeyMD5 = keyMd5;
+        }
+
+        const command = new PutObjectCommand(commandParams);
+        await this.client.send(command);
+
+        return objectKey;
     }
 }

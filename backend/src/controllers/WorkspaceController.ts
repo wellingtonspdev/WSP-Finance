@@ -101,4 +101,58 @@ export class WorkspaceController {
       throw err;
     }
   }
+
+  async uploadCertificate(req: Request, res: Response) {
+    try {
+      if (!req.file || !req.file.buffer) {
+        return res.status(400).json({ message: 'Arquivo do certificado (.pfx/.p12) é obrigatório' });
+      }
+      if (!req.body.password) {
+        return res.status(400).json({ message: 'Senha do certificado é obrigatória' });
+      }
+
+      const paramsSchema = z.object({
+        id: z.string().transform((val) => Number(val)),
+      });
+      const { id: targetWorkspaceId } = paramsSchema.parse(req.params);
+
+      const userId = req.user.id;
+      const reqWorkspaceId = req.workspaceId as number; // Vem do Middleware opcional de account
+
+      const result = await this.workspaceService.uploadCertificate(
+        targetWorkspaceId,
+        userId,
+        reqWorkspaceId,
+        req.file.buffer,
+        req.body.password
+      );
+
+      return res.status(200).json(result);
+    } catch (err: any) {
+      const msg = err.message || 'Erro interno';
+
+      // 403 — permissão / contexto
+      if (
+        msg.includes('not found') ||
+        msg.includes('access denied') ||
+        msg.includes('Apenas o OWNER') ||
+        msg.includes('Mismatch')
+      ) {
+        return res.status(403).json({ message: msg });
+      }
+
+      // 422 — erros de parsing/validação do certificado
+      if (
+        msg.includes('Senha incorreta') ||
+        msg.includes('corrompido') ||
+        msg.includes('Nenhum certificado') ||
+        msg.includes('não possui data de expiração')
+      ) {
+        return res.status(422).json({ message: msg });
+      }
+
+      // 400 — fallback (payload inválido, params, etc.)
+      return res.status(400).json({ message: msg });
+    }
+  }
 }

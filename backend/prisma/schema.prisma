@@ -160,6 +160,8 @@ model Workspace {
 
   // Governança e Fecho Fiscal
   closedUntil DateTime?
+  certificateObjectKey   String?
+  certificateExpiresAt   DateTime?
 
   // Relacionamentos
   members       WorkspaceMember[] // Membros do workspace
@@ -395,6 +397,7 @@ model AccountantDashboardCache {
   missingAttachments Int       @default(0)
   cashRiskAlert      Boolean   @default(false)
   totalBalance       Decimal   @default(0) @db.Decimal(19, 4)
+  certificateExpiresAt DateTime?
   updatedAt          DateTime  @updatedAt
 
   @@unique([userId, workspaceId])

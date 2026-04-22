@@ -8,6 +8,7 @@ interface Membership {
     role: 'OWNER' | 'EDITOR' | 'VIEWER' | 'ACCOUNTANT';
     closedUntil: string | null; // ISO date string do período fiscal fechado
     cnai?: string;
+    certificateExpiresAt?: string | null;
 }
 
 interface WorkspaceState {
