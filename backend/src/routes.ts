@@ -197,7 +197,17 @@ router.put('/workspaces/:id', AuthMiddleware, (req, res, next) => {
     return workspaceController.update(req, res);
 });
 
-router.post('/workspaces/:id/certificate-a1', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('OWNER'), (req, res, next) => {
+router.post('/workspaces/:id/certificate-a1', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('OWNER', 'ACCOUNTANT'), (req, res, next) => {
+    /* #swagger.tags = ['Workspaces']
+       #swagger.summary = 'Upload de Certificado A1'
+       #swagger.description = 'Autoriza apenas o OWNER a fazer upload de certificado digital em memória (máx 10MB) sem persistência de disco local.'
+       #swagger.consumes = ['multipart/form-data']
+       #swagger.parameters['certificate'] = {
+           in: 'formData',
+           type: 'file',
+           required: true,
+           description: 'Arquivo do certificado (.p12 ou .pfx)'
+       } */
     certUpload.single('certificate')(req, res, (err: any) => {
         if (err) {
             return res.status(400).json({ message: err.message });
@@ -205,22 +215,19 @@ router.post('/workspaces/:id/certificate-a1', AuthMiddleware, WorkspaceMiddlewar
         next();
     });
 }, (req, res, next) => {
-    /* #swagger.tags = ['Workspaces']
-       #swagger.summary = 'Upload de Certificado A1'
-       #swagger.description = 'Autoriza apenas o OWNER a fazer upload de certificado digital em memória (máx 10MB) sem persistência de disco local.' */
     return workspaceController.uploadCertificate(req, res);
 });
 
 // --- WORKSPACE INVITES (Gerenciamento de Membros) ---
 router.post('/workspaces/:id/invites', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
-    /* #swagger.tags = ['Workspaces']
+    /* #swagger.tags = ['Convites']
        #swagger.summary = 'Gerar Convite (Smart Link)'
        #swagger.description = 'Cria um convite com Token Criptografado para que um contador ou editor acesse esta empresa. Apenas o OWNER pode executar.' */
     return inviteController.create(req, res);
 });
 
 router.post('/workspaces/:id/invites/:inviteId/revoke', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
-    /* #swagger.tags = ['Workspaces']
+    /* #swagger.tags = ['Convites']
        #swagger.summary = 'Revogar Convite'
        #swagger.description = 'Invalida um link de convite previamente gerado, bloqueando o engajamento caso o link tenha vazado.' */
     return inviteController.revoke(req, res);
@@ -267,7 +274,7 @@ router.post('/invites/:id/reject', AuthMiddleware, (req, res, next) => {
 });
 
 router.get('/workspaces/:id/members', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
-    /* #swagger.tags = ['Convites']
+    /* #swagger.tags = ['Membros']
        #swagger.summary = 'Listar Membros do Workspace'
        #swagger.description = 'Retorna todos os membros atuais do workspace com nome, email, tipo e role. Requer membership.'
        #swagger.parameters['id'] = { in: 'path', description: 'ID do workspace', required: true, type: 'integer' }
@@ -299,7 +306,7 @@ router.get('/workspaces/:id/invites', AuthMiddleware, WorkspaceMiddleware, (req,
 });
 
 router.delete('/workspaces/:id/members/:userId', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
-    /* #swagger.tags = ['Convites']
+    /* #swagger.tags = ['Membros']
        #swagger.summary = 'Revogar Acesso de Membro'
        #swagger.description = 'O OWNER remove um membro do workspace. Não permite auto-remoção. Caso de uso: desligar um contador ou editor.'
        #swagger.parameters['id'] = { in: 'path', description: 'ID do workspace', required: true, type: 'integer' }
