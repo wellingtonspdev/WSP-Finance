@@ -1,0 +1,765 @@
+openapi: 3.0.3
+info:
+  title: WSP Finance API - Reverse Engineered Contract
+  version: 0.1.0
+  description: >
+    Contrato OpenAPI reconstruido a partir da analise estatica do Reversa.
+    Rotas e campos devem ser tratados como especificacao reversa, nao como
+    contrato oficialmente versionado pelo backend.
+servers:
+  - url: http://localhost:3333
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Workspaces
+  - name: Invites
+  - name: Finance
+  - name: Uploads
+  - name: Imports
+  - name: BankMovements
+  - name: Accountant
+  - name: ExternalData
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Registra usuario e cria workspace pessoal
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Usuario criado sem tokens de sessao
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /auth/session:
+    post:
+      tags: [Auth]
+      summary: Autentica usuario verificado
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Sessao criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSessionResponse"
+        "403":
+          description: Email nao verificado
+  /auth/refresh:
+    patch:
+      tags: [Auth]
+      summary: Rotaciona refresh token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        "200":
+          description: Novo par de tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token, refreshToken]
+                properties:
+                  token:
+                    type: string
+                  refreshToken:
+                    type: string
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Retorna usuario autenticado e memberships
+      responses:
+        "200":
+          description: Usuario atual
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+  /auth/verify:
+    post:
+      tags: [Auth]
+      summary: Verifica email por codigo
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+      responses:
+        "200":
+          description: Conta verificada
+  /auth/resend-verification:
+    post:
+      tags: [Auth]
+      summary: Reenvia codigo de verificacao
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "200":
+          description: Resposta silenciosa
+  /password/forgot:
+    post:
+      tags: [Auth]
+      summary: Solicita codigo de reset de senha
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "200":
+          description: Resposta silenciosa
+  /password/reset:
+    post:
+      tags: [Auth]
+      summary: Redefine senha e invalida refresh tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code, newPassword]
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+                newPassword:
+                  type: string
+                  minLength: 6
+      responses:
+        "200":
+          description: Senha redefinida
+  /workspaces:
+    get:
+      tags: [Workspaces]
+      summary: Lista workspaces do usuario
+      responses:
+        "200":
+          description: Workspaces por membership
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Workspace"
+    post:
+      tags: [Workspaces]
+      summary: Cria workspace e membership OWNER
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkspaceRequest"
+      responses:
+        "201":
+          description: Workspace criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+  /workspaces/{workspaceId}:
+    put:
+      tags: [Workspaces]
+      summary: Atualiza nome e tipo do workspace
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, type]
+              properties:
+                name:
+                  type: string
+                type:
+                  $ref: "#/components/schemas/WorkspaceType"
+      responses:
+        "200":
+          description: Workspace atualizado
+  /workspaces/{workspaceId}/certificate-a1:
+    post:
+      tags: [Workspaces]
+      summary: Envia certificado A1 para o vault
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [certificate, password]
+              properties:
+                certificate:
+                  type: string
+                  format: binary
+                  description: Arquivo .pfx ou .p12
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Certificado validado e persistido
+  /workspaces/{workspaceId}/invites:
+    get:
+      tags: [Invites]
+      summary: Lista convites enviados do workspace
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      responses:
+        "200":
+          description: Convites enviados
+    post:
+      tags: [Invites]
+      summary: Cria convite de membro
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role]
+              properties:
+                email:
+                  type: string
+                  format: email
+                role:
+                  $ref: "#/components/schemas/WorkspaceRole"
+      responses:
+        "201":
+          description: Convite criado
+  /workspaces/{workspaceId}/invites/{inviteId}/revoke:
+    post:
+      tags: [Invites]
+      summary: Revoga convite pendente
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/InviteId"
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      responses:
+        "200":
+          description: Convite revogado
+  /invites/received:
+    get:
+      tags: [Invites]
+      summary: Lista convites recebidos pelo usuario autenticado
+      responses:
+        "200":
+          description: Convites recebidos
+  /invites/accept:
+    post:
+      tags: [Invites]
+      summary: Aceita convite por token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+      responses:
+        "200":
+          description: Convite aceito
+  /invites/{inviteId}/reject:
+    post:
+      tags: [Invites]
+      summary: Rejeita convite recebido
+      parameters:
+        - $ref: "#/components/parameters/InviteId"
+      responses:
+        "200":
+          description: Convite rejeitado
+  /accounts:
+    get:
+      tags: [Finance]
+      summary: Lista contas do workspace
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      responses:
+        "200":
+          description: Contas
+    post:
+      tags: [Finance]
+      summary: Cria conta
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      responses:
+        "201":
+          description: Conta criada
+  /categories:
+    get:
+      tags: [Finance]
+      summary: Lista categorias globais e do workspace
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      responses:
+        "200":
+          description: Categorias
+    post:
+      tags: [Finance]
+      summary: Cria categoria do workspace
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      responses:
+        "201":
+          description: Categoria criada
+  /transactions:
+    get:
+      tags: [Finance]
+      summary: Lista transacoes do workspace com filtros e cursor
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      responses:
+        "200":
+          description: Pagina de transacoes
+    post:
+      tags: [Finance]
+      summary: Cria transacao financeira
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      responses:
+        "201":
+          description: Transacao criada
+  /transactions/{transactionId}:
+    delete:
+      tags: [Finance]
+      summary: Exclui transacao e reverte saldo se paga
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      responses:
+        "204":
+          description: Transacao excluida
+  /transactions/all:
+    get:
+      tags: [Finance]
+      summary: Lista transacoes em todos os workspaces por membership
+      responses:
+        "200":
+          description: Transacoes por memberships do usuario
+  /dashboard/summary:
+    get:
+      tags: [Finance]
+      summary: Resumo financeiro mensal do workspace
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceHeader"
+        - name: month
+          in: query
+          schema:
+            type: integer
+        - name: year
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Resumo financeiro
+  /bridge/transfer:
+    post:
+      tags: [Finance]
+      summary: Executa transferencia espelhada entre workspaces
+      responses:
+        "201":
+          description: Debito e credito criados
+  /uploads/presigned:
+    post:
+      tags: [Uploads]
+      summary: Gera URL presigned de upload
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PresignedUploadRequest"
+      responses:
+        "200":
+          description: URL de upload
+        "402":
+          description: Quota do workspace excedida
+  /transactions/{transactionId}/attachment:
+    get:
+      tags: [Uploads]
+      summary: Gera URL assinada de visualizacao do anexo
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      responses:
+        "200":
+          description: URL temporaria de download
+  /transactions/import:
+    post:
+      tags: [Imports]
+      summary: Importa arquivo OFX local
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fileName, accountId]
+              properties:
+                fileName:
+                  type: string
+                accountId:
+                  type: integer
+      responses:
+        "200":
+          description: Movimentos importados para staging
+  /api/webhooks/open-finance:
+    post:
+      tags: [Imports]
+      summary: Recebe webhook Open Finance
+      security:
+        - webhookBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenFinanceWebhookRequest"
+      responses:
+        "200":
+          description: Movimentos ingeridos
+  /bank-movements:
+    get:
+      tags: [BankMovements]
+      summary: Lista BankMovements pendentes do workspace
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      responses:
+        "200":
+          description: Movimentos pendentes
+  /bank-movements/{movementId}/approve:
+    post:
+      tags: [BankMovements]
+      summary: Aprova movimento e cria Transaction
+      parameters:
+        - name: movementId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      responses:
+        "200":
+          description: Movimento aprovado
+  /bank-movements/{movementId}/reject:
+    post:
+      tags: [BankMovements]
+      summary: Rejeita movimento pendente
+      parameters:
+        - name: movementId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/WorkspaceHeader"
+      responses:
+        "200":
+          description: Movimento rejeitado
+  /accountant/bank-movements/pending:
+    get:
+      tags: [Accountant, BankMovements]
+      summary: Lista pendencias globais do contador
+      responses:
+        "200":
+          description: Movimentos pendentes por clientes do contador
+  /external/document/{cnpj}:
+    get:
+      tags: [ExternalData]
+      summary: Consulta CNPJ com fallback
+      security: []
+      parameters:
+        - name: cnpj
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 14
+      responses:
+        "200":
+          description: Dados cadastrais
+  /external/location/{cep}:
+    get:
+      tags: [ExternalData]
+      summary: Consulta CEP com fallback
+      security: []
+      parameters:
+        - name: cep
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 8
+      responses:
+        "200":
+          description: Endereco
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    webhookBearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    WorkspaceHeader:
+      name: x-workspace-id
+      in: header
+      required: true
+      schema:
+        type: integer
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      schema:
+        type: integer
+    InviteId:
+      name: inviteId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    BadRequest:
+      description: Payload invalido
+  schemas:
+    UserType:
+      type: string
+      enum: [CLIENT, ACCOUNTANT]
+    WorkspaceType:
+      type: string
+      enum: [PERSONAL, BUSINESS]
+    WorkspaceRole:
+      type: string
+      enum: [OWNER, EDITOR, ACCOUNTANT, VIEWER]
+    RegisterRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          minLength: 3
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        type:
+          $ref: "#/components/schemas/UserType"
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    AuthUserResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        dashboardCache:
+          type: array
+          items:
+            type: object
+    AuthSessionResponse:
+      type: object
+      required: [user, token, refreshToken]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+        refreshToken:
+          type: string
+        dashboardCache:
+          type: array
+          items:
+            type: object
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        type:
+          $ref: "#/components/schemas/UserType"
+        memberships:
+          type: array
+          items:
+            $ref: "#/components/schemas/Membership"
+    Membership:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/WorkspaceType"
+        role:
+          $ref: "#/components/schemas/WorkspaceRole"
+        closedUntil:
+          type: string
+          format: date
+          nullable: true
+        certificateExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+    Workspace:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/WorkspaceType"
+        closedUntil:
+          type: string
+          format: date
+          nullable: true
+        certificateExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+    CreateWorkspaceRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/WorkspaceType"
+        fiscalIdentity:
+          type: object
+          additionalProperties: true
+        address:
+          type: object
+          additionalProperties: true
+    PresignedUploadRequest:
+      type: object
+      required: [fileName, contentType, folderType, fileSize]
+      properties:
+        fileName:
+          type: string
+        contentType:
+          type: string
+        folderType:
+          type: string
+          enum: [AVATAR, RECEIPT, INVOICE, CERTIFICATE, ASSET]
+        fileSize:
+          type: integer
+          minimum: 1
+          maximum: 10485760
+    OpenFinanceWebhookRequest:
+      type: object
+      required: [workspaceId, accountId, movements]
+      properties:
+        workspaceId:
+          type: integer
+        accountId:
+          type: integer
+        movements:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [date, description, amount]
+            properties:
+              date:
+                type: string
+                format: date-time
+              description:
+                type: string
+              amount:
+                type: number
+              transactionId:
+                type: string
