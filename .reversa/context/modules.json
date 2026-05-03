@@ -1,0 +1,952 @@
+{
+  "generated_at": "2026-05-02T18:40:00-03:00",
+  "modules": [
+    {
+      "name": "auth",
+      "path": "backend/src/controllers/AuthController.ts; backend/src/services/AuthService.ts; frontend/src/features/auth",
+      "purpose": "Autenticação, criação de conta, verificação de e-mail, emissão e rotação de tokens, restauração de sessão e recuperação de senha.",
+      "primary_files": [
+        "backend/src/controllers/AuthController.ts",
+        "backend/src/services/AuthService.ts",
+        "backend/src/controllers/VerificationController.ts",
+        "backend/src/services/VerificationService.ts",
+        "backend/src/controllers/PasswordResetController.ts",
+        "backend/src/services/PasswordResetService.ts",
+        "backend/src/repositories/UserRepository.ts",
+        "backend/src/middlewares/AuthMiddleware.ts",
+        "frontend/src/app/AuthProvider.tsx",
+        "frontend/src/features/auth/types/index.ts",
+        "frontend/src/features/auth/hooks/useLogin.ts",
+        "frontend/src/features/auth/hooks/useRegister.ts",
+        "frontend/src/features/auth/hooks/useVerify.ts",
+        "frontend/src/features/auth/hooks/usePasswordRecovery.ts",
+        "frontend/src/shared/lib/axios.ts"
+      ],
+      "functions": [
+        {
+          "name": "AuthService.register",
+          "file": "backend/src/services/AuthService.ts",
+          "params": [
+            "name: string",
+            "email: string",
+            "password: string",
+            "type: 'CLIENT' | 'ACCOUNTANT'"
+          ],
+          "returns": "Promise<{ id: number; name: string; email: string; message: string }>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "AuthService.authenticate",
+          "file": "backend/src/services/AuthService.ts",
+          "params": [
+            "email: string",
+            "password: string"
+          ],
+          "returns": "Promise<{ user; token: string; refreshToken: string; dashboardCache?: DashboardCacheEntry[] }>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "AuthService.refreshToken",
+          "file": "backend/src/services/AuthService.ts",
+          "params": [
+            "refreshTokenId: string"
+          ],
+          "returns": "Promise<{ token: string; refreshToken: string }>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "AuthService.getMe",
+          "file": "backend/src/services/AuthService.ts",
+          "params": [
+            "userId: number"
+          ],
+          "returns": "Promise<AuthUser & { dashboardCache?: DashboardCacheEntry[] }>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "VerificationService.sendVerificationCode",
+          "file": "backend/src/services/VerificationService.ts",
+          "params": [
+            "userId: number",
+            "email: string",
+            "name: string"
+          ],
+          "returns": "Promise<void>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "VerificationService.verifyAccount",
+          "file": "backend/src/services/VerificationService.ts",
+          "params": [
+            "email: string",
+            "code: string"
+          ],
+          "returns": "Promise<void>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "PasswordResetService.executeForgotPassword",
+          "file": "backend/src/services/PasswordResetService.ts",
+          "params": [
+            "email: string"
+          ],
+          "returns": "Promise<void>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "PasswordResetService.executeResetPassword",
+          "file": "backend/src/services/PasswordResetService.ts",
+          "params": [
+            "email: string",
+            "code: string",
+            "newPassword: string"
+          ],
+          "returns": "Promise<void>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "AuthMiddleware",
+          "file": "backend/src/middlewares/AuthMiddleware.ts",
+          "params": [
+            "req: Request",
+            "res: Response",
+            "next: NextFunction"
+          ],
+          "returns": "Response | next()",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "restoreSessionSnapshot",
+          "file": "frontend/src/app/AuthProvider.tsx",
+          "params": [],
+          "returns": "Promise<RestoredSession | null>",
+          "confidence": "confirmed"
+        }
+      ],
+      "entities": [
+        {
+          "name": "User",
+          "fields": [
+            { "name": "id", "type": "Int", "required": true },
+            { "name": "email", "type": "String", "required": true },
+            { "name": "name", "type": "String", "required": true },
+            { "name": "passwordHash", "type": "String", "required": true },
+            { "name": "emailVerifiedAt", "type": "DateTime?", "required": false },
+            { "name": "type", "type": "UserType", "required": true }
+          ],
+          "confidence": "confirmed"
+        },
+        {
+          "name": "RefreshToken",
+          "fields": [
+            { "name": "id", "type": "String", "required": true },
+            { "name": "userId", "type": "Int", "required": true },
+            { "name": "expiresIn", "type": "Int", "required": true },
+            { "name": "createdAt", "type": "DateTime", "required": true }
+          ],
+          "confidence": "confirmed"
+        },
+        {
+          "name": "PasswordResetToken",
+          "fields": [
+            { "name": "id", "type": "String", "required": true },
+            { "name": "code", "type": "String", "required": true },
+            { "name": "userId", "type": "Int", "required": true },
+            { "name": "expiresAt", "type": "DateTime", "required": true },
+            { "name": "used", "type": "Boolean", "required": true }
+          ],
+          "confidence": "confirmed"
+        },
+        {
+          "name": "AccountVerificationToken",
+          "fields": [
+            { "name": "id", "type": "String", "required": true },
+            { "name": "code", "type": "String", "required": true },
+            { "name": "userId", "type": "Int", "required": true },
+            { "name": "expiresAt", "type": "DateTime", "required": true }
+          ],
+          "confidence": "confirmed"
+        },
+        {
+          "name": "AuthResponse",
+          "fields": [
+            { "name": "user", "type": "AuthUser", "required": true },
+            { "name": "token", "type": "string", "required": true },
+            { "name": "refreshToken", "type": "string", "required": true },
+            { "name": "dashboardCache", "type": "DashboardCacheEntry[]", "required": false }
+          ],
+          "confidence": "confirmed"
+        }
+      ],
+      "business_rules": [
+        {
+          "description": "Registro exige nome com mínimo de 3 caracteres, e-mail válido e senha com mínimo de 6 caracteres.",
+          "location": "backend/src/controllers/AuthController.ts:13",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Novo usuário não recebe tokens até verificar o e-mail.",
+          "location": "backend/src/services/AuthService.ts:28",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Registro cria workspace pessoal e membership OWNER em transação atômica.",
+          "location": "backend/src/repositories/UserRepository.ts:6",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Login exige emailVerifiedAt preenchido antes de comparar senha e emitir tokens.",
+          "location": "backend/src/services/AuthService.ts:60",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Access token expira em 15 minutos.",
+          "location": "backend/src/services/AuthService.ts:189",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Refresh token expira em 30 dias e é rotacionado a cada uso.",
+          "location": "backend/src/services/AuthService.ts:139",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Usuário ACCOUNTANT recebe dashboardCache no login e em /auth/me.",
+          "location": "backend/src/services/AuthService.ts:84",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Código de verificação de conta tem 6 dígitos e expira em 24 horas.",
+          "location": "backend/src/services/VerificationService.ts:15",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Código de recuperação de senha tem 6 dígitos e expira em 15 minutos.",
+          "location": "backend/src/services/PasswordResetService.ts:17",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Reset de senha invalida todos os refresh tokens do usuário.",
+          "location": "backend/src/services/PasswordResetService.ts:53",
+          "confidence": "confirmed"
+        }
+      ],
+      "dependencies": [
+        "workspaces",
+        "accountant",
+        "rbac-rls",
+        "frontend-shell",
+        "email-provider"
+      ],
+      "algorithms": [
+        {
+          "name": "OTP de 6 dígitos",
+          "description": "Gera código com Math.floor(100000 + Math.random() * 900000).toString().",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "Rotação de refresh token",
+          "description": "Cada refresh válido apaga o refresh token usado e persiste novo refresh token.",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "Filtro de dashboard cache por workspace esperado",
+          "description": "Usa Set de workspace IDs esperados para remover cache obsoleto e validar completude.",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "Fila de refresh token no Axios",
+          "description": "Requests que recebem 401 durante refresh aguardam em failedQueue e são reexecutadas com o novo token.",
+          "confidence": "confirmed"
+        }
+      ],
+      "complexity": "high"
+    },
+    {
+      "name": "workspaces",
+      "path": "backend/src/controllers/WorkspaceController.ts; backend/src/services/WorkspaceService.ts; frontend/src/features/workspaces",
+      "purpose": "Gestao de workspaces, memberships, convites, isolamento de contexto por workspace e upload de certificado A1.",
+      "primary_files": [
+        "backend/src/controllers/WorkspaceController.ts",
+        "backend/src/services/WorkspaceService.ts",
+        "backend/src/repositories/WorkspaceRepository.ts",
+        "backend/src/middlewares/WorkspaceMiddleware.ts",
+        "backend/src/middlewares/RbacMiddleware.ts",
+        "backend/src/controllers/InviteController.ts",
+        "backend/src/services/InviteService.ts",
+        "backend/src/services/CertificateService.ts",
+        "backend/src/providers/IStorageProvider.ts",
+        "backend/src/providers/S3StorageProvider.ts",
+        "frontend/src/features/workspaces/context/WorkspaceProvider.tsx",
+        "frontend/src/shared/stores/useWorkspaceStore.ts",
+        "frontend/src/features/workspaces/components/CreateWorkspaceForm.tsx",
+        "frontend/src/features/workspaces/components/CertificateUploadSection.tsx",
+        "frontend/src/features/workspaces/routes/TeamSettingsPage.tsx",
+        "frontend/src/features/workspaces/hooks/useCreateWorkspace.ts",
+        "frontend/src/features/workspaces/hooks/useTeamSettings.ts",
+        "frontend/src/features/workspaces/hooks/useUploadCertificate.ts",
+        "frontend/src/features/workspaces/types/index.ts"
+      ],
+      "functions": [
+        {
+          "name": "WorkspaceService.create",
+          "file": "backend/src/services/WorkspaceService.ts",
+          "params": [
+            "payload: CreateWorkspaceDTO",
+            "userId: number"
+          ],
+          "returns": "Promise<Workspace>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "WorkspaceService.list",
+          "file": "backend/src/services/WorkspaceService.ts",
+          "params": [
+            "userId: number"
+          ],
+          "returns": "Promise<Workspace[]>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "WorkspaceService.update",
+          "file": "backend/src/services/WorkspaceService.ts",
+          "params": [
+            "id: number",
+            "name: string",
+            "type: WorkspaceType",
+            "userId: number"
+          ],
+          "returns": "Promise<Workspace>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "WorkspaceService.uploadCertificate",
+          "file": "backend/src/services/WorkspaceService.ts",
+          "params": [
+            "workspaceId: number",
+            "userId: number",
+            "reqWorkspaceId: number",
+            "fileBuffer: Buffer",
+            "password: string"
+          ],
+          "returns": "Promise<{ workspaceId: number; certificateExpiresAt: Date; expiresInDays: number; alertLevel: string }>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "WorkspaceMiddleware",
+          "file": "backend/src/middlewares/WorkspaceMiddleware.ts",
+          "params": [
+            "req: Request",
+            "res: Response",
+            "next: NextFunction"
+          ],
+          "returns": "Response | next()",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "InviteService.createInvite",
+          "file": "backend/src/services/InviteService.ts",
+          "params": [
+            "workspaceId: number",
+            "inviterId: number",
+            "emailToInvite: string",
+            "role: WorkspaceRole"
+          ],
+          "returns": "Promise<WorkspaceInvite>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "InviteService.acceptInvite",
+          "file": "backend/src/services/InviteService.ts",
+          "params": [
+            "token: string",
+            "acceptingUserId: number"
+          ],
+          "returns": "Promise<WorkspaceMember>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "InviteService.removeMember",
+          "file": "backend/src/services/InviteService.ts",
+          "params": [
+            "workspaceId: number",
+            "requestingUserId: number",
+            "targetUserId: number"
+          ],
+          "returns": "Promise<{ message: string; removedUserId: number }>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "CertificateService.parseAndExtractValidity",
+          "file": "backend/src/services/CertificateService.ts",
+          "params": [
+            "buffer: Buffer",
+            "password: string"
+          ],
+          "returns": "CertificateValidityInfo",
+          "confidence": "confirmed"
+        }
+      ],
+      "entities": [
+        {
+          "name": "Workspace",
+          "fields": [
+            { "name": "id", "type": "Int", "required": true },
+            { "name": "name", "type": "String", "required": true },
+            { "name": "type", "type": "WorkspaceType", "required": true },
+            { "name": "taxRate", "type": "Decimal(5,2)", "required": true },
+            { "name": "document", "type": "String?", "required": false },
+            { "name": "documentType", "type": "DocumentType?", "required": false },
+            { "name": "cnae", "type": "String?", "required": false },
+            { "name": "closedUntil", "type": "DateTime?", "required": false },
+            { "name": "certificateObjectKey", "type": "String?", "required": false },
+            { "name": "certificateExpiresAt", "type": "DateTime?", "required": false }
+          ],
+          "confidence": "confirmed"
+        },
+        {
+          "name": "WorkspaceMember",
+          "fields": [
+            { "name": "id", "type": "Int", "required": true },
+            { "name": "userId", "type": "Int", "required": true },
+            { "name": "workspaceId", "type": "Int", "required": true },
+            { "name": "role", "type": "WorkspaceRole", "required": true },
+            { "name": "joinedAt", "type": "DateTime", "required": true }
+          ],
+          "confidence": "confirmed"
+        },
+        {
+          "name": "WorkspaceInvite",
+          "fields": [
+            { "name": "id", "type": "String", "required": true },
+            { "name": "email", "type": "String", "required": true },
+            { "name": "role", "type": "WorkspaceRole", "required": true },
+            { "name": "token", "type": "String", "required": true },
+            { "name": "status", "type": "InviteStatus", "required": true },
+            { "name": "workspaceId", "type": "Int", "required": true },
+            { "name": "inviterId", "type": "Int", "required": true },
+            { "name": "expiresAt", "type": "DateTime", "required": true }
+          ],
+          "confidence": "confirmed"
+        },
+        {
+          "name": "CertificateUploadResponse",
+          "fields": [
+            { "name": "workspaceId", "type": "number", "required": true },
+            { "name": "certificateExpiresAt", "type": "Date|string", "required": true },
+            { "name": "expiresInDays", "type": "number", "required": true },
+            { "name": "alertLevel", "type": "'ok' | 'warning' | 'expired'", "required": true }
+          ],
+          "confidence": "confirmed"
+        }
+      ],
+      "business_rules": [
+        {
+          "description": "Criacao de workspace tambem cria membership OWNER para o usuario criador.",
+          "location": "backend/src/services/WorkspaceService.ts:40",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Tax rate pode ser inferido por prefixo de CNAE para BUSINESS.",
+          "location": "backend/src/services/WorkspaceService.ts:40",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Rotas com WorkspaceMiddleware exigem x-workspace-id e membership do usuario.",
+          "location": "backend/src/middlewares/WorkspaceMiddleware.ts:5",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "ACCOUNTANT e bloqueado em workspace PERSONAL.",
+          "location": "backend/src/middlewares/WorkspaceMiddleware.ts:5",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Convites so podem ser criados por OWNER, nao duplicam convite PENDING e expiram em 7 dias.",
+          "location": "backend/src/services/InviteService.ts:9",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Aceite de convite exige double handshake por e-mail do usuario logado.",
+          "location": "backend/src/services/InviteService.ts:114",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Remocao de membro exige OWNER e bloqueia auto-remocao.",
+          "location": "backend/src/services/InviteService.ts:230",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Upload de certificado A1 exige .pfx/.p12, senha, workspace coerente e storage seguro.",
+          "location": "backend/src/services/WorkspaceService.ts:124",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Certificado antigo so e apagado depois do novo ser persistido com sucesso.",
+          "location": "backend/src/services/WorkspaceService.ts:124",
+          "confidence": "confirmed"
+        }
+      ],
+      "dependencies": [
+        "auth",
+        "rbac-rls",
+        "accountant",
+        "external-data",
+        "uploads-storage",
+        "frontend-shell"
+      ],
+      "algorithms": [
+        {
+          "name": "Inferencia fiscal por CNAE",
+          "description": "Remove caracteres nao numericos do CNAE e aplica aliquotas por prefixos 620, 6911, 7112 e 5320.",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "Double handshake de convite",
+          "description": "Aceite cruza token persistido, status/expiracao e e-mail do usuario logado.",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "Selecao de certificado leaf",
+          "description": "Seleciona certificado nao-CA por basicConstraints quando possivel.",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "Upload A1 com troca segura",
+          "description": "Faz upload do novo objeto, persiste metadata, atualiza cache best effort e so entao apaga certificado antigo.",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "SSE-C para vault",
+          "description": "Deriva chave AES256 de VAULT_MASTER_KEY por SHA-256 e calcula MD5 para headers SSE-C.",
+          "confidence": "confirmed"
+        }
+      ],
+      "complexity": "high"
+    },
+    {
+      "name": "rbac-rls",
+      "path": "backend/src/middlewares; backend/src/lib/prisma.ts; backend/prisma/migrations",
+      "purpose": "Autenticacao de request, autorizacao por role, isolamento multi-tenant por workspace, tenant context e enforcement RLS no PostgreSQL.",
+      "primary_files": [
+        "backend/src/middlewares/AuthMiddleware.ts",
+        "backend/src/middlewares/WorkspaceMiddleware.ts",
+        "backend/src/middlewares/RbacMiddleware.ts",
+        "backend/src/lib/tenantContext.ts",
+        "backend/src/lib/prisma.ts",
+        "backend/src/lib/checkEnvironment.ts",
+        "backend/src/@types/express.d.ts",
+        "backend/prisma/migrations/20260310203000_enable_rls_multi_tenant/migration.sql",
+        "backend/prisma/migrations/20260413052239_optimize_rls_and_statistics/migration.sql",
+        "backend/src/test/prisma-test-clients.ts",
+        "backend/src/test/setup-test-role.ts",
+        "backend/src/test/test-role-config.ts",
+        "backend/src/test/transaction-proxy.ts"
+      ],
+      "functions": [
+        {
+          "name": "AuthMiddleware",
+          "file": "backend/src/middlewares/AuthMiddleware.ts",
+          "params": [
+            "req: Request",
+            "res: Response",
+            "next: NextFunction"
+          ],
+          "returns": "Response | next()",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "WorkspaceMiddleware",
+          "file": "backend/src/middlewares/WorkspaceMiddleware.ts",
+          "params": [
+            "req: Request",
+            "res: Response",
+            "next: NextFunction"
+          ],
+          "returns": "Response | next()",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "RbacMiddleware",
+          "file": "backend/src/middlewares/RbacMiddleware.ts",
+          "params": [
+            "requiredRole: WorkspaceRole"
+          ],
+          "returns": "Express middleware",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "checkPrivileges",
+          "file": "backend/src/lib/checkEnvironment.ts",
+          "params": [
+            "prismaClient: PrismaClient"
+          ],
+          "returns": "Promise<void>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "withTestWorkspace",
+          "file": "backend/src/test/prisma-test-clients.ts",
+          "params": [
+            "workspaceId: string",
+            "callback: () => Promise<T>"
+          ],
+          "returns": "Promise<T>",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "withEphemeralTransaction",
+          "file": "backend/src/test/transaction-proxy.ts",
+          "params": [
+            "testFn: (tx) => Promise<void>",
+            "workspaceId?: string"
+          ],
+          "returns": "Promise<void>",
+          "confidence": "confirmed"
+        }
+      ],
+      "entities": [
+        {
+          "name": "TenantContext",
+          "fields": [
+            { "name": "currentWorkspaceId", "type": "number", "required": false },
+            { "name": "userRole", "type": "string", "required": false },
+            { "name": "workspaceType", "type": "string", "required": false },
+            { "name": "bypassRls", "type": "boolean", "required": false },
+            { "name": "inTransaction", "type": "boolean", "required": false }
+          ],
+          "confidence": "confirmed"
+        },
+        {
+          "name": "Express.Request auth context",
+          "fields": [
+            { "name": "user.id", "type": "number", "required": true },
+            { "name": "workspaceId", "type": "number", "required": false }
+          ],
+          "confidence": "confirmed"
+        },
+        {
+          "name": "RoleHierarchy",
+          "fields": [
+            { "name": "VIEWER", "type": "1", "required": true },
+            { "name": "EDITOR", "type": "2", "required": true },
+            { "name": "ACCOUNTANT", "type": "2.5", "required": true },
+            { "name": "OWNER", "type": "3", "required": true }
+          ],
+          "confidence": "confirmed"
+        },
+        {
+          "name": "RLSProtectedTables",
+          "fields": [
+            { "name": "Transaction", "type": "workspaceId policy", "required": true },
+            { "name": "Account", "type": "workspaceId policy", "required": true },
+            { "name": "Category", "type": "workspaceId nullable/global read policy", "required": true },
+            { "name": "BankMovement", "type": "workspaceId policy", "required": true }
+          ],
+          "confidence": "confirmed"
+        }
+      ],
+      "business_rules": [
+        {
+          "description": "JWT valido injeta req.user.id a partir do subject.",
+          "location": "backend/src/middlewares/AuthMiddleware.ts:9",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "WorkspaceMiddleware exige x-workspace-id numerico e membership do usuario.",
+          "location": "backend/src/middlewares/WorkspaceMiddleware.ts:5",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "ACCOUNTANT nao pode acessar workspace PERSONAL.",
+          "location": "backend/src/middlewares/WorkspaceMiddleware.ts:39",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "RbacMiddleware compara roleHierarchy e bloqueia quando a role e inferior a requerida.",
+          "location": "backend/src/middlewares/RbacMiddleware.ts:6",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Prisma extended client injeta app.current_workspace_id antes de queries sob tenant context.",
+          "location": "backend/src/lib/prisma.ts:25",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Runtime deve falhar se current_user tiver rolsuper ou rolbypassrls.",
+          "location": "backend/src/lib/checkEnvironment.ts:3",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "Policies RLS isolam Transaction, Account, Category e BankMovement por workspaceId.",
+          "location": "backend/prisma/migrations/20260413052239_optimize_rls_and_statistics/migration.sql",
+          "confidence": "confirmed"
+        }
+      ],
+      "dependencies": [
+        "auth",
+        "workspaces",
+        "finance-core",
+        "bank-movements",
+        "accountant",
+        "uploads-storage"
+      ],
+      "algorithms": [
+        {
+          "name": "Tenant context propagation",
+          "description": "AsyncLocalStorage carrega currentWorkspaceId/userRole/workspaceType na cadeia async do request.",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "RLS context injection",
+          "description": "Prisma extension executa SELECT set_config('app.current_workspace_id', workspaceId, true) antes das queries.",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "RBAC numeric hierarchy",
+          "description": "Roles sao comparadas por niveis numericos VIEWER=1, EDITOR=2, ACCOUNTANT=2.5, OWNER=3.",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "Restricted test role derivation",
+          "description": "URL de teste troca usuario/senha para wsp_test_user/wsp_test_password e valida NOSUPERUSER/NOBYPASSRLS.",
+          "confidence": "confirmed"
+        }
+      ],
+      "complexity": "high"
+    },
+    {
+      "name": "finance-core",
+      "path": "backend/src/controllers/{Account,Category,Transaction,Dashboard,Bridge}Controller.ts; backend/src/services/{Account,Category,Transaction,Dashboard,Bridge,AuditLog}Service.ts; frontend/src/features/{transactions,dashboard}",
+      "purpose": "Contas, categorias, transacoes, saldo, dashboard financeiro, auditoria monetaria e bridge entre workspaces.",
+      "primary_files": [
+        "backend/src/controllers/AccountController.ts",
+        "backend/src/services/AccountService.ts",
+        "backend/src/controllers/CategoryController.ts",
+        "backend/src/services/CategoryService.ts",
+        "backend/src/controllers/TransactionController.ts",
+        "backend/src/services/TransactionService.ts",
+        "backend/src/controllers/DashboardController.ts",
+        "backend/src/services/DashboardService.ts",
+        "backend/src/controllers/BridgeController.ts",
+        "backend/src/services/BridgeService.ts",
+        "backend/src/services/AuditLogService.ts",
+        "frontend/src/features/transactions/hooks/useTransactions.ts",
+        "frontend/src/features/dashboard/hooks/useDashboard.ts"
+      ],
+      "functions": [
+        { "name": "TransactionService.create", "file": "backend/src/services/TransactionService.ts", "params": ["CreateTransactionDTO"], "returns": "Promise<Transaction>", "confidence": "confirmed" },
+        { "name": "TransactionService.delete", "file": "backend/src/services/TransactionService.ts", "params": ["id: string", "workspaceId: number", "userId: number"], "returns": "Promise<void>", "confidence": "confirmed" },
+        { "name": "DashboardService.getSummary", "file": "backend/src/services/DashboardService.ts", "params": ["workspaceId: number", "month?: number", "year?: number"], "returns": "Promise<DashboardSummary>", "confidence": "confirmed" },
+        { "name": "BridgeService.executeTransfer", "file": "backend/src/services/BridgeService.ts", "params": ["BridgeTransferDTO", "userId: number"], "returns": "Promise<BridgeTransferResult>", "confidence": "confirmed" }
+      ],
+      "entities": [
+        { "name": "Account", "fields": [{ "name": "id", "type": "Int", "required": true }, { "name": "balance", "type": "Decimal(19,4)", "required": true }, { "name": "workspaceId", "type": "Int", "required": true }], "confidence": "confirmed" },
+        { "name": "Category", "fields": [{ "name": "id", "type": "Int", "required": true }, { "name": "workspaceId", "type": "Int?", "required": false }], "confidence": "confirmed" },
+        { "name": "Transaction", "fields": [{ "name": "id", "type": "String UUID", "required": true }, { "name": "amount", "type": "Decimal(19,4)", "required": true }, { "name": "workspaceId", "type": "Int", "required": true }], "confidence": "confirmed" },
+        { "name": "AuditLog", "fields": [{ "name": "action", "type": "AuditAction", "required": true }, { "name": "delta", "type": "Decimal?", "required": false }], "confidence": "confirmed" }
+      ],
+      "business_rules": [
+        { "description": "Transacao paga atualiza saldo no mesmo prisma.$transaction.", "location": "backend/src/services/TransactionService.ts", "confidence": "confirmed" },
+        { "description": "Periodo fiscal fechado bloqueia mudancas, exceto ACCOUNTANT em BUSINESS.", "location": "backend/src/services/TransactionService.ts; backend/src/services/BridgeService.ts", "confidence": "confirmed" },
+        { "description": "Bridge exige OWNER ou ACCOUNTANT nos dois workspaces e saldo suficiente.", "location": "backend/src/services/BridgeService.ts", "confidence": "confirmed" }
+      ],
+      "dependencies": ["auth", "workspaces", "rbac-rls", "uploads-storage", "accountant"],
+      "algorithms": [
+        { "name": "Marketplace net calculation", "description": "Calcula fee, imposto, netValue e valor que impacta saldo.", "confidence": "confirmed" },
+        { "name": "Balance audit transaction", "description": "Grava saldos antes/depois e delta junto da mutacao financeira.", "confidence": "confirmed" }
+      ],
+      "complexity": "high"
+    },
+    {
+      "name": "uploads-storage",
+      "path": "backend/src/controllers/UploadController.ts; backend/src/services/UploadService.ts; backend/src/providers; frontend/src/services/uploadCloudflare.ts; frontend/src/features/transactions",
+      "purpose": "Presigned uploads, quota de anexos, Cloudflare R2/S3, fallback local, SSE-C para vault e visualizacao assinada de anexos.",
+      "primary_files": [
+        "backend/src/controllers/UploadController.ts",
+        "backend/src/services/UploadService.ts",
+        "backend/src/providers/IStorageProvider.ts",
+        "backend/src/providers/S3StorageProvider.ts",
+        "backend/src/providers/LocalStorageProvider.ts",
+        "frontend/src/services/uploadCloudflare.ts",
+        "frontend/src/features/transactions/hooks/useAttachment.ts",
+        "frontend/src/features/transactions/components/AttachmentPreview.tsx"
+      ],
+      "functions": [
+        { "name": "UploadService.requestUpload", "file": "backend/src/services/UploadService.ts", "params": ["fileName", "contentType", "workspaceId", "folderType", "fileSize"], "returns": "Promise<PresignedResponse>", "confidence": "confirmed" },
+        { "name": "UploadService.getAttachmentSignedUrl", "file": "backend/src/services/UploadService.ts", "params": ["transactionId", "workspaceId", "userId"], "returns": "Promise<SignedAttachmentResponse>", "confidence": "confirmed" },
+        { "name": "S3StorageProvider.generateUploadUrl", "file": "backend/src/providers/S3StorageProvider.ts", "params": ["filename", "contentType", "folderType?", "contentLength?"], "returns": "Promise<PresignedResponse>", "confidence": "confirmed" }
+      ],
+      "entities": [
+        { "name": "PresignedResponse", "fields": [{ "name": "uploadUrl", "type": "string", "required": true }, { "name": "publicUrl", "type": "string", "required": true }, { "name": "headers", "type": "Record<string,string>?", "required": false }], "confidence": "confirmed" }
+      ],
+      "business_rules": [
+        { "description": "Presigned upload tem teto de 10MB por arquivo e rate limit de 10/min por IP.", "location": "backend/src/routes.ts", "confidence": "confirmed" },
+        { "description": "Quota de anexos por workspace e 1GB somando Transaction.attachmentSize.", "location": "backend/src/services/UploadService.ts", "confidence": "confirmed" },
+        { "description": "Certificados/vault usam SSE-C derivado de VAULT_MASTER_KEY.", "location": "backend/src/providers/S3StorageProvider.ts", "confidence": "confirmed" }
+      ],
+      "dependencies": ["auth", "workspaces", "rbac-rls", "finance-core"],
+      "algorithms": [
+        { "name": "Storage object key", "description": "workspaces/{workspaceId}/{folder}/{yyyy-mm}/{date}_{folder}_{hash}.{ext}; vault para certificados.", "confidence": "confirmed" },
+        { "name": "Signed attachment view", "description": "Valida posse da transacao, audita ATTACHMENT_VIEW e retorna GET assinado de 5 minutos.", "confidence": "confirmed" }
+      ],
+      "complexity": "high"
+    },
+    {
+      "name": "imports-open-finance",
+      "path": "backend/src/controllers/{Import,OpenFinanceWebhook}Controller.ts; backend/src/services/{Import,OpenFinanceWebhook,FinancialIngestionEngine}Service.ts",
+      "purpose": "Importacao OFX e ingestao Open Finance para staging BankMovement.",
+      "primary_files": [
+        "backend/src/controllers/ImportController.ts",
+        "backend/src/services/ImportService.ts",
+        "backend/src/controllers/OpenFinanceWebhookController.ts",
+        "backend/src/services/OpenFinanceWebhookService.ts",
+        "backend/src/services/FinancialIngestionEngine.ts"
+      ],
+      "functions": [
+        { "name": "ImportService.importOFX", "file": "backend/src/services/ImportService.ts", "params": ["filePath", "workspaceId", "accountId"], "returns": "Promise<IngestResult>", "confidence": "confirmed" },
+        { "name": "OpenFinanceWebhookService.ingest", "file": "backend/src/services/OpenFinanceWebhookService.ts", "params": ["OpenFinanceWebhookPayload"], "returns": "Promise<IngestResult>", "confidence": "confirmed" },
+        { "name": "FinancialIngestionEngine.ingest", "file": "backend/src/services/FinancialIngestionEngine.ts", "params": ["source", "payload", "workspaceId", "accountId"], "returns": "Promise<IngestResult>", "confidence": "confirmed" }
+      ],
+      "entities": [
+        { "name": "IngestResult", "fields": [{ "name": "imported", "type": "number", "required": true }, { "name": "duplicates", "type": "number", "required": true }, { "name": "failed", "type": "number", "required": true }], "confidence": "confirmed" }
+      ],
+      "business_rules": [
+        { "description": "OFX aceita apenas caminho .ofx sem '..'.", "location": "backend/src/services/ImportService.ts", "confidence": "confirmed" },
+        { "description": "Webhook Open Finance exige Bearer token.", "location": "backend/src/services/OpenFinanceWebhookService.ts", "confidence": "confirmed" },
+        { "description": "Ingestao cria BankMovement PENDING em chunks de 50 com skipDuplicates.", "location": "backend/src/services/FinancialIngestionEngine.ts", "confidence": "confirmed" }
+      ],
+      "dependencies": ["bank-movements", "rbac-rls", "finance-core"],
+      "algorithms": [
+        { "name": "UTC date normalization", "description": "Converte OFX YYYYMMDD/ISO para Date UTC truncada no dia.", "confidence": "confirmed" },
+        { "name": "Hash deduplication", "description": "SHA-256 de data UTC + valor + descricao.", "confidence": "confirmed" }
+      ],
+      "complexity": "high"
+    },
+    {
+      "name": "bank-movements",
+      "path": "backend/src/controllers/BankMovementController.ts; backend/src/services/BankMovementService.ts; frontend/src/features/accountant",
+      "purpose": "Staging de movimentos bancarios, inbox de aprovacao, merge, approve/reject e deduplicacao fuzzy.",
+      "primary_files": [
+        "backend/src/controllers/BankMovementController.ts",
+        "backend/src/services/BankMovementService.ts",
+        "backend/src/repositories/BankMovementRepository.ts",
+        "backend/src/services/FuzzyDeduplicationService.ts",
+        "frontend/src/features/accountant/api/bankMovements.ts",
+        "frontend/src/features/accountant/routes/ApprovalInboxPage.tsx"
+      ],
+      "functions": [
+        { "name": "BankMovementService.listPending", "file": "backend/src/services/BankMovementService.ts", "params": ["workspaceId", "cursor?", "limit?"], "returns": "Promise<PaginatedMovements>", "confidence": "confirmed" },
+        { "name": "BankMovementService.approve", "file": "backend/src/services/BankMovementService.ts", "params": ["ApproveDTO"], "returns": "Promise<Transaction | alreadyApproved>", "confidence": "confirmed" },
+        { "name": "FuzzyDeduplicationService.findCandidates", "file": "backend/src/services/FuzzyDeduplicationService.ts", "params": ["FuzzySearchParams"], "returns": "Promise<FuzzyCandidate[]>", "confidence": "confirmed" }
+      ],
+      "entities": [
+        { "name": "BankMovement", "fields": [{ "name": "id", "type": "String UUID", "required": true }, { "name": "status", "type": "MovementStatus", "required": true }, { "name": "rawPayload", "type": "Json", "required": true }], "confidence": "confirmed" }
+      ],
+      "business_rules": [
+        { "description": "Approve converte PENDING em Transaction paga, atualiza saldo e audita.", "location": "backend/src/services/BankMovementService.ts", "confidence": "confirmed" },
+        { "description": "Merge exige todos movimentos PENDING e mesmo workspace.", "location": "backend/src/services/BankMovementService.ts", "confidence": "confirmed" },
+        { "description": "Fuzzy dedup ignora valores menores que R$ 1,00 e usa janela de +/- 2 horas.", "location": "backend/src/services/FuzzyDeduplicationService.ts", "confidence": "confirmed" }
+      ],
+      "dependencies": ["imports-open-finance", "finance-core", "accountant", "rbac-rls"],
+      "algorithms": [
+        { "name": "Global accountant pagination", "description": "Consulta cada workspace com set_config, unifica, ordena e pagina em memoria.", "confidence": "confirmed" },
+        { "name": "Dual-mode fuzzy dedup", "description": "pg_trgm similarity com fallback LIKE/LOWER + Jaccard.", "confidence": "confirmed" }
+      ],
+      "complexity": "high"
+    },
+    {
+      "name": "accountant",
+      "path": "backend/src/services/AccountantCacheService.ts; frontend/src/features/accountant",
+      "purpose": "Persona contador, cache de dashboard por cliente, hub, convites e inbox global.",
+      "primary_files": [
+        "backend/src/services/AccountantCacheService.ts",
+        "backend/src/repositories/AccountantCacheRepository.ts",
+        "frontend/src/features/accountant/routes/AccountantHubPage.tsx",
+        "frontend/src/features/accountant/routes/InviteInboxPage.tsx",
+        "frontend/src/features/accountant/routes/ApprovalInboxPage.tsx",
+        "frontend/src/features/accountant/components/CertificateAlertBadge.tsx"
+      ],
+      "functions": [
+        { "name": "AccountantCacheService.refreshCache", "file": "backend/src/services/AccountantCacheService.ts", "params": ["userId"], "returns": "Promise<RefreshCacheResult>", "confidence": "confirmed" },
+        { "name": "AccountantCacheService.getCachedDashboard", "file": "backend/src/services/AccountantCacheService.ts", "params": ["userId"], "returns": "Promise<AccountantDashboardCache[]>", "confidence": "confirmed" }
+      ],
+      "entities": [
+        { "name": "AccountantDashboardCache", "fields": [{ "name": "userId", "type": "Int", "required": true }, { "name": "workspaceId", "type": "Int", "required": true }, { "name": "pendingMovements", "type": "Int", "required": true }, { "name": "cashRiskAlert", "type": "Boolean", "required": true }], "confidence": "confirmed" }
+      ],
+      "business_rules": [
+        { "description": "Cache refresh processa workspaces em lotes de 5.", "location": "backend/src/services/AccountantCacheService.ts", "confidence": "confirmed" },
+        { "description": "Hub do contador limpa workspace ativo e usa dashboardCache para pendencias.", "location": "frontend/src/features/accountant/routes/AccountantHubPage.tsx", "confidence": "confirmed" }
+      ],
+      "dependencies": ["auth", "workspaces", "bank-movements", "frontend-shell"],
+      "algorithms": [
+        { "name": "Materialized dashboard cache", "description": "Agrega pendencias, anexos faltantes, saldo total e certificado por workspace.", "confidence": "confirmed" }
+      ],
+      "complexity": "medium"
+    },
+    {
+      "name": "external-data",
+      "path": "backend/src/infra/external; frontend/src/features/workspaces/hooks/useExternalData.ts",
+      "purpose": "Consulta CNPJ/CEP com cache, circuit breaker e fallback para preencher dados de workspace.",
+      "primary_files": [
+        "backend/src/controllers/ExternalDataController.ts",
+        "backend/src/infra/external/ExternalDataService.ts",
+        "backend/src/infra/external/BrasilApiClient.ts",
+        "backend/src/infra/external/ReceitaWsClient.ts",
+        "backend/src/infra/external/ViaCepClient.ts",
+        "frontend/src/features/workspaces/hooks/useExternalData.ts",
+        "frontend/src/features/workspaces/components/CreateWorkspaceForm.tsx"
+      ],
+      "functions": [
+        { "name": "ExternalDataService.fetchCep", "file": "backend/src/infra/external/ExternalDataService.ts", "params": ["cep"], "returns": "Promise<{ address; metadata }>", "confidence": "confirmed" },
+        { "name": "ExternalDataService.fetchCnpj", "file": "backend/src/infra/external/ExternalDataService.ts", "params": ["cnpj"], "returns": "Promise<CnpjResult>", "confidence": "confirmed" }
+      ],
+      "entities": [
+        { "name": "ExternalMetadata", "fields": [{ "name": "provider", "type": "string", "required": true }, { "name": "cached", "type": "boolean", "required": true }], "confidence": "confirmed" }
+      ],
+      "business_rules": [
+        { "description": "Cache externo tem TTL de 24 horas.", "location": "backend/src/infra/external/ExternalDataService.ts", "confidence": "confirmed" },
+        { "description": "CEP cai de BrasilAPI para ViaCEP; CNPJ cai de BrasilAPI para ReceitaWS.", "location": "backend/src/infra/external/ExternalDataService.ts", "confidence": "confirmed" }
+      ],
+      "dependencies": ["workspaces", "frontend-shell"],
+      "algorithms": [
+        { "name": "Circuit breaker external lookup", "description": "Timeout 5s, 50% error threshold e reset 30s com fallback por provider.", "confidence": "confirmed" }
+      ],
+      "complexity": "medium"
+    },
+    {
+      "name": "frontend-shell",
+      "path": "frontend/src/main.tsx; frontend/src/App.tsx; frontend/src/app; frontend/src/shared",
+      "purpose": "Bootstrap React, roteamento, autenticacao, workspace header, query client, stores e layout por persona.",
+      "primary_files": [
+        "frontend/src/main.tsx",
+        "frontend/src/App.tsx",
+        "frontend/src/app/AuthProvider.tsx",
+        "frontend/src/shared/lib/axios.ts",
+        "frontend/src/shared/lib/react-query.ts",
+        "frontend/src/shared/stores/useWorkspaceStore.ts",
+        "frontend/src/shared/components/guards/WorkspaceGuard.tsx",
+        "frontend/src/shared/components/layout/AppLayout.tsx",
+        "frontend/src/config/queryKeys.ts"
+      ],
+      "functions": [
+        { "name": "restoreSessionSnapshot", "file": "frontend/src/app/AuthProvider.tsx", "params": [], "returns": "Promise<RestoredSession | null>", "confidence": "confirmed" },
+        { "name": "PrivateRoute", "file": "frontend/src/App.tsx", "params": ["children"], "returns": "ReactNode", "confidence": "confirmed" },
+        { "name": "WorkspaceGuard", "file": "frontend/src/shared/components/guards/WorkspaceGuard.tsx", "params": [], "returns": "JSX.Element", "confidence": "confirmed" }
+      ],
+      "entities": [
+        { "name": "WorkspaceState", "fields": [{ "name": "activeWorkspaceId", "type": "number | null", "required": false }, { "name": "memberships", "type": "Membership[]", "required": true }, { "name": "isForbidden", "type": "boolean", "required": true }], "confidence": "confirmed" }
+      ],
+      "business_rules": [
+        { "description": "Axios deriva x-workspace-id da URL e suporta rota /accountant/inbox/:workspaceId.", "location": "frontend/src/shared/lib/axios.ts", "confidence": "confirmed" },
+        { "description": "401 dispara refresh token com fila para requests concorrentes.", "location": "frontend/src/shared/lib/axios.ts", "confidence": "confirmed" },
+        { "description": "WorkspaceGuard redireciona contador sem contexto para /accountant/hub.", "location": "frontend/src/shared/components/guards/WorkspaceGuard.tsx", "confidence": "confirmed" }
+      ],
+      "dependencies": ["auth", "workspaces", "accountant", "finance-core", "bank-movements"],
+      "algorithms": [
+        { "name": "Refresh queue", "description": "failedQueue aguarda novo access token e reexecuta requests originais.", "confidence": "confirmed" },
+        { "name": "URL as workspace source", "description": "Pathname determina x-workspace-id nas chamadas normais.", "confidence": "confirmed" }
+      ],
+      "complexity": "high"
+    }
+  ]
+}
