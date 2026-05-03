@@ -15,6 +15,7 @@ Use este modelo depois da implementacao e antes de considerar a issue concluida.
 - Objetivo original:
 - Arquivos alterados:
 - Artefatos Reversa consultados:
+- Matching Report:
 - Plano TDD usado:
 
 ## Achados
@@ -42,6 +43,7 @@ Liste achados por severidade. Se nao houver achados, declarar explicitamente.
 - [ ] A implementacao resolve a issue.
 - [ ] Nao ha escopo extra injustificado.
 - [ ] Testes cobrem o risco principal.
+- [ ] Riscos e bloqueios do Matching foram respeitados.
 - [ ] Backend/API/hook/UI continuam consistentes.
 - [ ] Prisma/Zod/OpenAPI/tipos frontend continuam alinhados.
 - [ ] RBAC/RLS/tenant context foram considerados.
