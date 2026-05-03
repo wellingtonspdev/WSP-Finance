@@ -1,0 +1,222 @@
+{
+  "generated_at": "2026-05-02T18:27:56-03:00",
+  "project_root": "C:\\Users\\Wellington\\Desktop\\WSP-Finance",
+  "languages": [
+    {
+      "name": "TypeScript",
+      "extensions": [
+        ".ts",
+        ".tsx"
+      ],
+      "file_count": 228
+    },
+    {
+      "name": "Markdown",
+      "extensions": [
+        ".md"
+      ],
+      "file_count": 65
+    },
+    {
+      "name": "SQL",
+      "extensions": [
+        ".sql"
+      ],
+      "file_count": 23
+    },
+    {
+      "name": "JavaScript",
+      "extensions": [
+        ".js",
+        ".mjs",
+        ".cjs"
+      ],
+      "file_count": 13
+    },
+    {
+      "name": "JSON",
+      "extensions": [
+        ".json"
+      ],
+      "file_count": 9
+    },
+    {
+      "name": "CSS",
+      "extensions": [
+        ".css"
+      ],
+      "file_count": 2
+    },
+    {
+      "name": "Prisma",
+      "extensions": [
+        ".prisma"
+      ],
+      "file_count": 1
+    },
+    {
+      "name": "YAML",
+      "extensions": [
+        ".yml",
+        ".yaml"
+      ],
+      "file_count": 4
+    }
+  ],
+  "primary_language": "TypeScript",
+  "frameworks": [
+    {
+      "name": "Express",
+      "version": "^4.21.2",
+      "source": "backend/package.json"
+    },
+    {
+      "name": "Prisma",
+      "version": "^6.2.1",
+      "source": "backend/package.json"
+    },
+    {
+      "name": "Vitest",
+      "version": "^4.0.18",
+      "source": "backend/package.json and frontend/package.json"
+    },
+    {
+      "name": "React",
+      "version": "^19.2.0",
+      "source": "frontend/package.json"
+    },
+    {
+      "name": "Vite",
+      "version": "^7.3.1",
+      "source": "frontend/package.json"
+    },
+    {
+      "name": "React Router",
+      "version": "^7.13.0",
+      "source": "frontend/package.json"
+    },
+    {
+      "name": "TanStack Query",
+      "version": "^5.90.21",
+      "source": "frontend/package.json"
+    },
+    {
+      "name": "Tailwind CSS",
+      "version": "^4.1.18",
+      "source": "frontend/package.json"
+    },
+    {
+      "name": "Playwright",
+      "version": "^1.58.2",
+      "source": "frontend/package.json"
+    }
+  ],
+  "package_manager": "pnpm",
+  "entry_points": [
+    {
+      "path": "backend/src/server.ts",
+      "type": "server_entry"
+    },
+    {
+      "path": "backend/src/routes.ts",
+      "type": "api_router"
+    },
+    {
+      "path": "backend/swagger.js",
+      "type": "swagger_generation"
+    },
+    {
+      "path": "backend/prisma/seed.ts",
+      "type": "database_seed"
+    },
+    {
+      "path": "frontend/src/main.tsx",
+      "type": "frontend_bootstrap"
+    },
+    {
+      "path": "frontend/src/App.tsx",
+      "type": "frontend_router"
+    },
+    {
+      "path": "frontend/index.html",
+      "type": "html_entry"
+    }
+  ],
+  "config_files": [
+    ".gitignore",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "GEMINI.md",
+    "sonar-project.properties",
+    "release-please-config.json",
+    "backend/.env.example",
+    "backend/package.json",
+    "backend/tsconfig.json",
+    "backend/vitest.config.mjs",
+    "backend/vitest.config.ts",
+    "backend/swagger.config.js",
+    "frontend/.env.example",
+    "frontend/package.json",
+    "frontend/tsconfig.json",
+    "frontend/tsconfig.app.json",
+    "frontend/tsconfig.node.json",
+    "frontend/vite.config.ts",
+    "frontend/vitest.config.mjs",
+    "frontend/playwright.config.ts",
+    "frontend/tailwind.config.js",
+    "frontend/eslint.config.js"
+  ],
+  "ci_cd": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/release-please.yml"
+  ],
+  "docker": {},
+  "database_hints": [
+    {
+      "path": "backend/prisma/schema.prisma",
+      "type": "prisma_schema"
+    },
+    {
+      "path": "backend/prisma/migrations/",
+      "type": "migrations_dir"
+    },
+    {
+      "path": "backend/prisma/seed.ts",
+      "type": "seed"
+    },
+    {
+      "path": "backend/archive/sql/",
+      "type": "sql_archive"
+    },
+    {
+      "path": "scripts/",
+      "type": "operational_sql"
+    }
+  ],
+  "test_framework": "Vitest + Playwright",
+  "test_file_count": 35,
+  "modules": [
+    "auth",
+    "workspaces",
+    "rbac-rls",
+    "finance-core",
+    "uploads-storage",
+    "imports-open-finance",
+    "bank-movements",
+    "accountant",
+    "external-data",
+    "frontend-shell"
+  ],
+  "external_integrations": [
+    "AWS S3 compatible storage",
+    "ReceitaWS",
+    "ViaCEP",
+    "BrasilAPI",
+    "Open Finance webhook",
+    "OFX import",
+    "Nodemailer/Ethereal",
+    "SonarCloud",
+    "Release Please"
+  ],
+  "total_files": 383
+}

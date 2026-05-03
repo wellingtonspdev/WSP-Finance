@@ -60,6 +60,27 @@ design_system.md
 .agpro-rules
 /.opencode
 /.codex/skills/wsp-finance-token-ops/
+.claude/
+
+# Reversa - versionar docs/processo, ignorar apenas dados locais/sensiveis
+# Intencionalmente versionados: AGENTS.md, .agents/skills/ e _reversa_sdd/
+.reversa/config.user.toml
+.reversa/logs/
+.reversa/**/logs/
+.reversa/tmp/
+.reversa/cache/
+.reversa/data/
+.reversa/local/
+.reversa/secrets/
+.reversa/**/*.log
+.reversa/**/*.env
+.reversa/**/*.db
+.reversa/**/*.sqlite
+.reversa/**/*.sqlite3
+.reversa/**/*.pem
+.reversa/**/*.key
+.reversa/**/*.pfx
+.reversa/**/*.p12
 
 # Reports (Temporários)
 relatorio-estado-wsp-finance.md
@@ -90,4 +111,3 @@ scripts/launch_ag.bat
 
 # Test output artifacts
 backend/vitest-result.txt
-

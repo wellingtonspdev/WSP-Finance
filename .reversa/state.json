@@ -1,0 +1,319 @@
+{
+  "version": "1.2.14",
+  "project": "WSP-Finance",
+  "user_name": "Wellington",
+  "chat_language": "pt-br",
+  "doc_language": "Português",
+  "answer_mode": "file",
+  "doc_level": "detalhado",
+  "output_folder": "_reversa_sdd",
+  "phase": "concluido",
+  "completed": [
+    "reconhecimento",
+    "escavacao",
+    "interpretacao",
+    "geracao",
+    "revisao"
+  ],
+  "pending": [],
+  "checkpoints": {
+    "scout": {
+      "completed_at": "2026-05-02T18:27:56-03:00",
+      "files": [
+        "_reversa_sdd/inventory.md",
+        "_reversa_sdd/dependencies.md",
+        ".reversa/context/surface.json"
+      ],
+      "summary": {
+        "primary_language": "TypeScript",
+        "frameworks": [
+          "Express",
+          "Prisma",
+          "React",
+          "Vite",
+          "Vitest",
+          "Playwright"
+        ],
+        "modules": [
+          "auth",
+          "workspaces",
+          "rbac-rls",
+          "finance-core",
+          "uploads-storage",
+          "imports-open-finance",
+          "bank-movements",
+          "accountant",
+          "external-data",
+          "frontend-shell"
+        ]
+      }
+    },
+    "archaeologist": {
+      "modules_analyzed": [
+        "auth",
+        "workspaces",
+        "rbac-rls",
+        "finance-core",
+        "uploads-storage",
+        "imports-open-finance",
+        "bank-movements",
+        "accountant",
+        "external-data",
+        "frontend-shell"
+      ],
+      "modules_pending": [],
+      "last_completed_at": "2026-05-03T05:35:00-03:00",
+      "files": [
+        "_reversa_sdd/code-analysis.md",
+        "_reversa_sdd/data-dictionary.md",
+        "_reversa_sdd/flowcharts/auth.md",
+        "_reversa_sdd/flowcharts/auth-register.md",
+        "_reversa_sdd/flowcharts/auth-authenticate.md",
+        "_reversa_sdd/flowcharts/auth-refresh-session.md",
+        "_reversa_sdd/flowcharts/auth-verification.md",
+        "_reversa_sdd/flowcharts/auth-password-reset.md",
+        "_reversa_sdd/flowcharts/workspaces.md",
+        "_reversa_sdd/flowcharts/workspaces-create.md",
+        "_reversa_sdd/flowcharts/workspaces-invite.md",
+        "_reversa_sdd/flowcharts/workspaces-certificate.md",
+        "_reversa_sdd/flowcharts/workspaces-middleware.md",
+        "_reversa_sdd/flowcharts/rbac-rls.md",
+        "_reversa_sdd/flowcharts/rbac-rls-prisma.md",
+        "_reversa_sdd/flowcharts/rbac-rls-middleware.md",
+        "_reversa_sdd/flowcharts/rbac-rls-policy.md",
+        "_reversa_sdd/flowcharts/finance-core.md",
+        "_reversa_sdd/flowcharts/finance-core-transaction.md",
+        "_reversa_sdd/flowcharts/finance-core-bridge.md",
+        "_reversa_sdd/flowcharts/uploads-storage.md",
+        "_reversa_sdd/flowcharts/uploads-storage-attachment.md",
+        "_reversa_sdd/flowcharts/imports-open-finance.md",
+        "_reversa_sdd/flowcharts/bank-movements.md",
+        "_reversa_sdd/flowcharts/bank-movements-fuzzy.md",
+        "_reversa_sdd/flowcharts/accountant.md",
+        "_reversa_sdd/flowcharts/accountant-cache-refresh.md",
+        "_reversa_sdd/flowcharts/external-data.md",
+        "_reversa_sdd/flowcharts/frontend-shell.md",
+        "_reversa_sdd/flowcharts/frontend-shell-axios.md",
+        ".reversa/context/modules.json"
+      ],
+      "last_summary": {
+        "module": "frontend-shell",
+        "main_algorithms": [
+          "presigned upload with quota",
+          "financial ingestion with fuzzy dedup",
+          "bank movement approval to transaction",
+          "accountant dashboard cache",
+          "external data circuit breaker fallback",
+          "frontend refresh queue and workspace header"
+        ],
+        "entity_count": 11
+      }
+    },
+    "detective": {
+      "completed_at": "2026-05-03T06:15:00-03:00",
+      "files": [
+        "_reversa_sdd/domain.md",
+        "_reversa_sdd/state-machines.md",
+        "_reversa_sdd/permissions.md",
+        "_reversa_sdd/adrs/001-multi-tenant-rls-zero-trust.md",
+        "_reversa_sdd/adrs/002-bank-movement-staging.md",
+        "_reversa_sdd/adrs/003-fiscal-closeduntil.md",
+        "_reversa_sdd/adrs/004-accountant-cache.md",
+        "_reversa_sdd/adrs/005-secure-a1-vault.md",
+        "_reversa_sdd/adrs/006-bridge-double-entry.md"
+      ],
+      "summary": {
+        "business_rules_identified": 18,
+        "adrs_generated": 6,
+        "state_machines": [
+          "User Verification",
+          "WorkspaceInvite",
+          "BankMovement",
+          "Transaction Payment/Audit",
+          "Fiscal Lock",
+          "Certificate A1"
+        ],
+        "key_lacunas": [
+          "rotas financeiras de escrita sem RBAC explicito em alguns pontos",
+          "OCR/WhatsApp/NFS-e/billing/exportacao ERP nao comprovados como implementacao completa",
+          "rotas externas CNPJ/CEP publicas"
+        ]
+      }
+    },
+    "architect": {
+      "completed_at": "2026-05-03T06:15:00-03:00",
+      "files": [
+        "_reversa_sdd/architecture.md",
+        "_reversa_sdd/c4-context.md",
+        "_reversa_sdd/c4-containers.md",
+        "_reversa_sdd/c4-components.md",
+        "_reversa_sdd/erd-complete.md",
+        "_reversa_sdd/deployment.md",
+        "_reversa_sdd/traceability/spec-impact-matrix.md"
+      ],
+      "summary": {
+        "containers": [
+          "React/Vite frontend",
+          "Express/TypeScript backend",
+          "PostgreSQL/Supabase",
+          "Cloudflare R2/S3",
+          "GitHub Actions"
+        ],
+        "integrations": [
+          "BrasilAPI",
+          "ViaCEP",
+          "ReceitaWS",
+          "Open Finance webhook",
+          "SMTP provider",
+          "SonarCloud"
+        ],
+        "technical_debts": [
+          "deploy de producao especifico nao comprovado por config executavel",
+          "sem Dockerfile/docker-compose encontrado",
+          "contrato CEP frontend/backend divergente"
+        ]
+      }
+    },
+    "writer": {
+      "completed_at": "2026-05-03T07:30:00-03:00",
+      "files": [
+        "_reversa_sdd/sdd/auth.md",
+        "_reversa_sdd/sdd/workspaces.md",
+        "_reversa_sdd/sdd/rbac-rls.md",
+        "_reversa_sdd/sdd/finance-core.md",
+        "_reversa_sdd/sdd/uploads-storage.md",
+        "_reversa_sdd/sdd/imports-open-finance.md",
+        "_reversa_sdd/sdd/bank-movements.md",
+        "_reversa_sdd/sdd/accountant.md",
+        "_reversa_sdd/sdd/external-data.md",
+        "_reversa_sdd/sdd/frontend-shell.md",
+        "_reversa_sdd/openapi/wsp-finance-api.yaml",
+        "_reversa_sdd/user-stories/onboarding-auth.md",
+        "_reversa_sdd/user-stories/workspace-management.md",
+        "_reversa_sdd/user-stories/transaction-management.md",
+        "_reversa_sdd/user-stories/bank-import-approval.md",
+        "_reversa_sdd/user-stories/accountant-hub.md",
+        "_reversa_sdd/user-stories/certificate-a1-vault.md",
+        "_reversa_sdd/user-stories/bridge-transfer.md",
+        "_reversa_sdd/user-stories/attachment-upload-view.md",
+        "_reversa_sdd/user-stories/external-data-autofill.md",
+        "_reversa_sdd/traceability/code-spec-matrix.md"
+      ],
+      "summary": {
+        "sdd_files": 10,
+        "openapi_files": 1,
+        "user_story_files": 9,
+        "traceability_files": 1,
+        "next_phase": "revisao"
+      }
+    },
+    "reviewer": {
+      "status": "completed_with_unanswered_questions",
+      "started_at": "2026-05-03T07:45:00-03:00",
+      "updated_at": "2026-05-03T08:20:00-03:00",
+      "completed_at": "2026-05-03T08:20:00-03:00",
+      "files": [
+        "_reversa_sdd/questions.md",
+        "_reversa_sdd/gaps.md",
+        "_reversa_sdd/confidence-report.md"
+      ],
+      "summary": {
+        "specs_reviewed": 10,
+        "cross_review": "not_available",
+        "reclassifications": 13,
+        "questions_generated": 8,
+        "questions_answered": 0,
+        "confidence_final": "98.9%",
+        "unresolved_questions": 8
+      }
+    }
+  },
+  "redator_progress": {
+    "status": "completed",
+    "planned_at": "2026-05-03T06:25:00-03:00",
+    "total_items": 21,
+    "completed_items": [
+      "_reversa_sdd/sdd/auth.md",
+      "_reversa_sdd/sdd/workspaces.md",
+      "_reversa_sdd/sdd/rbac-rls.md",
+      "_reversa_sdd/sdd/finance-core.md",
+      "_reversa_sdd/sdd/uploads-storage.md",
+      "_reversa_sdd/sdd/imports-open-finance.md",
+      "_reversa_sdd/sdd/bank-movements.md",
+      "_reversa_sdd/sdd/accountant.md",
+      "_reversa_sdd/sdd/external-data.md",
+      "_reversa_sdd/sdd/frontend-shell.md",
+      "_reversa_sdd/openapi/wsp-finance-api.yaml",
+      "_reversa_sdd/user-stories/onboarding-auth.md",
+      "_reversa_sdd/user-stories/workspace-management.md",
+      "_reversa_sdd/user-stories/transaction-management.md",
+      "_reversa_sdd/user-stories/bank-import-approval.md",
+      "_reversa_sdd/user-stories/accountant-hub.md",
+      "_reversa_sdd/user-stories/certificate-a1-vault.md",
+      "_reversa_sdd/user-stories/bridge-transfer.md",
+      "_reversa_sdd/user-stories/attachment-upload-view.md",
+      "_reversa_sdd/user-stories/external-data-autofill.md",
+      "_reversa_sdd/traceability/code-spec-matrix.md"
+    ],
+    "last_completed_item": "_reversa_sdd/traceability/code-spec-matrix.md",
+    "next_item": null,
+    "updated_at": "2026-05-03T07:30:00-03:00",
+    "pending_items": []
+  },
+  "engines": [
+    "claude-code",
+    "codex",
+    "gemini-cli",
+    "antigravity",
+    "opencode"
+  ],
+  "agents": [
+    "reversa",
+    "reversa-scout",
+    "reversa-archaeologist",
+    "reversa-detective",
+    "reversa-architect",
+    "reversa-writer",
+    "reversa-reviewer",
+    "reversa-visor",
+    "reversa-data-master",
+    "reversa-design-system",
+    "reversa-agents-help",
+    "reversa-reconstructor"
+  ],
+  "created_files": [
+    ".claude\\skills\\reversa",
+    ".agents\\skills\\reversa",
+    ".claude\\skills\\reversa-scout",
+    ".agents\\skills\\reversa-scout",
+    ".claude\\skills\\reversa-archaeologist",
+    ".agents\\skills\\reversa-archaeologist",
+    ".claude\\skills\\reversa-detective",
+    ".agents\\skills\\reversa-detective",
+    ".claude\\skills\\reversa-architect",
+    ".agents\\skills\\reversa-architect",
+    ".claude\\skills\\reversa-writer",
+    ".agents\\skills\\reversa-writer",
+    ".claude\\skills\\reversa-reviewer",
+    ".agents\\skills\\reversa-reviewer",
+    ".claude\\skills\\reversa-visor",
+    ".agents\\skills\\reversa-visor",
+    ".claude\\skills\\reversa-data-master",
+    ".agents\\skills\\reversa-data-master",
+    ".claude\\skills\\reversa-design-system",
+    ".agents\\skills\\reversa-design-system",
+    ".claude\\skills\\reversa-agents-help",
+    ".agents\\skills\\reversa-agents-help",
+    ".claude\\skills\\reversa-reconstructor",
+    ".agents\\skills\\reversa-reconstructor",
+    "CLAUDE.md",
+    "AGENTS.md",
+    "GEMINI.md",
+    ".reversa\\state.json",
+    ".reversa\\config.toml",
+    ".reversa\\config.user.toml",
+    ".reversa\\plan.md",
+    ".reversa\\version",
+    ".reversa\\_config\\manifest.yaml"
+  ]
+}
