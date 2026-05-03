@@ -8,6 +8,7 @@ Use este modelo antes da implementacao. Nenhum agente deve implementar sem esta 
 - Agente:
 - Data:
 - Modulo:
+- Matching Report:
 
 ## Objetivo testavel
 
@@ -19,6 +20,14 @@ Use este modelo antes da implementacao. Nenhum agente deve implementar sem esta 
 - Falha esperada antes da implementacao:
 - Mudanca minima para passar:
 - Refatoracao permitida:
+
+## Entradas do Matching
+
+- Skills/agentes/MCPs definidos:
+- Riscos obrigatorios a cobrir:
+- Validacoes obrigatorias:
+- Criterios de bloqueio:
+- Ressalvas do Matching:
 
 ## Cenarios de teste
 
@@ -37,6 +46,10 @@ Use este modelo antes da implementacao. Nenhum agente deve implementar sem esta 
 - [ ]
 
 ### Regressao
+
+- [ ]
+
+### Riscos vindos do Matching
 
 - [ ]
 
@@ -90,6 +103,7 @@ git diff --check
 ## Criterios de conclusao
 
 - [ ] Teste principal criado ou ajustado.
+- [ ] Riscos obrigatorios do Matching cobertos por teste ou validacao.
 - [ ] Implementacao passa no teste.
 - [ ] Validacao de contrato executada.
 - [ ] Risco principal coberto.
