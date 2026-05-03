@@ -25,6 +25,8 @@ Antes de planejar ou implementar qualquer issue, consulte:
 - `_reversa_sdd/process/issue-development-workflow.md`
 - `_reversa_sdd/process/issue-analysis-template.md`
 - `_reversa_sdd/process/technical-analysis-template.md`
+- `_reversa_sdd/process/matching-agent-workflow.md`
+- `_reversa_sdd/process/matching-report-template.md`
 - `_reversa_sdd/process/tdd-plan-template.md`
 - `_reversa_sdd/process/development-agent-prompt-template.md`
 - `_reversa_sdd/process/review-template.md`
@@ -34,7 +36,12 @@ Nenhuma issue deve ser implementada diretamente. O agente deve primeiro entregar
 
 1. Issue Understanding
 2. Technical Analysis
-3. TDD Plan
-4. Development Agent Prompt
+3. Matching Report, quando obrigatorio
+4. TDD Plan
+5. Development Agent Prompt
 
 Somente depois disso a implementacao pode comecar.
+
+## Matching antes do Plano TDD
+
+Antes do Plano TDD, execute ou consulte o Matching Report quando a issue for media, alta, critica ou envolver seguranca, banco, RLS, RBAC, dados financeiros, storage, certificado, cache, performance, frontend integrado ou MCPs.

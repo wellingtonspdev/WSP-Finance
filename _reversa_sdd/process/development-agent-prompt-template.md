@@ -12,12 +12,14 @@ Contexto obrigatorio:
   - `_reversa_sdd/process/issue-development-workflow.md`
   - `_reversa_sdd/process/issue-analysis-template.md` preenchido para esta issue
   - `_reversa_sdd/process/technical-analysis-template.md` preenchido para esta issue
+  - `_reversa_sdd/process/matching-report-template.md` preenchido ou Matching Report equivalente, quando obrigatorio
   - `_reversa_sdd/process/tdd-plan-template.md` preenchido para esta issue
 - Consulte tambem os artefatos Reversa relacionados:
   - [liste SDDs, flowcharts, permissions, gaps, questions, openapi]
 
 Regra obrigatoria:
 - Nao implemente diretamente sem seguir o plano TDD.
+- Nao ignore o Matching Report; ele define skills, agentes/MCPs, riscos e bloqueios.
 - Nao reanalise toda a arquitetura.
 - Nao altere arquivos fora do escopo.
 - Preserve alteracoes existentes do usuario.
@@ -37,6 +39,13 @@ Arquivos provaveis:
 
 Arquivos que nao devem ser alterados:
 - [arquivo]
+
+Matching:
+- Skills obrigatorias: [lista]
+- Agentes/MCPs permitidos: [lista]
+- Ferramentas descartadas/proibidas: [lista]
+- Riscos que devem ser cobertos: [lista]
+- Criterios de bloqueio: [lista]
 
 Plano TDD:
 1. [teste/validacao]
@@ -64,6 +73,7 @@ Ao finalizar, entregue:
 
 - [ ] Analise da issue preenchida.
 - [ ] Analise tecnica preenchida.
+- [ ] Matching Report preenchido ou dispensa justificada.
 - [ ] Plano TDD preenchido.
 - [ ] Escopo e fora de escopo claros.
 - [ ] Validacoes definidas.

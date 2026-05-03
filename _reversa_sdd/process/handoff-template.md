@@ -23,6 +23,7 @@ git status --short
 
 - [ ] Analise da issue concluida.
 - [ ] Analise tecnica concluida.
+- [ ] Matching concluido ou simplificacao justificada.
 - [ ] Plano TDD concluido.
 - [ ] Prompt de agente gerado.
 - [ ] Implementacao concluida.
@@ -44,6 +45,13 @@ git status --short
 | Decisao | Fonte | Impacto |
 |---|---|---|
 |  |  |  |
+
+## Matching
+
+- Matching Report:
+- Skills/agentes/MCPs definidos:
+- Riscos obrigatorios:
+- Bloqueios/ressalvas:
 
 ## Validacoes executadas
 
