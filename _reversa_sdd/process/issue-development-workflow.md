@@ -6,17 +6,19 @@ Nenhuma issue deve ser implementada diretamente sem antes passar por:
 
 1. entendimento da issue;
 2. analise tecnica;
-3. plano TDD;
-4. geracao de prompt para agente;
-5. implementacao controlada;
-6. revisao;
-7. handoff.
+3. Matching de Skills/Agentes/MCPs;
+4. plano TDD;
+5. geracao de prompt para agente;
+6. implementacao controlada;
+7. revisao;
+8. handoff.
 
 Este processo vale para agentes como Codex, Antigravity e qualquer outro agente executor. O objetivo e impedir implementacao impulsiva, preservar a arquitetura documentada pelo Reversa e garantir continuidade entre sessoes.
 
 ## Principios obrigatorios
 
 - Nao implementar direto sem analise e plano TDD.
+- Executar ou consultar Matching Report antes do Plano TDD para issues medias, altas, criticas ou com risco operacional.
 - Nao alterar escopo sem registrar decisao.
 - Nao reanalisar toda a arquitetura quando a issue for pontual.
 - Usar a documentacao existente em `_reversa_sdd/` como fonte inicial de contexto.
@@ -25,6 +27,7 @@ Este processo vale para agentes como Codex, Antigravity e qualquer outro agente 
 - Preservar alteracoes do usuario e nunca reverter trabalho nao relacionado.
 - Manter commits em Conventional Commits quando houver commit.
 - Registrar comandos executados, falhas e validacoes pendentes.
+- Bloquear a issue quando o Matching identificar risco grave sem mitigacao.
 
 ## Etapa 1 - Issue
 
@@ -138,7 +141,76 @@ Mapear impacto tecnico, arquivos provaveis, contratos e riscos antes do plano de
 - Use `traceability/` para impacto entre codigo e spec.
 - Use `gaps.md` e `questions.md` para nao esconder incertezas.
 
-## Etapa 3 - Plano TDD
+## Etapa 3 - Matching de Skills/Agentes/MCPs
+
+### Objetivo
+
+Selecionar as skills, agentes, MCPs e validacoes necessarias para executar a issue com risco controlado. O Matching ocorre obrigatoriamente depois da Analise Tecnica e antes do Plano TDD.
+
+### Entradas necessarias
+
+- Analise da issue.
+- Analise tecnica.
+- Artefatos Reversa relevantes.
+- Lista de modulos afetados.
+- Severidade e riscos tecnicos.
+- Ferramentas disponiveis na sessao: skills, agentes, MCPs, plugins e conectores.
+
+### Quando e obrigatorio
+
+O Matching e obrigatorio para issues medias, altas e criticas, ou quando a issue envolver seguranca, banco, RLS, RBAC, dados financeiros, storage, certificado, cache, performance, frontend integrado ou MCPs.
+
+Para issues pequenas e de baixo risco, o agente pode registrar Matching simplificado, desde que justifique por que o Matching completo nao e necessario.
+
+### Acoes esperadas
+
+- Ler `_reversa_sdd/process/matching-agent-workflow.md`.
+- Preencher ou consultar `_reversa_sdd/process/matching-report-template.md`.
+- Selecionar skills aplicaveis e justificar.
+- Selecionar agentes/MCPs/plugins quando forem realmente necessarios.
+- Definir ferramentas descartadas e motivo.
+- Mapear riscos, mitigacoes e criterios de bloqueio.
+- Registrar decisao em `_reversa_sdd/traceability/matching-log.md` quando a issue tiver Matching formal.
+
+### Perguntas que o agente deve responder
+
+- Qual severidade da issue?
+- O Matching completo e obrigatorio?
+- Quais skills devem ser usadas?
+- Quais agentes, MCPs ou plugins sao necessarios?
+- Quais ferramentas devem ser evitadas?
+- Existe risco grave sem mitigacao?
+- O Matching pode seguir para Plano TDD ou deve bloquear a issue?
+
+### Artefatos gerados
+
+- Matching Report preenchido.
+- Entrada em `_reversa_sdd/traceability/matching-log.md`.
+- Lista de riscos que devem virar testes no Plano TDD.
+- Lista de skills/agentes/MCPs que deve entrar no Prompt para Agente.
+
+### Criterios de conclusao
+
+- Skills/agentes/MCPs definidos ou descartados com motivo.
+- Riscos principais possuem mitigacao.
+- Criterios de bloqueio foram avaliados.
+- Plano TDD recebeu os riscos e validacoes obrigatorias.
+
+### Riscos comuns
+
+- Escolher agente/ferramenta por conveniencia, sem relacao com o risco.
+- Usar MCP/conector sem necessidade ou sem avaliar exposicao de dados.
+- Prosseguir para TDD ignorando risco de RLS, RBAC, storage, certificado ou dados financeiros.
+- Deixar de bloquear uma issue quando falta decisao de produto ou mitigacao tecnica.
+
+### Como usar `_reversa_sdd/`
+
+- Use `matching-agent-workflow.md` para as regras de Matching.
+- Use `matching-report-template.md` para registrar a decisao.
+- Use `sdd/`, `permissions.md`, `gaps.md`, `questions.md` e `traceability/` para confirmar riscos.
+- Use `matching-log.md` para continuidade historica.
+
+## Etapa 4 - Plano TDD
 
 ### Objetivo
 
@@ -147,6 +219,7 @@ Definir testes antes da implementacao e garantir que o comportamento esperado se
 ### Entradas necessarias
 
 - Analise tecnica.
+- Matching Report.
 - Criterios de aceite.
 - Testes existentes.
 - Riscos de regressao.
@@ -154,6 +227,7 @@ Definir testes antes da implementacao e garantir que o comportamento esperado se
 ### Acoes esperadas
 
 - Escrever cenarios de teste antes do patch.
+- Converter riscos do Matching em testes, validacoes ou bloqueios explicitos.
 - Definir primeiro teste que deve falhar ou validacao equivalente.
 - Separar unitario, integracao, e2e e validacao manual.
 - Definir dados de teste, mocks e limites.
@@ -161,6 +235,7 @@ Definir testes antes da implementacao e garantir que o comportamento esperado se
 ### Perguntas que o agente deve responder
 
 - Qual teste prova que a issue foi resolvida?
+- Quais riscos do Matching precisam virar teste obrigatorio?
 - Qual teste evita regressao no fluxo principal?
 - Qual validacao cobre seguranca/permissao/tenant quando aplicavel?
 - Se nao for possivel testar automaticamente, qual evidencia substitui?
@@ -168,6 +243,7 @@ Definir testes antes da implementacao e garantir que o comportamento esperado se
 ### Artefatos gerados
 
 - Plano preenchido a partir de `tdd-plan-template.md`.
+- Referencias ao Matching Report e ao matching-log quando aplicavel.
 - Lista de comandos de validacao.
 - Criterios de aceite testaveis.
 
@@ -175,6 +251,7 @@ Definir testes antes da implementacao e garantir que o comportamento esperado se
 
 - Existe um plano de teste antes da implementacao.
 - O plano cobre o risco principal.
+- O plano cobre os riscos obrigatorios definidos no Matching.
 - Comandos esperados estao definidos.
 
 ### Riscos comuns
@@ -183,7 +260,7 @@ Definir testes antes da implementacao e garantir que o comportamento esperado se
 - Testar apenas caminho feliz.
 - Omitir permissao, RLS, concorrencia, cache ou contrato frontend/backend.
 
-## Etapa 4 - Prompt para agente
+## Etapa 5 - Prompt para agente
 
 ### Objetivo
 
@@ -193,6 +270,7 @@ Gerar um prompt executor claro para Codex, Antigravity ou outro agente, com cont
 
 - Issue analisada.
 - Analise tecnica.
+- Matching Report.
 - Plano TDD.
 - Arquivos e documentos relevantes.
 - Restricoes de escopo.
@@ -200,6 +278,8 @@ Gerar um prompt executor claro para Codex, Antigravity ou outro agente, com cont
 ### Acoes esperadas
 
 - Especificar objetivo da implementacao.
+- Incluir skills/agentes/MCPs definidos no Matching.
+- Incluir ferramentas proibidas ou descartadas pelo Matching.
 - Informar arquivos provaveis e arquivos proibidos/fora de escopo.
 - Incluir ordem TDD-first.
 - Incluir validacoes obrigatorias.
@@ -209,6 +289,7 @@ Gerar um prompt executor claro para Codex, Antigravity ou outro agente, com cont
 
 - O prompt impede implementacao fora de escopo?
 - O prompt exige teste antes/depois?
+- O prompt incorpora skills, agentes, MCPs, riscos e bloqueios do Matching?
 - O prompt preserva decisoes de arquitetura?
 - O prompt informa como registrar bloqueios?
 
@@ -221,7 +302,7 @@ Gerar um prompt executor claro para Codex, Antigravity ou outro agente, com cont
 - Um agente executor consegue implementar sem reabrir planejamento.
 - Limites e validacoes estao claros.
 
-## Etapa 5 - Implementacao controlada
+## Etapa 6 - Implementacao controlada
 
 ### Objetivo
 
@@ -230,6 +311,7 @@ Executar mudancas minimas e verificaveis, seguindo o plano TDD.
 ### Entradas necessarias
 
 - Prompt aprovado.
+- Matching Report.
 - Plano TDD.
 - Estado do workspace.
 
@@ -267,7 +349,7 @@ Executar mudancas minimas e verificaveis, seguindo o plano TDD.
 - Corrigir sintoma e quebrar contrato.
 - Ignorar falhas de teste pre-existentes sem registrar.
 
-## Etapa 6 - Revisao
+## Etapa 7 - Revisao
 
 ### Objetivo
 
@@ -277,6 +359,7 @@ Avaliar bug, regressao, seguranca, contrato e cobertura antes do fechamento.
 
 - Diff completo.
 - Plano TDD.
+- Matching Report.
 - Resultado dos comandos.
 - Artefatos Reversa consultados.
 
@@ -284,6 +367,7 @@ Avaliar bug, regressao, seguranca, contrato e cobertura antes do fechamento.
 
 - Revisar como code review, achados primeiro.
 - Conferir se a implementacao respeita issue, analise e TDD.
+- Conferir se a implementacao respeita o Matching Report.
 - Validar contratos backend/frontend.
 - Conferir impactos em RBAC/RLS, schema, cache, upload, auditoria e UI.
 - Registrar gaps residuais.
@@ -292,6 +376,7 @@ Avaliar bug, regressao, seguranca, contrato e cobertura antes do fechamento.
 
 - Existe bug ou regressao evidente?
 - Os testes cobrem o risco principal?
+- Os riscos obrigatorios do Matching foram testados ou justificados?
 - O contrato documentado foi mantido?
 - O que ainda nao foi validado?
 
@@ -307,7 +392,7 @@ Avaliar bug, regressao, seguranca, contrato e cobertura antes do fechamento.
 - Risco residual claro.
 - Pronto para handoff, PR ou commit.
 
-## Etapa 7 - Handoff
+## Etapa 8 - Handoff
 
 ### Objetivo
 
@@ -316,7 +401,7 @@ Permitir continuidade por outro agente ou sessao sem refazer analise.
 ### Entradas necessarias
 
 - Issue original.
-- Analise, plano TDD, prompt e revisao.
+- Analise, Matching Report, plano TDD, prompt e revisao.
 - Diff/arquivos alterados.
 - Comandos executados.
 - Pendencias.
@@ -327,6 +412,7 @@ Permitir continuidade por outro agente ou sessao sem refazer analise.
 - Separar concluido, pendente, bloqueado e fora de escopo.
 - Listar arquivos alterados.
 - Listar comandos e resultados.
+- Registrar o veredito do Matching e riscos residuais.
 - Informar proximo passo exato.
 
 ### Perguntas que o agente deve responder
@@ -350,10 +436,11 @@ Permitir continuidade por outro agente ou sessao sem refazer analise.
 1. Copie `issue-analysis-template.md` para o contexto da issue.
 2. Preencha problema, escopo, atores, criterios de aceite e documentos Reversa consultados.
 3. Preencha `technical-analysis-template.md` com evidencias do codigo real.
-4. Preencha `tdd-plan-template.md`.
-5. Gere o prompt executor com `development-agent-prompt-template.md`.
-6. So depois execute implementacao.
-7. Ao terminar, use `review-template.md` e `handoff-template.md`.
+4. Execute ou consulte o Matching Report quando a issue for media, alta, critica ou envolver areas sensiveis.
+5. Preencha `tdd-plan-template.md` usando os riscos do Matching.
+6. Gere o prompt executor com `development-agent-prompt-template.md`, incluindo skills/agentes/MCPs definidos.
+7. So depois execute implementacao.
+8. Ao terminar, use `review-template.md` e `handoff-template.md`.
 
 Checklist rapido:
 
@@ -361,6 +448,7 @@ Checklist rapido:
 - [ ] Escopo e fora de escopo registrados.
 - [ ] `_reversa_sdd/` consultado.
 - [ ] Codigo real conferido.
+- [ ] Matching executado ou simplificacao justificada.
 - [ ] Plano TDD criado.
 - [ ] Prompt de agente criado.
 - [ ] Implementacao controlada executada.
@@ -370,16 +458,18 @@ Checklist rapido:
 ## Como usar este workflow em revisao
 
 1. Leia a issue, o plano TDD e o diff.
-2. Compare a solucao com `_reversa_sdd/sdd/`, `permissions.md`, `gaps.md` e `questions.md`.
-3. Priorize bugs, regresssoes, seguranca, contratos e testes ausentes.
-4. Use `review-template.md`.
-5. Registre se a revisao aprova, pede mudancas ou bloqueia.
+2. Leia o Matching Report quando existir.
+3. Compare a solucao com `_reversa_sdd/sdd/`, `permissions.md`, `gaps.md` e `questions.md`.
+4. Priorize bugs, regresssoes, seguranca, contratos, riscos do Matching e testes ausentes.
+5. Use `review-template.md`.
+6. Registre se a revisao aprova, pede mudancas ou bloqueia.
 
 Checklist de revisao:
 
 - [ ] O diff resolve a issue.
 - [ ] Nao ha escopo extra sem justificativa.
 - [ ] Testes cobrem o risco principal.
+- [ ] Riscos do Matching foram cobertos ou justificados.
 - [ ] Contratos backend/frontend estao consistentes.
 - [ ] RBAC/RLS/tenant foram considerados.
 - [ ] Comandos foram executados ou bloqueios documentados.
@@ -388,7 +478,7 @@ Checklist de revisao:
 ## Como usar este workflow para handoff
 
 1. Use `handoff-template.md`.
-2. Inclua issue, objetivo, arquivos tocados, comandos executados e resultado.
+2. Inclua issue, objetivo, Matching Report, arquivos tocados, comandos executados e resultado.
 3. Informe o ultimo estado valido.
 4. Liste pendencias em ordem de prioridade.
 5. Diga exatamente onde o proximo agente deve continuar.
