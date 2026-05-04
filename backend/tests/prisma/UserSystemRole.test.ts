@@ -87,11 +87,19 @@ describe('User.systemRole', () => {
     expect(memberships).toHaveLength(0);
   });
 
-  it('declares at least one deterministic ADMIN user in the seed identities module', () => {
+  it('declares admin@wsp.finance as ADMIN and auditoria@wsp.finance as USER in the seed', () => {
     const seedPath = path.resolve(process.cwd(), 'prisma/seed/modules/01_Identities.ts');
     const seedSource = fs.readFileSync(seedPath, 'utf8');
 
-    expect(seedSource).toContain("email: 'auditoria@wsp.finance'");
+    // Platform Admin deve ser admin@wsp.finance com systemRole ADMIN
+    expect(seedSource).toContain("email: 'admin@wsp.finance'");
     expect(seedSource).toContain("systemRole: 'ADMIN'");
+
+    // Contador auditoria@wsp.finance deve ser USER, não ADMIN
+    const auditorBlock = seedSource.substring(
+      seedSource.indexOf("email: 'auditoria@wsp.finance'"),
+      seedSource.indexOf("email: 'auditoria@wsp.finance'") + 200
+    );
+    expect(auditorBlock).not.toContain("systemRole: 'ADMIN'");
   });
 });
