@@ -43,6 +43,11 @@ export function WorkspaceGuard() {
     // Handle URL raiz (/) e Bloqueio Hard-Kill de Contadores
     useEffect(() => {
         if (user) {
+            if (user.systemRole === 'ADMIN') {
+                navigate(`/admin`, { replace: true });
+                return;
+            }
+
             // Se o usuário é apenas contador
             if (user.type === 'ACCOUNTANT') {
                 // Bloqueio Hard-Kill: Se ele está tentando acessar QUALQUER workspace via paramId ou não tem param
@@ -76,6 +81,10 @@ export function WorkspaceGuard() {
         }
     }, [workspaceIdParam, activeWorkspaceId, user, navigate]);
 
+    // Admin bypass: Se for ADMIN, redireciona diretamente (ganha prioridade sobre o loading do workspaceIdParam)
+    if (user?.systemRole === 'ADMIN') {
+        return <Navigate to="/admin" replace />;
+    }
 
     // Estado de carregamento para evitar 'flashes' e Race Conditions
     if (isLoadingMetadata || isAuthLoading || !workspaceIdParam) {

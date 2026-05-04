@@ -6,6 +6,7 @@ import { seedTimeTravel } from './seed/modules/03_TimeTravel';
 import { seedAuditAndChaos } from './seed/modules/04_Auditor';
 import { seedLifeCycle } from './seed/modules/05_LifeCycle';
 import { seedBankMovements } from './seed/modules/06_BankMovements';
+import { seedDashboardCache } from './seed/modules/07_DashboardCache';
 
 const prisma = new PrismaClient();
 
@@ -19,7 +20,7 @@ async function earthquakeReset() {
       'Notification', 'AuditLog', 'Transaction', 'BankMovement', 'Account',
       'Category', 'WorkspaceInvite', 'WorkspaceMember',
       'RefreshToken', 'PasswordResetToken', 'AccountVerificationToken',
-      'Workspace', 'User'
+      'Workspace', 'User', 'AccountantDashboardCache'
     ];
     for (const table of tables) {
       await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE;`);
@@ -141,7 +142,7 @@ async function main() {
 
   const startTime = Date.now();
 
-  await earthquakeReset();
+  // await earthquakeReset();
 
   // ── FASE 1: IDENTIDADES ──
   console.log('👤 [Fase 1] Criando Personas e Workspaces...');
@@ -263,7 +264,11 @@ async function main() {
   // ── FASE 7: PÓS-PROCESSAMENTO ──
   await recalculateBalances();
 
-  // ── FASE 8: RLS VALIDATION ──
+  // ── FASE 8: DASHBOARD CACHE ──
+  console.log('\n📊 [Fase 8] Inicializando Dashboard Cache...');
+  await seedDashboardCache(prisma, identities);
+
+  // ── FASE 9: RLS VALIDATION ──
   await validateRLS();
 
   // ══════════════════════════════════════════════════════════════
