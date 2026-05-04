@@ -33,6 +33,8 @@ const options = {
             id: { type: 'integer', example: 1, description: 'ID sequencial do usuário' },
             name: { type: 'string', example: 'Wellington' },
             email: { type: 'string', format: 'email', example: 'wellington@example.com' },
+            type: { type: 'string', enum: ['CLIENT', 'ACCOUNTANT'] },
+            systemRole: { type: 'string', enum: ['USER', 'ADMIN'] },
             createdAt: { type: 'string', format: 'date-time' },
           },
         },

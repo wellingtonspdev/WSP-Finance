@@ -118,6 +118,7 @@ router.get('/auth/me', AuthMiddleware, (req, res, next) => {
                name: { type: 'string' },
                email: { type: 'string' },
                type: { type: 'string', enum: ['CLIENT', 'ACCOUNTANT'] },
+               systemRole: { type: 'string', enum: ['USER', 'ADMIN'] },
                memberships: { type: 'array', items: { type: 'object', properties: {
                    id: { type: 'integer' }, name: { type: 'string' },
                    type: { type: 'string', enum: ['PERSONAL', 'BUSINESS'] },
