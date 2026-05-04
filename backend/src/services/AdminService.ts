@@ -24,25 +24,6 @@ export interface PlatformMetrics {
   generatedAt: string;
 }
 
-/**
- * Converte valores de COUNT(*) (bigint, string, number, null) para number.
- */
-function toSafeNumber(value: unknown): number {
-  if (value === null || value === undefined) return 0;
-  if (typeof value === 'bigint') return Number(value);
-  if (typeof value === 'string') return Number(value) || 0;
-  if (typeof value === 'number') return value;
-  return 0;
-}
-
-/**
- * Extrai o count de um resultado de query raw.
- */
-function extractCount(rows: Array<{ count: unknown }>): number {
-  if (!rows || rows.length === 0) return 0;
-  return toSafeNumber(rows[0].count);
-}
-
 export class AdminService {
   async getGlobalMetrics(): Promise<PlatformMetrics> {
     const [
@@ -50,29 +31,40 @@ export class AdminService {
       workspacesResult,
       adminsResult,
       transactionsResult,
-      pendingMovementsResult,
-      pendingInvitesResult,
+      movementsResult,
+      invitesResult,
     ] = await Promise.all([
-      sysPrisma.$queryRawUnsafe('SELECT COUNT(*) as count FROM "User"'),
-      sysPrisma.$queryRawUnsafe('SELECT COUNT(*) as count FROM "Workspace"'),
-      sysPrisma.$queryRawUnsafe('SELECT COUNT(*) as count FROM "User" WHERE "systemRole" = \'ADMIN\''),
-      sysPrisma.$queryRawUnsafe('SELECT COUNT(*) as count FROM "Transaction"'),
-      sysPrisma.$queryRawUnsafe('SELECT COUNT(*) as count FROM "BankMovement" WHERE "status" = \'PENDING\''),
-      sysPrisma.$queryRawUnsafe('SELECT COUNT(*) as count FROM "WorkspaceInvite" WHERE "status" = \'PENDING\''),
+      sysPrisma.$queryRawUnsafe<[{ count: unknown }]>('SELECT COUNT(*) as count FROM "User"'),
+      sysPrisma.$queryRawUnsafe<[{ count: unknown }]>('SELECT COUNT(*) as count FROM "Workspace"'),
+      sysPrisma.$queryRawUnsafe<[{ count: unknown }]>('SELECT COUNT(*) as count FROM "User" WHERE "systemRole" = \'ADMIN\''),
+      sysPrisma.$queryRawUnsafe<[{ count: unknown }]>('SELECT COUNT(*) as count FROM "Transaction"'),
+      sysPrisma.$queryRawUnsafe<[{ count: unknown }]>('SELECT COUNT(*) as count FROM "BankMovement" WHERE "status" = \'PENDING\''),
+      sysPrisma.$queryRawUnsafe<[{ count: unknown }]>('SELECT COUNT(*) as count FROM "WorkspaceInvite" WHERE "status" = \'PENDING\''),
     ]);
 
     return {
       platform: {
-        totalUsers: extractCount(usersResult as any[]),
-        totalWorkspaces: extractCount(workspacesResult as any[]),
-        totalAdmins: extractCount(adminsResult as any[]),
+        totalUsers: toSafeNumber(usersResult),
+        totalWorkspaces: toSafeNumber(workspacesResult),
+        totalAdmins: toSafeNumber(adminsResult),
       },
       activity: {
-        totalTransactions: extractCount(transactionsResult as any[]),
-        pendingMovements: extractCount(pendingMovementsResult as any[]),
-        pendingInvites: extractCount(pendingInvitesResult as any[]),
+        totalTransactions: toSafeNumber(transactionsResult),
+        pendingMovements: toSafeNumber(movementsResult),
+        pendingInvites: toSafeNumber(invitesResult),
       },
       generatedAt: new Date().toISOString(),
     };
   }
+}
+
+/** Normaliza bigint | string | number | null | undefined | resultado vazio → number */
+function toSafeNumber(rows: { count: unknown }[] | undefined): number {
+  if (!rows || rows.length === 0) return 0;
+  const raw = rows[0]?.count;
+  if (raw == null) return 0;
+  if (typeof raw === 'bigint') return Number(raw);
+  if (typeof raw === 'string') return parseInt(raw, 10) || 0;
+  if (typeof raw === 'number') return raw;
+  return 0;
 }

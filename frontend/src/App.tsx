@@ -51,6 +51,9 @@ const DocumentsPage = lazy(() =>
 const AdminDashboardPage = lazy(() =>
   import('./features/admin/routes/AdminDashboardPage').then((module) => ({ default: module.AdminDashboardPage }))
 );
+const AdminRoute = lazy(() =>
+  import('./shared/components/guards/AdminRoute').then((module) => ({ default: module.AdminRoute }))
+);
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -84,9 +87,9 @@ export default function App() {
               <Route
                 path="/admin"
                 element={
-                  <PrivateRoute>
+                  <AdminRoute>
                     <AdminDashboardPage />
-                  </PrivateRoute>
+                  </AdminRoute>
                 }
               />
 

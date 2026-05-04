@@ -14,7 +14,7 @@ export class AdminController {
       return res.status(200).json(metrics);
     } catch (err: any) {
       console.error('[AdminController] Erro ao buscar métricas:', err.message);
-      return res.status(500).json({ message: 'Erro interno ao buscar métricas da plataforma.' });
+      return res.status(500).json({ message: 'Erro interno ao buscar métricas da plataforma.', error: err.stack, errorMessage: err.message });
     }
   }
 }
