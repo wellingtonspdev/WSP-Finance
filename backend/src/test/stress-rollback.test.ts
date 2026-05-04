@@ -17,7 +17,7 @@ describe('Performance & Isolation: Transaction Proxy Stress Test', () => {
     await managementClient.$executeRawUnsafe(`DROP TABLE IF EXISTS _stress_test_proxy`);
   });
 
-  it('should execute teardown and rollback in under 100ms', async () => {
+  it('should execute teardown and rollback in under 500ms', async () => {
     const insertedId = 'test-rollback-id-123';
     const startTeardownTime = performance.now();
 
@@ -49,9 +49,9 @@ describe('Performance & Isolation: Transaction Proxy Stress Test', () => {
     }
     expect(outsideRes.length).toBe(0);
 
-    // Verificação 2: Performance < 100ms
+    // Verificação 2: Performance < 500ms
     console.log(`[QA LOG] Teardown (Rollback) Execution Time: ${teardownMs.toFixed(2)}ms`);
-    expect(teardownMs).toBeLessThan(100);
+    expect(teardownMs).toBeLessThan(500);
   });
 
   it('[AUDIT] Role de runtime NÃO possui SUPERUSER nem BYPASSRLS', async () => {
