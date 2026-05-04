@@ -87,7 +87,7 @@ export async function seedIdentities(prisma: PrismaClient): Promise<IdentitiesRe
             email: 'auditoria@wsp.finance',
             passwordHash,
             type: 'ACCOUNTANT',
-            systemRole: 'ADMIN',
+            systemRole: 'USER',
             emailVerifiedAt: now,
             cpf: '111.222.333-44',
             phone: '(11) 98765-4321',

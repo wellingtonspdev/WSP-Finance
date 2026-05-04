@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { AdminDashboardPage } from '../../src/features/admin/routes/AdminDashboardPage';
@@ -11,19 +12,25 @@ vi.mock('../../src/shared/lib/axios', () => ({
   },
 }));
 
+const mockLogout = vi.fn();
 vi.mock('../../src/app/AuthProvider', () => ({
   useAuth: () => ({
     user: { name: 'Admin User' },
+    logout: mockLogout,
   }),
 }));
 
 const mockMetrics = {
-  totalUsers: 150,
-  totalWorkspaces: 20,
-  totalAdmins: 2,
-  totalTransactions: 5000,
-  pendingMovements: 45,
-  pendingInvites: 5,
+  platform: {
+    totalUsers: 150,
+    totalWorkspaces: 20,
+    totalAdmins: 2,
+  },
+  activity: {
+    totalTransactions: 5000,
+    pendingMovements: 45,
+    pendingInvites: 5,
+  },
   generatedAt: '2026-05-04T12:00:00Z',
 };
 
@@ -159,14 +166,166 @@ describe('AdminDashboardPage', () => {
 
     await waitFor(() => {
       expect(api.get).toHaveBeenCalledWith('/admin/metrics');
-      // No config passed to get() since we don't want to pass custom headers manually here.
-      // The Axios interceptor logic handles removing x-workspace-id for /admin in actual runtime.
       const callArgs = vi.mocked(api.get).mock.calls[0];
-      // Assert that we called the correct endpoint without any weird query params or manual headers
       expect(callArgs[0]).toBe('/admin/metrics');
       if (callArgs[1]) {
         expect(callArgs[1].headers?.['x-workspace-id']).toBeUndefined();
       }
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // Refresh Button Tests (Follow-up UX)
+  // ═══════════════════════════════════════════════════════════════
+
+  it('T16: Renderiza botão "Atualizar métricas" após carregamento inicial', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({ data: mockMetrics });
+
+    render(
+      <MemoryRouter>
+        <AdminDashboardPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('admin-refresh-btn')).toBeInTheDocument();
+      expect(screen.getByTestId('admin-refresh-btn')).toHaveTextContent('Atualizar métricas');
+    });
+  });
+
+  it('T17: Clique no botão chama novamente GET /admin/metrics e atualiza cards', async () => {
+    const updatedMetrics = {
+      platform: { totalUsers: 200, totalWorkspaces: 30, totalAdmins: 3 },
+      activity: { totalTransactions: 7000, pendingMovements: 10, pendingInvites: 2 },
+      generatedAt: '2026-05-04T14:00:00Z',
+    };
+
+    vi.mocked(api.get)
+      .mockResolvedValueOnce({ data: mockMetrics })
+      .mockResolvedValueOnce({ data: updatedMetrics });
+
+    render(
+      <MemoryRouter>
+        <AdminDashboardPage />
+      </MemoryRouter>
+    );
+
+    // Espera carregamento inicial
+    await waitFor(() => expect(screen.getByText('150')).toBeInTheDocument());
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('admin-refresh-btn'));
+
+    // Verifica que a API foi chamada 2x e os novos valores aparecem
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledTimes(2);
+      expect(screen.getByText('200')).toBeInTheDocument();
+      expect(screen.getByText('30')).toBeInTheDocument();
+      expect(screen.getByText('7000')).toBeInTheDocument();
+    });
+  });
+
+  it('T18: Botão fica desabilitado e mostra "Atualizando..." durante refresh', async () => {
+    let resolveRefresh!: (value: any) => void;
+    const pendingPromise = new Promise((resolve) => { resolveRefresh = resolve; });
+
+    vi.mocked(api.get)
+      .mockResolvedValueOnce({ data: mockMetrics })
+      .mockImplementationOnce(() => pendingPromise as any);
+
+    render(
+      <MemoryRouter>
+        <AdminDashboardPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('150')).toBeInTheDocument());
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('admin-refresh-btn'));
+
+    // Botão deve estar desabilitado e com texto de loading
+    const btn = screen.getByTestId('admin-refresh-btn');
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveTextContent('Atualizando...');
+
+    // Resolve para limpar
+    resolveRefresh({ data: mockMetrics });
+    await waitFor(() => expect(btn).not.toBeDisabled());
+  });
+
+  it('T19: Refresh atualiza generatedAt', async () => {
+    const updatedMetrics = {
+      ...mockMetrics,
+      generatedAt: '2026-05-04T18:30:00Z',
+    };
+
+    vi.mocked(api.get)
+      .mockResolvedValueOnce({ data: mockMetrics })
+      .mockResolvedValueOnce({ data: updatedMetrics });
+
+    render(
+      <MemoryRouter>
+        <AdminDashboardPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByTestId('generated-at')).toBeInTheDocument());
+    const initialTimestamp = screen.getByTestId('generated-at').textContent;
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('admin-refresh-btn'));
+
+    await waitFor(() => {
+      const updatedTimestamp = screen.getByTestId('generated-at').textContent;
+      expect(updatedTimestamp).not.toBe(initialTimestamp);
+    });
+  });
+
+  it('T20: Erro 500 no refresh exibe mensagem amigável e preserva dados anteriores', async () => {
+    vi.mocked(api.get)
+      .mockResolvedValueOnce({ data: mockMetrics })
+      .mockRejectedValueOnce({ response: { status: 500 } });
+
+    render(
+      <MemoryRouter>
+        <AdminDashboardPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('150')).toBeInTheDocument());
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('admin-refresh-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('admin-refresh-error')).toBeInTheDocument();
+    });
+
+    // Dados anteriores preservados
+    expect(screen.getByText('150')).toBeInTheDocument();
+    expect(screen.getByText('5000')).toBeInTheDocument();
+  });
+
+  it('T21: Erro 403 no refresh exibe mensagem de acesso negado', async () => {
+    vi.mocked(api.get)
+      .mockResolvedValueOnce({ data: mockMetrics })
+      .mockRejectedValueOnce({ response: { status: 403 } });
+
+    render(
+      <MemoryRouter>
+        <AdminDashboardPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('150')).toBeInTheDocument());
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('admin-refresh-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('admin-refresh-error')).toBeInTheDocument();
+      expect(screen.getByTestId('admin-refresh-error').textContent).toMatch(/Acesso negado/i);
     });
   });
 });

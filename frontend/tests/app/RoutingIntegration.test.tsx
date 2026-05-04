@@ -50,12 +50,16 @@ describe('RoutingIntegration', () => {
     // API get for metrics
     vi.mocked(api.get).mockResolvedValueOnce({
       data: {
-        totalUsers: 150,
-        totalWorkspaces: 20,
-        totalAdmins: 2,
-        totalTransactions: 5000,
-        pendingMovements: 45,
-        pendingInvites: 5,
+        platform: {
+          totalUsers: 150,
+          totalWorkspaces: 20,
+          totalAdmins: 2,
+        },
+        activity: {
+          totalTransactions: 5000,
+          pendingMovements: 45,
+          pendingInvites: 5,
+        },
         generatedAt: '2026-05-04T12:00:00Z',
       },
     });
@@ -111,5 +115,41 @@ describe('RoutingIntegration', () => {
     await waitFor(() => {
       expect(window.location.pathname).toBe('/login');
     });
+  });
+
+  it('T15: Dado ACCOUNTANT com systemRole USER (auditoria@wsp.finance), acessando /admin, NÃO monta AdminDashboard e NÃO chama GET /admin/metrics', async () => {
+    // Mock the session restore to succeed with our ACCOUNTANT user
+    localStorage.setItem('wsp_refresh_token', 'fake-token');
+    vi.mocked(api.patch).mockResolvedValueOnce({
+      data: { token: 'new-token', refreshToken: 'new-refresh-token' },
+    });
+    vi.mocked(api.get).mockResolvedValueOnce({
+      data: {
+        id: 99,
+        email: 'auditoria@wsp.finance',
+        name: 'Wellington Contador',
+        type: 'ACCOUNTANT',
+        systemRole: 'USER',
+        memberships: [],
+      },
+    });
+
+    window.history.pushState({}, 'Test', '/admin');
+
+    render(
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText('Painel Administrativo')).not.toBeInTheDocument();
+      expect(screen.queryByText('CARREGANDO MÉTRICAS...')).not.toBeInTheDocument();
+    });
+
+    // Confirma que GET /admin/metrics nunca foi chamado
+    const getCalls = vi.mocked(api.get).mock.calls;
+    const metricsCallExists = getCalls.some(call => call[0] === '/admin/metrics');
+    expect(metricsCallExists).toBe(false);
   });
 });

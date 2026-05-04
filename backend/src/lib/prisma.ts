@@ -18,7 +18,17 @@ const basePrisma = new PrismaClient({
     }
 });
 
-export const sysPrisma = basePrisma;
+/**
+ * sysPrisma — Conexão superusuário (DIRECT_URL) para bypass natural de RLS.
+ * Usado exclusivamente pelo AdminService para métricas agregadas globais.
+ * Se DIRECT_URL não estiver configurada, fallback para basePrisma (dev/test).
+ */
+const directUrl = process.env.DIRECT_URL;
+export const sysPrisma = directUrl
+  ? new PrismaClient({
+      datasources: { db: { url: directUrl } },
+    })
+  : basePrisma;
 
 
 

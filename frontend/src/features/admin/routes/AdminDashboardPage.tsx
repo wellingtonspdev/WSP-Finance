@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../../app/AuthProvider';
 import { api } from '../../../shared/lib/axios';
 
@@ -12,11 +12,37 @@ interface PlatformMetrics {
   generatedAt: string;
 }
 
+interface AdminMetricsResponse {
+  platform: {
+    totalUsers: number;
+    totalWorkspaces: number;
+    totalAdmins: number;
+  };
+  activity: {
+    totalTransactions: number;
+    pendingMovements: number;
+    pendingInvites: number;
+  };
+  generatedAt: string;
+}
+
 export function AdminDashboardPage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [metrics, setMetrics] = useState<PlatformMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+
+  const mapResponse = (data: AdminMetricsResponse): PlatformMetrics => ({
+    totalUsers: data.platform?.totalUsers || 0,
+    totalWorkspaces: data.platform?.totalWorkspaces || 0,
+    totalAdmins: data.platform?.totalAdmins || 0,
+    totalTransactions: data.activity?.totalTransactions || 0,
+    pendingMovements: data.activity?.pendingMovements || 0,
+    pendingInvites: data.activity?.pendingInvites || 0,
+    generatedAt: data.generatedAt || new Date().toISOString(),
+  });
 
   useEffect(() => {
     let isCancelled = false;
@@ -25,9 +51,9 @@ export function AdminDashboardPage() {
       try {
         setIsLoading(true);
         setError(null);
-        const { data } = await api.get<PlatformMetrics>('/admin/metrics');
+        const { data } = await api.get<AdminMetricsResponse>('/admin/metrics');
         if (!isCancelled) {
-          setMetrics(data);
+          setMetrics(mapResponse(data));
         }
       } catch (err: any) {
         if (!isCancelled) {
@@ -49,6 +75,23 @@ export function AdminDashboardPage() {
     return () => {
       isCancelled = true;
     };
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      setRefreshError(null);
+      const { data } = await api.get<AdminMetricsResponse>('/admin/metrics');
+      setMetrics(mapResponse(data));
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        setRefreshError('Acesso negado. Sessão pode ter expirado.');
+      } else {
+        setRefreshError('Erro ao atualizar métricas. Tente novamente.');
+      }
+    } finally {
+      setIsRefreshing(false);
+    }
   }, []);
 
   if (isLoading) {
@@ -77,12 +120,38 @@ export function AdminDashboardPage() {
               Bem-vindo, {user?.name || 'Platform Admin'}.
             </p>
           </div>
-          {metrics && (
-            <div className="text-sm text-gray-500 dark:text-gray-400" data-testid="generated-at">
-              Atualizado em: {new Date(metrics.generatedAt).toLocaleString()}
-            </div>
-          )}
+          <div className="flex items-center gap-4">
+            {metrics && (
+              <div className="text-sm text-gray-500 dark:text-gray-400" data-testid="generated-at">
+                Atualizado em: {new Date(metrics.generatedAt).toLocaleString()}
+              </div>
+            )}
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              data-testid="admin-refresh-btn"
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+            >
+              {isRefreshing ? 'Atualizando...' : 'Atualizar métricas'}
+            </button>
+            <button
+              onClick={logout}
+              data-testid="admin-logout-btn"
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+            >
+              Sair
+            </button>
+          </div>
         </header>
+
+        {refreshError && (
+          <div
+            className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-300"
+            data-testid="admin-refresh-error"
+          >
+            {refreshError}
+          </div>
+        )}
 
         {metrics && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
