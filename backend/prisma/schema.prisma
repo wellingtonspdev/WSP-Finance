@@ -15,6 +15,11 @@ enum UserType {
   ACCOUNTANT
 }
 
+enum SystemRole {
+  USER
+  ADMIN
+}
+
 enum WorkspaceType {
   PERSONAL
   BUSINESS
@@ -96,6 +101,7 @@ model User {
   passwordHash    String
   emailVerifiedAt DateTime?
   type            UserType  @default(CLIENT)
+  systemRole      SystemRole @default(USER)
 
   // Informações Pessoais & Endereço
   cpf          String? @unique

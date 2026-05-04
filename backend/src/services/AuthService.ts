@@ -14,6 +14,8 @@ type UserMembershipWithWorkspace = {
   };
 };
 
+type SystemRole = 'USER' | 'ADMIN';
+
 export class AuthService {
   private userRepository: UserRepository;
   private verificationService: VerificationService;
@@ -90,6 +92,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         type: user.type,
+        systemRole: user.systemRole as SystemRole,
         memberships: mappedWorkspaces
       },
       token,
@@ -175,6 +178,7 @@ export class AuthService {
       name: user.name,
       email: user.email,
       type: user.type,
+      systemRole: user.systemRole as SystemRole,
       memberships: mappedMemberships,
       ...(dashboardCache !== undefined ? { dashboardCache } : {})
     };
