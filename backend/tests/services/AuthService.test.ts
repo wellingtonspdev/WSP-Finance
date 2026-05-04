@@ -112,10 +112,40 @@ describe('AuthService HTTP flow', () => {
     const payload = await response.json();
 
     expect(response.status).toBe(200);
+    expect(payload.user.systemRole).toBe('USER');
     expect(payload.dashboardCache).toHaveLength(2);
     expect(payload.dashboardCache.map((entry: { workspaceId: number }) => entry.workspaceId).sort()).toEqual([1, 3]);
     expect(mockGetCachedDashboard).toHaveBeenCalledTimes(2);
     expect(mockRefreshCache).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns systemRole ADMIN on the login response for an admin user', async () => {
+    mockUserRepository.findByEmailWithWorkspaces.mockResolvedValue(
+      buildAccountantUser(passwordHash, 'ADMIN'),
+    );
+    mockUserRepository.createRefreshToken.mockResolvedValue({
+      id: 'refresh-admin',
+      userId: 1,
+      expiresIn: 9_999_999_999,
+    });
+
+    mockGetCachedDashboard.mockResolvedValue(buildDashboardCache([1, 3]));
+    mockRefreshCache.mockResolvedValue(undefined);
+
+    const response = await fetch(`${baseUrl}/auth/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'auditoria@wsp.finance', password }),
+    });
+
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.user.systemRole).toBe('ADMIN');
+    expect(payload.user.memberships.map((membership: { role: string }) => membership.role)).toEqual([
+      'OWNER',
+      'ACCOUNTANT',
+    ]);
   });
 
   it('repairs a partial cache and filters out stale workspaces before returning the login payload', async () => {
@@ -170,6 +200,7 @@ describe('AuthService HTTP flow', () => {
 
     expect(response.status).toBe(200);
     expect(payload.type).toBe('ACCOUNTANT');
+    expect(payload.systemRole).toBe('USER');
     expect(payload.dashboardCache).toHaveLength(2);
     expect(payload.dashboardCache.map((entry: { workspaceId: number }) => entry.workspaceId).sort()).toEqual([1, 3]);
     expect(mockRefreshCache).toHaveBeenCalledTimes(1);
@@ -186,13 +217,14 @@ function appListen(app: express.Express) {
   };
 }
 
-function buildAccountantUser(passwordHash: string) {
+function buildAccountantUser(passwordHash: string, systemRole: 'USER' | 'ADMIN' = 'USER') {
   return {
     id: 1,
     name: 'Wellington Contador',
     email: 'auditoria@wsp.finance',
     passwordHash,
     type: 'ACCOUNTANT' as const,
+    systemRole,
     emailVerifiedAt: new Date('2026-04-13T18:57:07.827Z'),
     memberships: [
       {

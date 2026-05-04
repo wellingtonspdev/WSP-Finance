@@ -75,6 +75,7 @@ export interface AuthUser {
   name: string;
   email: string;
   type: 'CLIENT' | 'ACCOUNTANT';
+  systemRole: 'USER' | 'ADMIN';
   memberships: AuthMembership[];
 }
 
