@@ -27,33 +27,44 @@ export interface PlatformMetrics {
 export class AdminService {
   async getGlobalMetrics(): Promise<PlatformMetrics> {
     const [
-      totalUsers,
-      totalWorkspaces,
-      totalAdmins,
-      totalTransactions,
-      pendingMovements,
-      pendingInvites,
+      usersResult,
+      workspacesResult,
+      adminsResult,
+      transactionsResult,
+      movementsResult,
+      invitesResult,
     ] = await Promise.all([
-      sysPrisma.user.count(),
-      sysPrisma.workspace.count(),
-      sysPrisma.user.count({ where: { systemRole: 'ADMIN' } }),
-      sysPrisma.transaction.count(),
-      sysPrisma.bankMovement.count({ where: { status: 'PENDING' } }),
-      sysPrisma.workspaceInvite.count({ where: { status: 'PENDING' } }),
+      sysPrisma.$queryRawUnsafe<[{ count: unknown }]>('SELECT COUNT(*) as count FROM "User"'),
+      sysPrisma.$queryRawUnsafe<[{ count: unknown }]>('SELECT COUNT(*) as count FROM "Workspace"'),
+      sysPrisma.$queryRawUnsafe<[{ count: unknown }]>('SELECT COUNT(*) as count FROM "User" WHERE "systemRole" = \'ADMIN\''),
+      sysPrisma.$queryRawUnsafe<[{ count: unknown }]>('SELECT COUNT(*) as count FROM "Transaction"'),
+      sysPrisma.$queryRawUnsafe<[{ count: unknown }]>('SELECT COUNT(*) as count FROM "BankMovement" WHERE "status" = \'PENDING\''),
+      sysPrisma.$queryRawUnsafe<[{ count: unknown }]>('SELECT COUNT(*) as count FROM "WorkspaceInvite" WHERE "status" = \'PENDING\''),
     ]);
 
     return {
       platform: {
-        totalUsers,
-        totalWorkspaces,
-        totalAdmins,
+        totalUsers: toSafeNumber(usersResult),
+        totalWorkspaces: toSafeNumber(workspacesResult),
+        totalAdmins: toSafeNumber(adminsResult),
       },
       activity: {
-        totalTransactions,
-        pendingMovements,
-        pendingInvites,
+        totalTransactions: toSafeNumber(transactionsResult),
+        pendingMovements: toSafeNumber(movementsResult),
+        pendingInvites: toSafeNumber(invitesResult),
       },
       generatedAt: new Date().toISOString(),
     };
   }
+}
+
+/** Normaliza bigint | string | number | null | undefined | resultado vazio → number */
+function toSafeNumber(rows: { count: unknown }[] | undefined): number {
+  if (!rows || rows.length === 0) return 0;
+  const raw = rows[0]?.count;
+  if (raw == null) return 0;
+  if (typeof raw === 'bigint') return Number(raw);
+  if (typeof raw === 'string') return parseInt(raw, 10) || 0;
+  if (typeof raw === 'number') return raw;
+  return 0;
 }
