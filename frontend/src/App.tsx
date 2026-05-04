@@ -48,6 +48,9 @@ const TeamSettingsPage = lazy(() =>
 const DocumentsPage = lazy(() =>
   import('./features/workspaces/routes/DocumentsPage').then((module) => ({ default: module.DocumentsPage }))
 );
+const AdminDashboardPage = lazy(() =>
+  import('./features/admin/routes/AdminDashboardPage').then((module) => ({ default: module.AdminDashboardPage }))
+);
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -77,6 +80,15 @@ export default function App() {
               <Route path="/reset-password" element={<ResetPasswordPage />} />
 
               <Route path="/invite/:token" element={<InviteLandingPage />} />
+
+              <Route
+                path="/admin"
+                element={
+                  <PrivateRoute>
+                    <AdminDashboardPage />
+                  </PrivateRoute>
+                }
+              />
 
               <Route
                 path="/accountant/hub"
