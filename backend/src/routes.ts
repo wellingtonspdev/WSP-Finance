@@ -15,6 +15,8 @@ import { UserController } from './controllers/UserController';
 import { InviteController } from './controllers/InviteController';
 import { BankMovementController } from './controllers/BankMovementController';
 import { OpenFinanceWebhookController } from './controllers/OpenFinanceWebhookController';
+import { AccountantCacheService } from './services/AccountantCacheService';
+import { sysPrisma } from './lib/prisma';
 
 // Middlewares
 import { AuthMiddleware } from './middlewares/AuthMiddleware';
@@ -63,6 +65,7 @@ const userController = new UserController();
 const inviteController = new InviteController();
 const bankMovementController = new BankMovementController();
 const openFinanceWebhookController = new OpenFinanceWebhookController();
+const accountantCacheService = new AccountantCacheService();
 
 // ==============================================================================
 // AUTENTICAÇÃO & IDENTIDADE
@@ -463,6 +466,29 @@ router.get('/accountant/bank-movements/pending', AuthMiddleware, (req, res, next
        #swagger.summary = 'Listar Movimentos Pendentes (Global Contador)'
        #swagger.description = 'Retorna BankMovements com status PENDING de TODOS os workspaces onde o usuário é ACCOUNTANT. Não usa WorkspaceMiddleware.' */
     return bankMovementController.listGlobalPending(req, res);
+});
+
+router.post('/accountant/cache/refresh', AuthMiddleware, async (req, res, next) => {
+    /* #swagger.tags = ['Accountant']
+       #swagger.summary = 'Forçar atualização do cache do contador'
+       #swagger.description = 'Atualiza sob demanda o AccountantDashboardCache do usuário ACCOUNTANT autenticado e retorna o dashboardCache atualizado.' */
+    const user = await sysPrisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { type: true },
+    });
+
+    if (!user) {
+        return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+
+    if (user.type !== 'ACCOUNTANT') {
+        return res.status(403).json({ message: 'Apenas contadores podem atualizar este cache' });
+    }
+
+    const result = await accountantCacheService.refreshCache(req.user.id);
+    const dashboardCache = await accountantCacheService.getCachedDashboard(req.user.id);
+
+    return res.status(200).json({ dashboardCache, result });
 });
 
 router.get('/bank-movements', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {

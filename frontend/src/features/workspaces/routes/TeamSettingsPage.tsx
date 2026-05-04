@@ -3,7 +3,6 @@ import { Users, UserPlus, Send, Trash2, ShieldCheck, Eye, Crown, Calculator, Clo
 import { AppLayout } from '../../../shared/components/layout/AppLayout';
 import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 import { useTeamSettings } from '../hooks/useTeamSettings';
-import { CertificateUploadSection } from '../components/CertificateUploadSection';
 
 const roleConfig: Record<string, { label: string; icon: typeof Crown; colorClass: string }> = {
     OWNER: { label: 'Proprietário', icon: Crown, colorClass: 'text-amber-400' },
@@ -85,12 +84,6 @@ export function TeamSettingsPage() {
                     <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium flex items-center justify-between">
                         {successMsg}
                         <button onClick={clearMessages} className="text-emerald-400 hover:text-emerald-300 text-xs font-bold">✕</button>
-                    </div>
-                )}
-
-                {isOwner && wsId > 0 && (
-                    <div className="mb-8">
-                        <CertificateUploadSection workspaceId={wsId} />
                     </div>
                 )}
 

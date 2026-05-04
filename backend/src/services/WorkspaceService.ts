@@ -143,8 +143,8 @@ export class WorkspaceService {
       where: { workspaceId, userId }
     });
 
-    if (!membership || membership.role !== 'OWNER') {
-      throw new Error('Apenas o OWNER pode alterar o certificado do Workspace');
+    if (!membership || !['OWNER', 'ACCOUNTANT'].includes(membership.role)) {
+      throw new Error('Apenas o OWNER ou ACCOUNTANT pode alterar o certificado do Workspace');
     }
 
     // 4 e 5. Validar arquivo e extrair a validade
