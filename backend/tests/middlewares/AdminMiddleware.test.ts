@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AdminMiddleware } from '../../src/middlewares/AdminMiddleware';
-import { prisma } from '../../src/lib/prisma';
+import { sysPrisma } from '../../src/lib/prisma';
 import { Request, Response } from 'express';
 
 // Mock do prisma
 vi.mock('../../src/lib/prisma', () => ({
-    prisma: {
+    sysPrisma: {
         user: {
             findUnique: vi.fn(),
         },
@@ -34,7 +34,7 @@ describe('AdminMiddleware', () => {
     });
 
     it('T1 - deve retornar 403 se systemRole for USER', async () => {
-        (prisma.user.findUnique as any).mockResolvedValue({
+        (sysPrisma.user.findUnique as any).mockResolvedValue({
             systemRole: 'USER'
         });
 
@@ -44,7 +44,7 @@ describe('AdminMiddleware', () => {
             nextFunction
         );
 
-        expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        expect(sysPrisma.user.findUnique).toHaveBeenCalledWith({
             where: { id: 1 },
             select: { systemRole: true }
         });
@@ -60,7 +60,7 @@ describe('AdminMiddleware', () => {
 
     it('T2 - deve chamar next() se systemRole for ADMIN', async () => {
         mockRequest.user = { id: 2 } as any;
-        (prisma.user.findUnique as any).mockResolvedValue({
+        (sysPrisma.user.findUnique as any).mockResolvedValue({
             systemRole: 'ADMIN'
         });
 
@@ -70,7 +70,7 @@ describe('AdminMiddleware', () => {
             nextFunction
         );
 
-        expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        expect(sysPrisma.user.findUnique).toHaveBeenCalledWith({
             where: { id: 2 },
             select: { systemRole: true }
         });
@@ -84,7 +84,7 @@ describe('AdminMiddleware', () => {
 
     it('T3 - deve retornar 403 se usuário não for encontrado no banco', async () => {
         mockRequest.user = { id: 999 } as any;
-        (prisma.user.findUnique as any).mockResolvedValue(null);
+        (sysPrisma.user.findUnique as any).mockResolvedValue(null);
 
         await AdminMiddleware(
             mockRequest as Request,
@@ -92,7 +92,7 @@ describe('AdminMiddleware', () => {
             nextFunction
         );
 
-        expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        expect(sysPrisma.user.findUnique).toHaveBeenCalledWith({
             where: { id: 999 },
             select: { systemRole: true }
         });
@@ -113,7 +113,7 @@ describe('AdminMiddleware', () => {
             nextFunction
         );
 
-        expect(prisma.user.findUnique).not.toHaveBeenCalled();
+        expect(sysPrisma.user.findUnique).not.toHaveBeenCalled();
         expect(mockResponse.status).toHaveBeenCalledWith(401);
         expect(mockResponse.json).toHaveBeenCalledWith({
             message: 'Autenticação necessária para acesso admin.'
@@ -123,7 +123,7 @@ describe('AdminMiddleware', () => {
 
     it('T5 - deve retornar 500 em caso de erro no Prisma', async () => {
         const dbError = new Error('Database down');
-        (prisma.user.findUnique as any).mockRejectedValue(dbError);
+        (sysPrisma.user.findUnique as any).mockRejectedValue(dbError);
 
         await AdminMiddleware(
             mockRequest as Request,

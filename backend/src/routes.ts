@@ -16,12 +16,14 @@ import { InviteController } from './controllers/InviteController';
 import { BankMovementController } from './controllers/BankMovementController';
 import { OpenFinanceWebhookController } from './controllers/OpenFinanceWebhookController';
 import { AccountantCacheService } from './services/AccountantCacheService';
+import { AdminController } from './controllers/AdminController';
 import { sysPrisma } from './lib/prisma';
 
 // Middlewares
 import { AuthMiddleware } from './middlewares/AuthMiddleware';
 import { WorkspaceMiddleware } from './middlewares/WorkspaceMiddleware';
 import { RbacMiddleware } from './middlewares/RbacMiddleware';
+import { AdminMiddleware } from './middlewares/AdminMiddleware';
 import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 
@@ -66,6 +68,7 @@ const inviteController = new InviteController();
 const bankMovementController = new BankMovementController();
 const openFinanceWebhookController = new OpenFinanceWebhookController();
 const accountantCacheService = new AccountantCacheService();
+const adminController = new AdminController();
 
 // ==============================================================================
 // AUTENTICAÇÃO & IDENTIDADE
@@ -518,6 +521,17 @@ router.post('/bank-movements/:id/reject', AuthMiddleware, WorkspaceMiddleware, (
        #swagger.summary = 'Rejeitar Movimento'
        #swagger.description = 'Marca o movimento como REJECTED sem criar Transaction.' */
     return bankMovementController.reject(req, res);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// ADMIN / BACKOFFICE (bypass RLS — métricas globais apenas)
+// ═══════════════════════════════════════════════════════════════════
+
+router.get('/admin/metrics', AuthMiddleware, AdminMiddleware, (req, res) => {
+    /* #swagger.tags = ['Admin']
+       #swagger.summary = 'KPIs agregados da plataforma'
+       #swagger.description = 'Retorna contadores globais (COUNT) sem dados individuais. Requer systemRole ADMIN.' */
+    return adminController.getMetrics(req, res);
 });
 
 export { router };

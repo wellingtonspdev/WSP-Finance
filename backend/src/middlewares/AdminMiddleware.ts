@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { prisma } from '../lib/prisma';
+import { sysPrisma } from '../lib/prisma';
 
 export const AdminMiddleware = async (
     req: Request,
@@ -14,7 +14,7 @@ export const AdminMiddleware = async (
 
         const userId = req.user.id;
 
-        const user = await prisma.user.findUnique({
+        const user = await sysPrisma.user.findUnique({
             where: { id: userId },
             select: { systemRole: true }
         });
