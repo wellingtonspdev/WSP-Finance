@@ -76,6 +76,7 @@ const doc = {
         { name: 'Uploads', description: 'Reserva de upload e consulta de anexos.' },
         { name: 'Bridge', description: 'Transferencias internas entre workspaces do mesmo usuario.' },
         { name: 'Importacao', description: 'Importacao de extratos e arquivos operacionais.' },
+        { name: 'Accountant', description: 'Operacoes globais do contador, incluindo cache materializado do hub.' },
         { name: 'Inbox Aprovacao', description: 'Triagem de movimentos antes de virarem transacoes definitivas.' }
     ],
     components: {
@@ -328,6 +329,7 @@ const OPERATION_METADATA = {
     'put /uploads/{filename}': op('Uploads', 'Receber arquivo em modo local', 'Recebe o binario diretamente no ambiente local de desenvolvimento. Esta rota existe apenas para simular o fluxo de upload quando nao ha armazenamento externo ativo.'),
     'post /bridge/transfer': op('Bridge', 'Transferir valores entre workspaces', 'Cria uma transferencia interna entre dois workspaces do mesmo usuario. Esta rota existe para refletir movimentacoes como pro-labore e repasses internos sem duplicidade manual.'),
     'post /transactions/import': op('Importacao', 'Importar extrato OFX', 'Processa um arquivo OFX previamente enviado e converte seus movimentos. Esta rota existe para acelerar a entrada de dados bancarios historicos sem digitacao manual.'),
+    'post /accountant/cache/refresh': op('Accountant', 'Forcar atualizacao do cache do contador', 'Atualiza sob demanda o cache materializado dos KPIs do contador autenticado e retorna o dashboardCache atualizado. Esta rota existe para permitir refresh manual quando o Hub sinaliza dados desatualizados.'),
     'get /accountant/bank-movements/pending': op('Inbox Aprovacao', 'Listar pendencias globais do contador', 'Retorna movimentos pendentes de todos os workspaces onde o usuario atua como contador. Esta rota existe para concentrar a fila operacional contabil em um unico painel.'),
     'get /bank-movements': op('Inbox Aprovacao', 'Listar pendencias do workspace atual', 'Retorna movimentos ainda nao aprovados no workspace ativo. Esta rota existe para a triagem antes da conversao em transacoes definitivas.'),
     'post /bank-movements/{id}/merge': op('Inbox Aprovacao', 'Mesclar movimentos duplicados', 'Consolida varios movimentos em um registro principal. Esta rota existe para tratar duplicidades antes da aprovacao contabil.'),
@@ -897,6 +899,17 @@ const RESPONSES = {
         400: messageResponse('Arquivo ou conta invalidos para importacao.', 'Bad request'),
         404: messageResponse('Arquivo informado nao foi encontrado.', 'Arquivo nao encontrado. Faca o upload primeiro.')
     },
+    'post /accountant/cache/refresh': {
+        200: response('Cache atualizado e retornado com sucesso.', {
+            type: 'object',
+            properties: {
+                dashboardCache: { type: 'array', items: { type: 'object' } },
+                result: { type: 'object' }
+            }
+        }),
+        403: messageResponse('Usuario autenticado nao e contador.', 'Apenas contadores podem atualizar este cache'),
+        404: messageResponse('Usuario autenticado nao foi encontrado.', 'Usuario nao encontrado')
+    },
     'get /accountant/bank-movements/pending': { 200: response('Pendencias globais retornadas com sucesso.', { $ref: '#/components/schemas/CursorPage' }) },
     'get /bank-movements': { 200: response('Pendencias do workspace retornadas com sucesso.', { $ref: '#/components/schemas/CursorPage' }) },
     'post /bank-movements/{id}/merge': {
@@ -914,6 +927,7 @@ const RESPONSES = {
 
 const MISSING_OPERATIONS = {
     '/api/webhooks/open-finance': { post: {} },
+    '/accountant/cache/refresh': { post: {} },
     '/accountant/bank-movements/pending': { get: {} },
     '/bank-movements': { get: {} },
     '/bank-movements/{id}/merge': { post: {} },

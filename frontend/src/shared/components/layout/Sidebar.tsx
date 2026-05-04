@@ -1,4 +1,4 @@
-import { Home, Receipt, Plus, BarChart2, User, LogOut, ArrowLeftCircle } from 'lucide-react';
+import { Home, Receipt, Plus, BarChart2, User, LogOut, ArrowLeftCircle, FileText } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '../../../app/AuthProvider';
 import { useUI } from '../../../shared/context/UIProvider';
@@ -17,12 +17,15 @@ export function Sidebar() {
     ? 'extract'
     : location.pathname.includes('/team')
       ? 'team'
-      : 'home';
+      : location.pathname.includes('/documents')
+        ? 'documents'
+        : 'home';
   const isAccountant = activeMembership?.role === 'ACCOUNTANT';
 
   const navItems = [
     { id: 'home', icon: Home, label: 'Dashboard', action: () => navigate(`/${activeMembership?.id || ''}/dashboard`) },
     { id: 'extract', icon: Receipt, label: 'Extrato', action: () => navigate(`/${activeMembership?.id || ''}/transactions`) },
+    { id: 'documents', icon: FileText, label: 'Documentos', action: () => navigate(`/${activeMembership?.id || ''}/documents`) },
     { id: 'team', icon: User, label: 'Equipe', action: () => navigate(`/${activeMembership?.id || ''}/team`) },
     { id: 'analytics', icon: BarChart2, label: 'Análises', action: () => { } },
   ];
