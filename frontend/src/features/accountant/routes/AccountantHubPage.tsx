@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, FileText, AlertTriangle, ArrowRight, Search, MoreVertical, UserPlus, Inbox } from 'lucide-react';
+import { Users, FileText, AlertTriangle, ArrowRight, Search, MoreVertical, UserPlus, Inbox, RefreshCw, Clock } from 'lucide-react';
 import { useAuth } from '../../../app/AuthProvider';
 import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 import { AppLayout } from '../../../shared/components/layout/AppLayout';
@@ -12,11 +12,61 @@ import { AccountantMobileHeader } from '../components/AccountantMobileHeader';
 import type { ActivityEvent } from '../components/ActivityFeed';
 import { InviteClientModal } from '../components/InviteClientModal';
 
+const STALE_CACHE_THRESHOLD_MS = 60 * 60 * 1000;
+
+function getOldestCacheUpdate(dashboardCache: { updatedAt: string }[] | null | undefined) {
+    if (!dashboardCache || dashboardCache.length === 0) {
+        return null;
+    }
+
+    return dashboardCache.reduce<Date | null>((oldest, entry) => {
+        const parsed = new Date(entry.updatedAt);
+
+        if (Number.isNaN(parsed.getTime())) {
+            return oldest;
+        }
+
+        if (!oldest || parsed.getTime() < oldest.getTime()) {
+            return parsed;
+        }
+
+        return oldest;
+    }, null);
+}
+
+function formatRelativeUpdate(updatedAt: Date | null) {
+    if (!updatedAt) {
+        return 'Sem atualização';
+    }
+
+    const diffMs = Math.max(Date.now() - updatedAt.getTime(), 0);
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    if (diffMinutes < 1) {
+        return 'Atualizado agora';
+    }
+
+    if (diffMinutes < 60) {
+        return `Atualizado há ${diffMinutes} min`;
+    }
+
+    const diffHours = Math.floor(diffMinutes / 60);
+
+    if (diffHours < 24) {
+        return `Atualizado há ${diffHours} h`;
+    }
+
+    const diffDays = Math.floor(diffHours / 24);
+    return `Atualizado há ${diffDays} d`;
+}
+
 export function AccountantHubPage() {
-    const { user, dashboardCache } = useAuth();
+    const { user, dashboardCache, refreshDashboardCache } = useAuth();
     const navigate = useNavigate();
     const { memberships, setActiveWorkspaceId } = useWorkspaceStore();
     const [showInviteModal, setShowInviteModal] = useState(false);
+    const [isRefreshingCache, setIsRefreshingCache] = useState(false);
+    const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDING' | 'OK'>('ALL');
@@ -80,6 +130,26 @@ export function AccountantHubPage() {
         navigate(`/${workspaceId}/dashboard`);
     };
 
+    const oldestCacheUpdate = getOldestCacheUpdate(dashboardCache);
+    const isCacheStale = oldestCacheUpdate
+        ? Date.now() - oldestCacheUpdate.getTime() > STALE_CACHE_THRESHOLD_MS
+        : false;
+    const cacheUpdateLabel = formatRelativeUpdate(oldestCacheUpdate);
+
+    const handleRefreshCache = async () => {
+        setIsRefreshingCache(true);
+        setRefreshMessage(null);
+
+        try {
+            await refreshDashboardCache();
+            setRefreshMessage('Cache atualizado');
+        } catch {
+            setRefreshMessage('Falha ao atualizar cache');
+        } finally {
+            setIsRefreshingCache(false);
+        }
+    };
+
     // Mocks de Feed para o Aside Direito (Prototipação)
     const mockEvents: ActivityEvent[] = [
         { id: '1', type: 'warning', description: 'Malha fina evitada: Inconsistência no NCM do cliente Dropship X resolvida.', timeAgo: 'há 10 min' },
@@ -101,8 +171,39 @@ export function AccountantHubPage() {
                         <div>
                             <h1 className="text-2xl font-bold text-white tracking-tight hidden lg:block">Olá, {user?.name.split(' ')[0]}</h1>
                             <p className="text-sm text-slate-400">Resumo da sua auditoria e pendências ativas.</p>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <span
+                                    role="status"
+                                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${
+                                        isCacheStale
+                                            ? 'border-red-500/30 bg-red-500/10 text-red-300'
+                                            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                    }`}
+                                >
+                                    <Clock className="w-3.5 h-3.5" />
+                                    {isCacheStale ? 'Dados desatualizados' : cacheUpdateLabel}
+                                </span>
+                                {isCacheStale && (
+                                    <span className="text-xs text-slate-400">{cacheUpdateLabel}</span>
+                                )}
+                                {refreshMessage && (
+                                    <span className={`text-xs ${refreshMessage.startsWith('Falha') ? 'text-red-300' : 'text-emerald-300'}`}>
+                                        {refreshMessage}
+                                    </span>
+                                )}
+                            </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                            <button
+                                type="button"
+                                onClick={handleRefreshCache}
+                                disabled={isRefreshingCache}
+                                className="px-4 py-2 rounded-xl bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-white/10 font-bold text-xs transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                aria-label="Forçar atualização"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${isRefreshingCache ? 'animate-spin' : ''}`} />
+                                Forçar atualização
+                            </button>
                             <button
                                 onClick={() => setShowInviteModal(true)}
                                 className="px-4 py-2 rounded-xl bg-[#1978e5]/10 text-[#1978e5] hover:bg-[#1978e5]/20 border border-[#1978e5]/20 font-bold text-xs transition-all flex items-center gap-2"
@@ -110,7 +211,7 @@ export function AccountantHubPage() {
                                 <UserPlus className="w-4 h-4" />
                                 Convidar Cliente
                             </button>
-                            <div className="relative">
+                            <div className="relative w-full md:w-auto">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                                 <input
                                     type="text"
@@ -283,6 +384,14 @@ export function AccountantHubPage() {
                                                             <Inbox className="w-3.5 h-3.5" />
                                                             Inbox
                                                         </button>
+                                                        <button
+                                                            onClick={() => navigate(`/${membership.id}/documents`)}
+                                                            className="px-3 py-2 rounded-lg bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/20 font-semibold text-xs transition-all flex items-center gap-1.5"
+                                                            title="Gerenciar Documentos"
+                                                        >
+                                                            <FileText className="w-3.5 h-3.5" />
+                                                            Docs
+                                                        </button>
                                                         <button className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
                                                             <MoreVertical className="w-4 h-4" />
                                                         </button>
@@ -371,6 +480,13 @@ export function AccountantHubPage() {
                                                 title="Inbox"
                                             >
                                                 <Inbox className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => navigate(`/${membership.id}/documents`)}
+                                                className="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 hover:bg-purple-500/20 transition-all"
+                                                title="Documentos"
+                                            >
+                                                <FileText className="w-4 h-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleAccessClient(membership.id)}

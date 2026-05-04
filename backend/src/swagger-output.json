@@ -69,6 +69,10 @@
       "description": "Importacao de extratos e arquivos operacionais."
     },
     {
+      "name": "Accountant",
+      "description": "Operacoes globais do contador, incluindo cache materializado do hub."
+    },
+    {
       "name": "Inbox Aprovacao",
       "description": "Triagem de movimentos antes de virarem transacoes definitivas."
     }
@@ -1232,6 +1236,56 @@
             }
           }
         }
+      }
+    },
+    "/workspaces/{id}/certificate-a1": {
+      "post": {
+        "tags": [
+          "Workspaces"
+        ],
+        "summary": "Upload de Certificado A1",
+        "description": "Autoriza apenas o OWNER a fazer upload de certificado digital em memória (máx 10MB) sem persistência de disco local.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "certificate",
+            "in": "formData",
+            "required": true,
+            "description": "Arquivo do certificado (.p12 ou .pfx)",
+            "schema": {
+              "type": "file"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/workspaces/{id}/invites": {
@@ -3130,6 +3184,76 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CursorPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accountant/cache/refresh": {
+      "post": {
+        "tags": [
+          "Accountant"
+        ],
+        "summary": "Forcar atualizacao do cache do contador",
+        "description": "Atualiza sob demanda o cache materializado dos KPIs do contador autenticado e retorna o dashboardCache atualizado. Esta rota existe para permitir refresh manual quando o Hub sinaliza dados desatualizados.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Cache atualizado e retornado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dashboardCache": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "result": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Usuario autenticado nao e contador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Apenas contadores podem atualizar este cache"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario autenticado nao foi encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Usuario nao encontrado"
+                    }
+                  }
                 }
               }
             }

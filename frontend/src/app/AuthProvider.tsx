@@ -18,6 +18,7 @@ interface AuthContextType {
   isLoading: boolean;
   dashboardCache: DashboardCacheEntry[] | null;
   login: (token: string, refreshToken: string, user: User, cache?: DashboardCacheEntry[]) => void;
+  refreshDashboardCache: () => Promise<DashboardCacheEntry[]>;
   logout: () => void;
 }
 
@@ -121,6 +122,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persistDashboardCache(cache ?? null);
   };
 
+  const refreshDashboardCache = async () => {
+    const { data } = await api.post<{ dashboardCache?: DashboardCacheEntry[] }>('/accountant/cache/refresh');
+    const nextCache = data.dashboardCache ?? [];
+
+    persistDashboardCache(nextCache);
+    return nextCache;
+  };
+
   const logout = () => {
     setApiToken(null);
     localStorage.removeItem('wsp_user_info');
@@ -132,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, dashboardCache, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, dashboardCache, login, refreshDashboardCache, logout }}>
       {children}
     </AuthContext.Provider>
   );

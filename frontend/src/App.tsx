@@ -45,6 +45,9 @@ const TransactionHistoryPage = lazy(() =>
 const TeamSettingsPage = lazy(() =>
   import('./features/workspaces/routes/TeamSettingsPage').then((module) => ({ default: module.TeamSettingsPage }))
 );
+const DocumentsPage = lazy(() =>
+  import('./features/workspaces/routes/DocumentsPage').then((module) => ({ default: module.DocumentsPage }))
+);
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -118,6 +121,7 @@ export default function App() {
               >
                 <Route path=":workspaceId/dashboard" element={<DashboardPage />} />
                 <Route path=":workspaceId/transactions" element={<TransactionHistoryPage />} />
+                <Route path=":workspaceId/documents" element={<DocumentsPage />} />
                 <Route path=":workspaceId/team" element={<TeamSettingsPage />} />
               </Route>
             </Routes>
