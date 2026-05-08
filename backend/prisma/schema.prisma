@@ -182,6 +182,20 @@ model Workspace {
   updatedAt DateTime @updatedAt
 }
 
+// Macro Categoria (Catálogo WSP)
+model MacroCategory {
+  id        Int             @id @default(autoincrement())
+  code      String          @unique
+  name      String
+  type      TransactionType
+  group     String?
+  isActive  Boolean         @default(true)
+  categories Category[]
+
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
 // Categorias
 model Category {
   id           Int           @id @default(autoincrement())
@@ -190,9 +204,12 @@ model Category {
   color        String?
   workspaceId  Int? // Null = Global
   workspace    Workspace?    @relation(fields: [workspaceId], references: [id])
+  macroCategoryId Int?
+  macroCategory MacroCategory? @relation(fields: [macroCategoryId], references: [id])
   transactions Transaction[]
 
   @@index([workspaceId])
+  @@index([macroCategoryId])
 }
 
 // Contas

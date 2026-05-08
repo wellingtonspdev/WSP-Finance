@@ -1,4 +1,5 @@
 import { CategoryRepository } from '../repositories/CategoryRepository';
+import { prisma } from '../lib/prisma';
 
 export class CategoryService {
   private categoryRepository: CategoryRepository;
@@ -7,15 +8,26 @@ export class CategoryService {
     this.categoryRepository = new CategoryRepository();
   }
 
-  async create(name: string, icon: string, color: string, workspaceId: number) {
+  async create(name: string, icon: string, color: string, workspaceId: number, macroCategoryId: number) {
     // Validação básica
     if (!name) throw new Error('Name is required');
+    if (!macroCategoryId) throw new Error('MacroCategoryId is required');
+
+    // Valida se MacroCategory existe e está ativa
+    const macro = await prisma.macroCategory.findUnique({
+      where: { id: macroCategoryId }
+    });
+
+    if (!macro || !macro.isActive) {
+      throw new Error('MacroCategory not found or inactive');
+    }
 
     const category = await this.categoryRepository.create({
       name,
       icon,
       color,
-      workspace: { connect: { id: workspaceId } }
+      workspace: { connect: { id: workspaceId } },
+      macroCategory: { connect: { id: macroCategoryId } }
     });
 
     return category;

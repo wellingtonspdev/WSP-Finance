@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { Decimal } from 'decimal.js';
 import { seedIdentities } from './seed/modules/01_Identities';
 import { seedStructure } from './seed/modules/02_Structure';
+import { seedMacroCategories } from './seed/modules/00_MacroCategories';
 import { seedTimeTravel } from './seed/modules/03_TimeTravel';
 import { seedAuditAndChaos } from './seed/modules/04_Auditor';
 import { seedLifeCycle } from './seed/modules/05_LifeCycle';
@@ -143,6 +144,9 @@ async function main() {
   const startTime = Date.now();
 
   // await earthquakeReset();
+
+  // ── FASE 0: MACRO CATEGORIAS ──
+  await seedMacroCategories(prisma);
 
   // ── FASE 1: IDENTIDADES ──
   console.log('👤 [Fase 1] Criando Personas e Workspaces...');
