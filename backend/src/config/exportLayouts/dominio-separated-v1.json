@@ -1,0 +1,11 @@
+{
+  "id": "dominio-separated-v1",
+  "targetSystem": "DOMINIO",
+  "type": "delimited",
+  "delimiter": "|",
+  "encoding": "windows-1252",
+  "lineEnding": "CRLF",
+  "bom": false,
+  "finalBlankLine": true,
+  "records": ["0000", "6000", "6100"]
+}
