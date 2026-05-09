@@ -178,6 +178,9 @@ model Workspace {
   bankMovements BankMovement[]
   dashboardCaches AccountantDashboardCache[]
 
+  // Exportação Contábil
+  accountingExportConfigs AccountingExportConfig[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -425,5 +428,25 @@ model AccountantDashboardCache {
 
   @@unique([userId, workspaceId])
   @@index([userId])
+  @@index([workspaceId])
+}
+
+// Configuração de Exportação Contábil (Tenant-Scoped)
+model AccountingExportConfig {
+  id                  Int       @id @default(autoincrement())
+  workspaceId         Int
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  targetSystem        String // Ex: "DOMINIO"
+  layoutId            String // Ex: "dominio-separated-v1"
+  companyCode         String // Obrigatório (não vazio)
+  branchCode          String?
+  sourceLabel         String    @default("WSP")
+  historyCodeRequired Boolean   @default(false)
+  isActive            Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([workspaceId, layoutId])
   @@index([workspaceId])
 }
