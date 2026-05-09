@@ -14,16 +14,24 @@ export class CategoryController {
       name: z.string().min(1),
       icon: z.string().optional(),
       color: z.string().optional(),
+      macroCategoryId: z.number().int().positive(),
     });
 
-    const { name, icon, color } = createCategorySchema.parse(req.body);
     const workspaceId = req.workspaceId!;
 
     try {
-      const category = await this.categoryService.create(name, icon || '', color || '', workspaceId);
+      const { name, icon, color, macroCategoryId } = createCategorySchema.parse(req.body);
+      const category = await this.categoryService.create(name, icon || '', color || '', workspaceId, macroCategoryId);
       return res.status(201).json(category);
     } catch (err: any) {
-      return res.status(400).json({ message: err.message });
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors });
+      }
+      if (err.message === 'MacroCategory not found or inactive') {
+        return res.status(400).json({ message: err.message });
+      }
+      // Re-throw unexpected errors to be handled by the global error handler
+      throw err;
     }
   }
 
