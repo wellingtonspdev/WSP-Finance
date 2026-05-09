@@ -180,6 +180,7 @@ model Workspace {
 
   // Exportação Contábil
   accountingExportConfigs AccountingExportConfig[]
+  accountingExportMappings AccountingExportMapping[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -194,6 +195,7 @@ model MacroCategory {
   group     String?
   isActive  Boolean         @default(true)
   categories Category[]
+  accountingExportMappings AccountingExportMapping[]
 
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
@@ -449,4 +451,31 @@ model AccountingExportConfig {
 
   @@unique([workspaceId, layoutId])
   @@index([workspaceId])
+}
+
+// Mapeamento de Exportação Contábil De-Para (Tenant-Scoped)
+model AccountingExportMapping {
+  id                Int      @id @default(autoincrement())
+  workspaceId       Int
+  macroCategoryId   Int
+  layoutId          String
+  targetSystem      String
+
+  debitAccountCode  String
+  creditAccountCode String
+  historyCode       String?
+  costCenterCode    String?
+
+  isActive          Boolean  @default(true)
+  createdByUserId   Int?
+  updatedByUserId   Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  workspace         Workspace     @relation(fields: [workspaceId], references: [id])
+  macroCategory     MacroCategory @relation(fields: [macroCategoryId], references: [id])
+
+  @@unique([workspaceId, macroCategoryId, layoutId])
+  @@index([workspaceId])
+  @@index([macroCategoryId])
 }
