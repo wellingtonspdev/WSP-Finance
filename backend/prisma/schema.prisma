@@ -89,6 +89,7 @@ enum AuditAction {
   BRIDGE_TRANSFER // Nova ação para auditoria de ponte
   ATTACHMENT_VIEW // Fase C: Auditoria de visualização de anexo
   CATEGORY_UPDATE // Fase C: Auditoria de alteração de categoria
+  EXPORT
 }
 
 // --- MODELOS ---
