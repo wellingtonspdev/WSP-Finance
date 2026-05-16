@@ -1,9 +1,33 @@
 import { AuditAction, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { ExtendedTransactionClient, prisma } from '../lib/prisma';
+import { prisma } from '../lib/prisma';
 
-type AuditClient = ExtendedTransactionClient | typeof prisma;
+type AuditClient = Pick<typeof prisma, '$executeRaw'>;
 type DecimalInput = Decimal | number | string | null | undefined;
+
+export type ExportAuditMetadata = {
+    layoutId: string;
+    targetSystem: 'DOMINIO';
+    periodStart: string;
+    periodEnd: string;
+    recordCount: number;
+    warningsCount: number;
+    fileHash: string;
+    fileName: string;
+};
+
+export function buildExportAuditNewState(input: ExportAuditMetadata): ExportAuditMetadata {
+    return {
+        layoutId: input.layoutId,
+        targetSystem: input.targetSystem,
+        periodStart: input.periodStart,
+        periodEnd: input.periodEnd,
+        recordCount: input.recordCount,
+        warningsCount: input.warningsCount,
+        fileHash: input.fileHash,
+        fileName: input.fileName,
+    };
+}
 
 export interface CreateAuditLogDTO {
     userId: number;
