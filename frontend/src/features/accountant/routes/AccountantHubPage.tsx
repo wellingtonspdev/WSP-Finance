@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, FileText, AlertTriangle, ArrowRight, Search, MoreVertical, UserPlus, Inbox, RefreshCw, Clock } from 'lucide-react';
+import { Users, FileText, AlertTriangle, ArrowRight, Search, MoreVertical, UserPlus, Inbox, RefreshCw, Clock, Activity } from 'lucide-react';
 import { useAuth } from '../../../app/AuthProvider';
 import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 import { AppLayout } from '../../../shared/components/layout/AppLayout';
 import { HealthStatusBadge } from '../components/HealthStatusBadge';
 import { CertificateAlertBadge } from '../components/CertificateAlertBadge';
-import { ActivityFeed } from '../components/ActivityFeed';
 import { AccountantMobileHeader } from '../components/AccountantMobileHeader';
+import { RecentActivitiesDrawer } from '../components/RecentActivitiesDrawer';
 import type { ActivityEvent } from '../components/ActivityFeed';
 import { InviteClientModal } from '../components/InviteClientModal';
 
@@ -67,6 +67,7 @@ export function AccountantHubPage() {
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [isRefreshingCache, setIsRefreshingCache] = useState(false);
     const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
+    const [isRecentActivitiesOpen, setIsRecentActivitiesOpen] = useState(false);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDING' | 'OK'>('ALL');
@@ -160,7 +161,7 @@ export function AccountantHubPage() {
 
     return (
         <AppLayout>
-            <div className="flex flex-col xl:grid xl:grid-cols-[1fr_320px] gap-6 xl:gap-8 w-full max-w-full">
+            <div className="flex flex-col gap-6 w-full max-w-full">
                 <div className="flex-1 flex flex-col w-full min-w-0 max-w-full overflow-x-hidden lg:pb-8">
 
                     {/* Header Pessoal exclusivo para Mobile (No desktop o Header fica na Sidebar) */}
@@ -194,6 +195,19 @@ export function AccountantHubPage() {
                             </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                            <button
+                                type="button"
+                                onClick={() => setIsRecentActivitiesOpen(true)}
+                                className="px-4 py-2 rounded-xl bg-[#1978e5]/5 text-slate-300 hover:bg-[#1978e5]/10 hover:text-white border border-[#1978e5]/20 font-bold text-xs transition-all flex items-center gap-2 relative"
+                            >
+                                <Activity className="w-4 h-4 text-[#1978e5]" />
+                                Atividades Recentes
+                                {mockEvents.length > 0 && (
+                                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-[#1978e5] text-white text-[10px] font-bold px-1">
+                                        {mockEvents.length}
+                                    </span>
+                                )}
+                            </button>
                             <button
                                 type="button"
                                 onClick={handleRefreshCache}
@@ -502,10 +516,13 @@ export function AccountantHubPage() {
                     </div>
 
                 </div>
-
-                {/* Terceira Coluna: Activity Feed (Fixo na direita no Desktop, Empilhado abaixo no Mobile) */}
-                <ActivityFeed events={mockEvents} />
             </div>
+
+            <RecentActivitiesDrawer
+                isOpen={isRecentActivitiesOpen}
+                onClose={() => setIsRecentActivitiesOpen(false)}
+                events={mockEvents}
+            />
 
             <InviteClientModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
         </AppLayout >
