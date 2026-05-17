@@ -537,6 +537,13 @@ router.post('/export/validate', AuthMiddleware, WorkspaceMiddleware, RbacMiddlew
     return exportController.validate(req, res);
 });
 
+router.post('/export/generate', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('ACCOUNTANT'), (req, res) => {
+    /* #swagger.tags = ['Exportação Contábil']
+       #swagger.summary = 'Gerar Exportação Contábil (TXT Domínio)'
+       #swagger.description = 'Valida as transações do período e gera o arquivo TXT em formato Domínio Separador.' */
+    return exportController.generate(req, res);
+});
+
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN / BACKOFFICE (bypass RLS — métricas globais apenas)
 // ═══════════════════════════════════════════════════════════════════
