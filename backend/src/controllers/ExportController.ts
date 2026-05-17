@@ -1,6 +1,10 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { ExportValidationService } from '../services/ExportValidationService';
+import { ExportService } from '../services/ExportService';
+import { AuditLogService } from '../services/AuditLogService';
+import { AuditAction } from '@prisma/client';
+import { listExportLayouts } from '../config/exportLayouts';
 
 // ---------------------------------------------------------------------------
 // Zod schema — strict input validation
@@ -90,6 +94,103 @@ export class ExportController {
       res.status(500).json({
         status: 'error',
         message: 'Erro interno ao validar exportação.',
+      });
+    }
+  }
+
+  /**
+   * POST /export/generate
+   *
+   * Generates the accounting export file after validation and records an audit log.
+   */
+  async generate(req: Request, res: Response): Promise<void> {
+    const workspaceId = (req as any).workspaceId as number | undefined;
+    const user = (req as any).user;
+
+    if (!workspaceId) {
+      res.status(400).json({
+        status: 'validation_error',
+        message: 'workspaceId é obrigatório.',
+      });
+      return;
+    }
+
+    if (!user || !user.id) {
+      res.status(401).json({
+        status: 'auth_error',
+        message: 'Usuário não autenticado.',
+      });
+      return;
+    }
+
+    // Structural validation
+    const parsed = validateExportSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        status: 'validation_error',
+        message: parsed.error.issues.map((i) => i.message).join(' | '),
+      });
+      return;
+    }
+
+    const supportedLayouts = listExportLayouts().map((l) => l.id);
+    if (!supportedLayouts.includes(parsed.data.layoutId)) {
+      res.status(400).json({
+        status: 'validation_error',
+        message: 'Layout não suportado.',
+      });
+      return;
+    }
+
+    try {
+      const validationResult = await this.validationService.validate({
+        workspaceId,
+        layoutId: parsed.data.layoutId,
+        startDate: parsed.data.startDate,
+        endDate: parsed.data.endDate,
+      });
+
+      if (!validationResult.valid || validationResult.blockers.length > 0) {
+        res.status(422).json(validationResult);
+        return;
+      }
+
+      const exportService = new ExportService();
+      const exportResult = await exportService.generate({
+        workspaceId,
+        userId: user.id,
+        layoutId: parsed.data.layoutId,
+        startDate: parsed.data.startDate,
+        endDate: parsed.data.endDate,
+      });
+
+      await AuditLogService.logSync({
+        userId: user.id,
+        workspaceId,
+        action: 'EXPORT' as AuditAction,
+        entity: 'AccountingExport',
+        entityId: exportResult.hash,
+        newState: {
+          layoutId: parsed.data.layoutId,
+          targetSystem: 'DOMINIO',
+          periodStart: parsed.data.startDate,
+          periodEnd: parsed.data.endDate,
+          recordCount: exportResult.recordCount,
+          warningsCount: validationResult.summary?.warningsCount ?? validationResult.warnings.length,
+          fileHash: exportResult.hash,
+          fileName: exportResult.fileName,
+        },
+      });
+
+      res.setHeader('Content-Type', exportResult.contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${exportResult.fileName}"`);
+      res.setHeader('Cache-Control', 'no-store');
+
+      res.status(200).send(exportResult.buffer);
+    } catch (error) {
+      res.status(500).json({
+        status: 'error',
+        message: 'Erro interno ao gerar exportação.',
       });
     }
   }
