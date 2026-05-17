@@ -9,7 +9,10 @@ import { seedLifeCycle } from './seed/modules/05_LifeCycle';
 import { seedBankMovements } from './seed/modules/06_BankMovements';
 import { seedDashboardCache } from './seed/modules/07_DashboardCache';
 
-const prisma = new PrismaClient();
+const directUrl = process.env.DIRECT_URL;
+const prisma = directUrl 
+  ? new PrismaClient({ datasources: { db: { url: directUrl } } })
+  : new PrismaClient();
 
 // ══════════════════════════════════════════════════════════════════
 // 0. EARTHQUAKE PROTOCOL (Reset Determinístico)

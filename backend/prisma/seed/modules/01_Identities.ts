@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, WorkspaceType } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { addDays, subDays } from 'date-fns';
 
@@ -65,8 +65,10 @@ export async function seedIdentities(prisma: PrismaClient): Promise<IdentitiesRe
     // PLATFORM ADMIN (Backoffice isolado)
     // ═══════════════════════════════════════════════════════════════
 
-    const platformAdmin = await prisma.user.create({
-        data: {
+    const platformAdmin = await prisma.user.upsert({
+        where: { email: 'admin@wsp.finance' },
+        update: {},
+        create: {
             name: 'Platform Admin',
             email: 'admin@wsp.finance',
             passwordHash,
@@ -81,8 +83,10 @@ export async function seedIdentities(prisma: PrismaClient): Promise<IdentitiesRe
     // CONTADORES (type: ACCOUNTANT, emailVerifiedAt: now)
     // ═══════════════════════════════════════════════════════════════
 
-    const wellington = await prisma.user.create({
-        data: {
+    let wellington: any = await prisma.user.upsert({
+        where: { email: 'auditoria@wsp.finance' },
+        update: {},
+        create: {
             name: 'Wellington Contador',
             email: 'auditoria@wsp.finance',
             passwordHash,
@@ -91,18 +95,28 @@ export async function seedIdentities(prisma: PrismaClient): Promise<IdentitiesRe
             emailVerifiedAt: now,
             cpf: '111.222.333-44',
             phone: '(11) 98765-4321',
-            memberships: {
-                create: {
-                    role: 'OWNER',
-                    workspace: { create: { name: 'WSP Consultoria Contábil', type: 'BUSINESS' } }
-                }
-            }
-        },
-        include: { memberships: { include: { workspace: true } } }
+        }
     });
+    let wellingtonMembership: any = await prisma.workspaceMember.findFirst({
+        where: { userId: wellington.id, workspace: { name: 'WSP Consultoria Contábil' } },
+        include: { workspace: true }
+    });
+    if (!wellingtonMembership) {
+        wellingtonMembership = await prisma.workspaceMember.create({
+            data: {
+                role: 'OWNER',
+                user: { connect: { id: wellington.id } },
+                workspace: { create: { name: 'WSP Consultoria Contábil', type: WorkspaceType.BUSINESS } }
+            },
+            include: { workspace: true }
+        });
+    }
+    wellington = await prisma.user.findUnique({ where: { id: wellington.id }, include: { memberships: { include: { workspace: true } } } }) as any;
 
-    const fernanda = await prisma.user.create({
-        data: {
+    let fernanda: any = await prisma.user.upsert({
+        where: { email: 'fernanda@contabil.com' },
+        update: {},
+        create: {
             name: 'Fernanda Silva',
             email: 'fernanda@contabil.com',
             passwordHash,
@@ -110,15 +124,23 @@ export async function seedIdentities(prisma: PrismaClient): Promise<IdentitiesRe
             emailVerifiedAt: now,
             cpf: '555.666.777-88',
             phone: '(21) 91234-5678',
-            memberships: {
-                create: {
-                    role: 'OWNER',
-                    workspace: { create: { name: 'Fernanda Contabilidade', type: 'BUSINESS' } }
-                }
-            }
-        },
-        include: { memberships: { include: { workspace: true } } }
+        }
     });
+    let fernandaMembership: any = await prisma.workspaceMember.findFirst({
+        where: { userId: fernanda.id, workspace: { name: 'Fernanda Contabilidade' } },
+        include: { workspace: true }
+    });
+    if (!fernandaMembership) {
+        fernandaMembership = await prisma.workspaceMember.create({
+            data: {
+                role: 'OWNER',
+                user: { connect: { id: fernanda.id } },
+                workspace: { create: { name: 'Fernanda Contabilidade', type: WorkspaceType.BUSINESS } }
+            },
+            include: { workspace: true }
+        });
+    }
+    fernanda = await prisma.user.findUnique({ where: { id: fernanda.id }, include: { memberships: { include: { workspace: true } } } }) as any;
 
     // ═══════════════════════════════════════════════════════════════
     // CLIENTES (type: CLIENT, emailVerifiedAt: now)
@@ -147,40 +169,52 @@ export async function seedIdentities(prisma: PrismaClient): Promise<IdentitiesRe
 
     for (let i = 0; i < clientConfigs.length; i++) {
         const cfg = clientConfigs[i];
-        const user = await prisma.user.create({
-            data: {
+        let user: any = await prisma.user.upsert({
+            where: { email: cfg.email },
+            update: {},
+            create: {
                 name: cfg.name,
                 email: cfg.email,
                 passwordHash,
                 type: 'CLIENT',
                 emailVerifiedAt: now,
-                memberships: {
-                    create: [
-                        {
-                            role: 'OWNER',
-                            workspace: { create: { name: `Conta Pessoal de ${cfg.name.split(' ')[0]}`, type: 'PERSONAL' } }
-                        },
-                        {
-                            role: 'OWNER',
-                            workspace: {
-                                create: {
-                                    name: cfg.bizName,
-                                    type: 'BUSINESS',
-                                    taxRate: cfg.taxRate,
-                                    cnae: cfg.cnae,
-                                    document: cfg.doc,
-                                    documentType: cfg.docType,
-                                    closedUntil: cfg.closedUntil,
-                                    certificateExpiresAt: cfg.certExp,
-                                    certificateObjectKey: cfg.certExp ? `certs/dummy_${cfg.doc}.pfx` : null
-                                }
-                            }
-                        }
-                    ]
-                }
-            },
-            include: { memberships: { include: { workspace: true } } }
+            }
         });
+        
+        let bizWorkspace: any = await prisma.workspaceMember.findFirst({
+            where: { userId: user.id, workspace: { type: WorkspaceType.BUSINESS } },
+            include: { workspace: true }
+        });
+        
+        if (!bizWorkspace) {
+            await prisma.workspaceMember.create({
+                data: {
+                    role: 'OWNER',
+                    user: { connect: { id: user.id } },
+                    workspace: {
+                        create: {
+                            name: cfg.bizName,
+                            type: WorkspaceType.BUSINESS,
+                            taxRate: cfg.taxRate,
+                            cnae: cfg.cnae,
+                            document: cfg.doc,
+                            documentType: cfg.docType,
+                            closedUntil: cfg.closedUntil,
+                            certificateExpiresAt: cfg.certExp,
+                            certificateObjectKey: cfg.certExp ? `certs/dummy_${cfg.doc}.pfx` : null
+                        }
+                    }
+                }
+            });
+            await prisma.workspaceMember.create({
+                data: {
+                    role: 'OWNER',
+                    user: { connect: { id: user.id } },
+                    workspace: { create: { name: `Conta Pessoal de ${cfg.name.split(' ')[0]}`, type: WorkspaceType.PERSONAL } }
+                }
+            });
+        }
+        user = await prisma.user.findUnique({ where: { id: user.id }, include: { memberships: { include: { workspace: true } } } }) as any;
         clientUsers[clientKeys[i]] = user;
     }
 
@@ -193,13 +227,18 @@ export async function seedIdentities(prisma: PrismaClient): Promise<IdentitiesRe
 
     const wellingtonClientKeys = clientKeys; // Todos os 10 clientes
     for (const key of wellingtonClientKeys) {
-        await prisma.workspaceMember.create({
-            data: {
-                userId: wellington.id,
-                workspaceId: getBusinessId(clientUsers[key]),
-                role: 'ACCOUNTANT'
-            }
-        });
+        const workspaceId = getBusinessId(clientUsers[key]);
+        if (workspaceId) {
+            await prisma.workspaceMember.upsert({
+                where: { userId_workspaceId: { userId: wellington.id, workspaceId } },
+                update: { role: 'ACCOUNTANT' },
+                create: {
+                    userId: wellington.id,
+                    workspaceId,
+                    role: 'ACCOUNTANT'
+                }
+            });
+        }
     }
 
     console.log(`  → Wellington vinculado como ACCOUNTANT a ${wellingtonClientKeys.length} workspaces`);
