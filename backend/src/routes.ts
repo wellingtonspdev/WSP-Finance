@@ -17,6 +17,7 @@ import { BankMovementController } from './controllers/BankMovementController';
 import { OpenFinanceWebhookController } from './controllers/OpenFinanceWebhookController';
 import { AccountantCacheService } from './services/AccountantCacheService';
 import { AdminController } from './controllers/AdminController';
+import { ExportController } from './controllers/ExportController';
 import { sysPrisma } from './lib/prisma';
 
 // Middlewares
@@ -521,6 +522,19 @@ router.post('/bank-movements/:id/reject', AuthMiddleware, WorkspaceMiddleware, (
        #swagger.summary = 'Rejeitar Movimento'
        #swagger.description = 'Marca o movimento como REJECTED sem criar Transaction.' */
     return bankMovementController.reject(req, res);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// EXPORTAÇÃO CONTÁBIL
+// ═══════════════════════════════════════════════════════════════════
+
+const exportController = new ExportController();
+
+router.post('/export/validate', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('ACCOUNTANT'), (req, res) => {
+    /* #swagger.tags = ['Exportação Contábil']
+       #swagger.summary = 'Pré-validação de exportação contábil'
+       #swagger.description = 'Valida prontidão da exportação sem gerar arquivo. Retorna blockers e warnings.' */
+    return exportController.validate(req, res);
 });
 
 // ═══════════════════════════════════════════════════════════════════
