@@ -431,82 +431,86 @@ export function AccountantHubPage() {
                                 {filteredMemberships.map((membership, index) => (
                                     <motion.div
                                         key={membership.id}
-                                        className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-all"
+                                        data-testid="accountant-mobile-card"
+                                        className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl flex flex-col gap-3 group hover:bg-white/10 transition-all"
                                         initial={{ opacity: 0, y: 16 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: index * 0.06, duration: 0.3 }}
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#1a0b2e] to-[#1978e5]/20 flex items-center justify-center border border-white/10 shadow-inner shrink-0 text-white font-bold overflow-hidden">
-                                                {membership.name.substring(0, 2).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-sm text-white truncate max-w-[150px]">{membership.name}</h4>
-                                                <div className="flex items-center gap-2 mt-0.5">
-                                                    {(() => {
-                                                        const c = dashboardCache?.find(entry => entry.workspaceId === membership.id);
-                                                        const isCritical = c?.cashRiskAlert || false;
-                                                        const wPending = (c?.pendingMovements || 0) + (c?.missingAttachments || 0);
+                                        {/* Linha 1: Avatar + Nome + Status */}
+                                        <div className="flex items-start justify-between gap-3 min-w-0 w-full">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#1a0b2e] to-[#1978e5]/20 flex items-center justify-center border border-white/10 shadow-inner shrink-0 text-white font-bold overflow-hidden">
+                                                    {membership.name.substring(0, 2).toUpperCase()}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h4 className="font-bold text-sm text-white truncate max-w-full">{membership.name}</h4>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        {(() => {
+                                                            const c = dashboardCache?.find(entry => entry.workspaceId === membership.id);
+                                                            const isCritical = c?.cashRiskAlert || false;
+                                                            const wPending = (c?.pendingMovements || 0) + (c?.missingAttachments || 0);
 
-                                                        if (isCritical) {
-                                                            return (
-                                                                <>
-                                                                    <span className="px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[10px] font-bold uppercase tracking-wider border border-red-500/20">Crítico</span>
-                                                                    <span className="text-[10px] text-slate-500">Urgente</span>
-                                                                </>
-                                                            );
-                                                        } else if (wPending > 0) {
-                                                            return (
-                                                                <>
-                                                                    <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wider border border-amber-500/20">Pendente</span>
-                                                                    <span className="text-[10px] text-slate-500">Aguardando NFs</span>
-                                                                </>
-                                                            );
-                                                        } else {
-                                                            return (
-                                                                <>
-                                                                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/20">OK</span>
-                                                                    <span className="text-[10px] text-slate-500">Tudo em dia</span>
-                                                                </>
-                                                            );
-                                                        }
-                                                    })()}
+                                                            if (isCritical) {
+                                                                return (
+                                                                    <>
+                                                                        <span className="px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[10px] font-bold uppercase tracking-wider border border-red-500/20">Crítico</span>
+                                                                        <span className="text-[10px] text-slate-500">Urgente</span>
+                                                                    </>
+                                                                );
+                                                            } else if (wPending > 0) {
+                                                                return (
+                                                                    <>
+                                                                        <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wider border border-amber-500/20">Pendente</span>
+                                                                        <span className="text-[10px] text-slate-500">Aguardando NFs</span>
+                                                                    </>
+                                                                );
+                                                            } else {
+                                                                return (
+                                                                    <>
+                                                                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/20">OK</span>
+                                                                        <span className="text-[10px] text-slate-500">Tudo em dia</span>
+                                                                    </>
+                                                                );
+                                                            }
+                                                        })()}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
 
-                                                                                <div className="mt-2 pl-1">
+                                        {/* Linha 2: Certificado A1 */}
+                                        <div data-testid="accountant-mobile-certificate" className="w-full pl-14">
                                             <CertificateAlertBadge certificateExpiresAt={dashboardCache?.find(c => c.workspaceId === membership.id)?.certificateExpiresAt ?? null} />
                                         </div>
 
-                                        <div className="flex items-center gap-4">
-                                            <div className="hidden md:block text-right">
-                                                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Última Atividade</p>
-                                                <p className="text-xs font-medium text-slate-300">
-                                                    {dashboardCache?.find(c => c.workspaceId === membership.id)?.updatedAt
-                                                        ? new Date(dashboardCache.find(c => c.workspaceId === membership.id)!.updatedAt).toLocaleDateString()
-                                                        : 'N/A'}
-                                                </p>
-                                            </div>
+                                        {/* Linha 3: Ações */}
+                                        <div data-testid="accountant-mobile-actions" className="grid grid-cols-3 gap-2 w-full">
                                             <button
                                                 onClick={() => navigate(`/accountant/inbox/${membership.id}`)}
-                                                className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 hover:bg-amber-500/20 transition-all"
+                                                className="h-9 w-full rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center gap-1.5 text-amber-400 hover:bg-amber-500/20 transition-all text-xs font-semibold"
+                                                aria-label="Abrir inbox de aprovação"
                                                 title="Inbox"
                                             >
                                                 <Inbox className="w-4 h-4" />
+                                                <span className="hidden xs:inline">Inbox</span>
                                             </button>
                                             <button
                                                 onClick={() => navigate(`/${membership.id}/documents`)}
-                                                className="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 hover:bg-purple-500/20 transition-all"
+                                                className="h-9 w-full rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center gap-1.5 text-purple-400 hover:bg-purple-500/20 transition-all text-xs font-semibold"
+                                                aria-label="Gerenciar documentos"
                                                 title="Documentos"
                                             >
                                                 <FileText className="w-4 h-4" />
+                                                <span className="hidden xs:inline">Docs</span>
                                             </button>
                                             <button
                                                 onClick={() => handleAccessClient(membership.id)}
-                                                className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 group-hover:bg-[#1978e5] group-hover:text-white transition-all shadow-sm"
+                                                className="h-9 w-full rounded-lg bg-[#1978e5]/10 border border-[#1978e5]/20 flex items-center justify-center gap-1.5 text-[#1978e5] hover:bg-[#1978e5]/20 transition-all text-xs font-semibold shadow-sm"
+                                                aria-label={`Acessar workspace de ${membership.name}`}
                                             >
                                                 <ArrowRight className="w-4 h-4" />
+                                                <span className="hidden xs:inline">Acessar</span>
                                             </button>
                                         </div>
                                     </motion.div>
