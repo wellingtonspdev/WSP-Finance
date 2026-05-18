@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { getJwtSecret } from '../config/authEnv';
 import { UserRepository } from '../repositories/UserRepository';
 import { VerificationService } from './VerificationService';
 
@@ -19,7 +20,7 @@ type SystemRole = 'USER' | 'ADMIN';
 export class AuthService {
   private userRepository: UserRepository;
   private verificationService: VerificationService;
-  private JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-me';
+  private JWT_SECRET = getJwtSecret();
 
   constructor() {
     this.userRepository = new UserRepository();

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { getJwtSecret } from '../config/authEnv';
 
 interface TokenPayload {
   sub: string;
@@ -16,8 +17,10 @@ export function AuthMiddleware(req: Request, res: Response, next: NextFunction) 
 
   const [, token] = authorization.split(' ');
 
+  const secret = getJwtSecret();
+
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super-secret-key-change-me');
+    const decoded = jwt.verify(token, secret);
     const { sub } = decoded as TokenPayload;
 
     req.user = {

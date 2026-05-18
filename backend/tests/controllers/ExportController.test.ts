@@ -8,6 +8,7 @@ import { prisma } from '../../src/lib/prisma';
 import { ExportService } from '../../src/services/ExportService';
 import { ExportValidationService } from '../../src/services/ExportValidationService';
 import { AuditLogService } from '../../src/services/AuditLogService';
+import { getJwtSecret } from '../../src/config/authEnv';
 
 // Mock prisma for RBAC middleware testing
 vi.mock('../../src/lib/prisma', () => ({
@@ -376,7 +377,7 @@ describe('ExportController - POST /export/validate', () => {
 });
 
 describe('POST /export/validate - RBAC Middleware Chain', () => {
-  const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-me';
+  const JWT_SECRET = getJwtSecret();
   const userId = 999;
   const wsId = 10;
   let token: string;
@@ -653,7 +654,7 @@ describe('ExportController - POST /export/generate', () => {
 });
 
 describe('ExportController - POST /export/generate - RBAC Middleware Chain', () => {
-  const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-me';
+  const JWT_SECRET = getJwtSecret();
   const userId = 999;
   const wsId = 10;
   let token: string;
