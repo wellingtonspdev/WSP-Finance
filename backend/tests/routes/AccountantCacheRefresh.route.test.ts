@@ -27,7 +27,9 @@ vi.mock('../../src/services/AccountantCacheService', () => ({
   }),
 }));
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-me';
+import { getJwtSecret } from '../../src/config/authEnv';
+
+const JWT_SECRET = getJwtSecret();
 
 function makeToken(userId: number): string {
   return jwt.sign({ sub: String(userId) }, JWT_SECRET, { expiresIn: '1h' });

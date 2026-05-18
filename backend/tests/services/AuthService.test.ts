@@ -5,6 +5,7 @@ import type { AddressInfo } from 'net';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthController } from '../../src/controllers/AuthController';
 import { AuthMiddleware } from '../../src/middlewares/AuthMiddleware';
+import { getJwtSecret } from '../../src/config/authEnv';
 
 const mockUserRepository = {
   findByEmail: vi.fn(),
@@ -49,7 +50,7 @@ vi.mock('../../src/services/AccountantCacheService', () => ({
 }));
 
 describe('AuthService HTTP flow', () => {
-  const jwtSecret = process.env.JWT_SECRET || 'super-secret-key-change-me';
+  const jwtSecret = getJwtSecret();
   const password = 'password123';
   let passwordHash: string;
   let server: ReturnType<typeof appListen>;
