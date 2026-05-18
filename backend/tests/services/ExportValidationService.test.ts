@@ -571,14 +571,13 @@ describe('ExportValidationService', () => {
       ]),
     );
 
-    // Cleanup OUT_GEN
+    // Cleanup OUT_GEN (workspace-scoped only; do NOT delete the global MacroCategory)
     await tenantContext.run({ currentWorkspaceId: workspaceId }, async () => {
       await prisma.transaction.deleteMany({ where: { workspaceId } });
       await prisma.accountingExportMapping.deleteMany({
         where: { workspaceId, macroCategory: { code: 'OUT_GEN' } },
       });
       await prisma.category.deleteMany({ where: { name: 'Generic Others', workspaceId } });
-      await prisma.macroCategory.deleteMany({ where: { code: 'OUT_GEN' } });
     });
   });
 
