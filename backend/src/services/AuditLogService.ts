@@ -1,6 +1,7 @@
 import { AuditAction, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '../lib/prisma';
+import { tenantContext } from '../lib/tenantContext';
 
 type AuditClient = Pick<typeof prisma, '$executeRaw'>;
 type DecimalInput = Decimal | number | string | null | undefined;
@@ -74,8 +75,36 @@ export class AuditLogService {
         const balanceAfter = this.normalizeDecimal(dto.balanceAfter);
         const delta = this.normalizeDecimal(dto.delta);
 
+        const currentTenant = tenantContext.getStore();
+        if (dto.workspaceId && currentTenant?.currentWorkspaceId && dto.workspaceId !== currentTenant.currentWorkspaceId) {
+            throw new Error(`Workspace mismatch: Context workspaceId ${currentTenant.currentWorkspaceId} does not match DTO workspaceId ${dto.workspaceId}`);
+        }
+
         const id = crypto.randomUUID();
 
+        // If client is a root PrismaClient (has $transaction), wrap in transaction to ensure
+        // set_config and INSERT use the exact same connection from the pool.
+        if ('$transaction' in client) {
+            await (client as any).$transaction(async (tx: AuditClient) => {
+                const currentRes: any = await (tx as any).$queryRaw`SELECT current_setting('app.current_workspace_id', true)`;
+                const currentSetting = currentRes?.[0]?.current_setting;
+
+                if (dto.workspaceId && currentSetting !== String(dto.workspaceId)) {
+                    await (tx as any).$executeRaw`SELECT set_config('app.current_workspace_id', ${String(dto.workspaceId)}, true)`;
+                }
+
+                await this.executeInsert(tx, dto, id, oldState, newState, balanceBefore, balanceAfter, delta);
+            });
+        } else {
+            // Already inside a transaction or it's a transaction client
+            if (dto.workspaceId) {
+                await client.$executeRaw`SELECT set_config('app.current_workspace_id', ${String(dto.workspaceId)}, true)`;
+            }
+            await this.executeInsert(client, dto, id, oldState, newState, balanceBefore, balanceAfter, delta);
+        }
+    }
+
+    private static async executeInsert(client: AuditClient, dto: CreateAuditLogDTO, id: string, oldState: string | null, newState: string | null, balanceBefore: string | null, balanceAfter: string | null, delta: string | null): Promise<void> {
         await client.$executeRaw`
             INSERT INTO "AuditLog" (
                 "id",
@@ -112,6 +141,7 @@ export class AuditLogService {
             )
         `;
     }
+
     /**
      * Registra uma ação de auditoria no sistema de forma assíncrona (fire-and-forget).
      * Não aguarda o banco de dados para não travar a requisição do usuário.
@@ -135,8 +165,11 @@ export class AuditLogService {
     static async logSync(dto: CreateAuditLogDTO, client: AuditClient = prisma): Promise<void> {
         try {
             await this.insert(dto, client);
-        } catch (error) {
-            console.error('[AuditLogService] Error saving sync audit log:', error);
+        } catch (error: any) {
+            console.error(`[AuditLogService] Error saving sync audit log: ${error.message}`);
+            if (error.message.includes('Workspace mismatch')) {
+                throw error;
+            }
             throw new Error('Failed to create audit log');
         }
     }

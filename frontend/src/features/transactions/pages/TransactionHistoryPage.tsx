@@ -1,10 +1,12 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { useTransactions } from '../hooks/useTransactions';
 import { TransactionAccordionItem } from '../components/TransactionAccordionItem';
-import { ArrowLeft, Filter, Loader2 } from 'lucide-react';
+import { ArrowLeft, Filter, Loader2, FileText } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAttachment } from '../hooks/useAttachment';
 import { AttachmentPreview } from '../components/AttachmentPreview';
+import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
+import { ExportDominioModal } from '../components/ExportDominioModal';
 
 export function TransactionHistoryPage() {
     const [filterMode, setFilterMode] = useState<'ALL' | 'PACT' | 'SERVICES' | 'SUBS'>('ALL');
@@ -18,6 +20,9 @@ export function TransactionHistoryPage() {
     } = useTransactions();
     const navigate = useNavigate();
     const { workspaceId } = useParams<{ workspaceId: string }>();
+
+    const activeMembership = useWorkspaceStore(state => state.activeMembership);
+    const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
     // Flatten pages into single array
     const transactions = useMemo(
@@ -134,6 +139,16 @@ export function TransactionHistoryPage() {
                         >
                             Marketplace
                         </button>
+
+                        {activeMembership?.type === 'BUSINESS' && (activeMembership.role === 'OWNER' || activeMembership.role === 'ACCOUNTANT') && (
+                            <button
+                                onClick={() => setIsExportModalOpen(true)}
+                                className="px-4 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap transition-transform active:scale-95 bg-white/5 text-purple-400 border-purple-500/30 hover:bg-purple-500/10 flex items-center gap-2"
+                            >
+                                <FileText className="w-4 h-4" />
+                                Exportar Domínio
+                            </button>
+                        )}
                     </div>
 
                     {/* Date Headers & Saldo do Dia */}
@@ -189,6 +204,11 @@ export function TransactionHistoryPage() {
                 headers={previewData?.headers}
                 isLoadingUrl={isAttachmentLoading}
                 errorUrl={attachmentError}
+            />
+
+            <ExportDominioModal
+                isOpen={isExportModalOpen}
+                onClose={() => setIsExportModalOpen(false)}
             />
         </div>
     );
