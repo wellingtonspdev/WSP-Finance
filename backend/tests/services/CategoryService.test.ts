@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { randomUUID } from 'crypto';
 import { CategoryService } from '../../src/services/CategoryService';
 import { prisma } from '../../src/lib/prisma';
 import { tenantContext } from '../../src/lib/tenantContext';
@@ -8,41 +9,40 @@ describe('CategoryService', () => {
   let workspace: any;
   let createdMacroCategoryIds: number[] = [];
 
-  beforeAll(async () => {
-    // Cleanup any leftovers from aborted test runs
-    await prisma.macroCategory.deleteMany({
-      where: { code: { startsWith: 'TEST_' } }
-    });
-  });
+  const uniqueMacroCode = () => `TEST_CATSVC_${randomUUID()}`;
 
   beforeEach(async () => {
     categoryService = new CategoryService();
+    createdMacroCategoryIds = [];
     workspace = await prisma.workspace.create({
       data: { name: 'Test Workspace', type: 'PERSONAL' }
     });
   });
 
   afterEach(async () => {
-    // Cleanup explicitly without TRUNCATE CASCADE
+    // FK-safe cleanup order: deepest dependents first
     if (workspace?.id) {
       await tenantContext.run({ currentWorkspaceId: workspace.id }, async () => {
         await prisma.transaction.deleteMany({ where: { workspaceId: workspace.id } });
+        await prisma.accountingExportMapping.deleteMany({ where: { workspaceId: workspace.id } });
         await prisma.account.deleteMany({ where: { workspaceId: workspace.id } });
         await prisma.category.deleteMany({ where: { workspaceId: workspace.id } });
       });
       await prisma.workspace.delete({ where: { id: workspace.id } });
     }
 
-    // Clean up any test MacroCategory
-    await prisma.macroCategory.deleteMany({
-      where: { code: { startsWith: 'TEST_' } }
-    });
+    // Clean up only MacroCategory records created by THIS suite
+    if (createdMacroCategoryIds.length > 0) {
+      await prisma.macroCategory.deleteMany({
+        where: { id: { in: createdMacroCategoryIds } }
+      });
+    }
   });
 
   it('should create a Category with a valid macroCategoryId', async () => {
     await tenantContext.run({ currentWorkspaceId: workspace.id }, async () => {
       const macro = await prisma.macroCategory.create({
-        data: { code: 'TEST_MACRO_VALID', name: 'Test Macro', type: 'EXPENSE', isActive: true }
+        data: { code: uniqueMacroCode(), name: 'Test Macro', type: 'EXPENSE', isActive: true }
       });
       createdMacroCategoryIds.push(macro.id);
 
@@ -63,7 +63,7 @@ describe('CategoryService', () => {
   it('should reject creation if macroCategoryId is inactive', async () => {
     await tenantContext.run({ currentWorkspaceId: workspace.id }, async () => {
       const macro = await prisma.macroCategory.create({
-        data: { code: 'TEST_INACTIVE', name: 'Inactive', type: 'EXPENSE', isActive: false }
+        data: { code: uniqueMacroCode(), name: 'Inactive', type: 'EXPENSE', isActive: false }
       });
       createdMacroCategoryIds.push(macro.id);
 
@@ -96,7 +96,7 @@ describe('CategoryService', () => {
   it('should preserve Category -> Transaction relation', async () => {
     await tenantContext.run({ currentWorkspaceId: workspace.id }, async () => {
       const macro = await prisma.macroCategory.create({
-        data: { code: 'TEST_PRESERVE', name: 'Test', type: 'INCOME', isActive: true }
+        data: { code: uniqueMacroCode(), name: 'Test', type: 'INCOME', isActive: true }
       });
       createdMacroCategoryIds.push(macro.id);
 
