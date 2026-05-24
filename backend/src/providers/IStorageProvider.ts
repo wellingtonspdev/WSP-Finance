@@ -27,4 +27,9 @@ export interface IStorageProvider {
    * Retorna a object key salva.
    */
   uploadSecureBuffer?(buffer: Buffer, workspaceId: number, folderType: string, contentType?: string): Promise<string>;
+
+  /**
+   * Faz upload de um buffer genérico para uma chave específica
+   */
+  uploadBuffer(buffer: Buffer, key: string, contentType?: string): Promise<void>;
 }

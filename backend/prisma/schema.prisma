@@ -124,6 +124,7 @@ model User {
   notifications Notification[]
   invitesSent   WorkspaceInvite[]          @relation("InvitesSent")
   dashboardCaches AccountantDashboardCache[]
+  exportArchivesCreated ExportArchive[] @relation("ExportArchiveCreatedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -182,6 +183,7 @@ model Workspace {
   // Exportação Contábil
   accountingExportConfigs AccountingExportConfig[]
   accountingExportMappings AccountingExportMapping[]
+  exportArchives ExportArchive[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -479,4 +481,35 @@ model AccountingExportMapping {
   @@unique([workspaceId, macroCategoryId, layoutId])
   @@index([workspaceId])
   @@index([macroCategoryId])
+}
+
+model ExportArchive {
+  id              String    @id @default(uuid())
+  workspaceId     Int
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdByUserId Int
+  createdByUser   User      @relation("ExportArchiveCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  layoutId        String    // Ex: "dominio-separated-v1"
+  targetSystem    String    // Ex: "DOMINIO"
+  periodStart     DateTime
+  periodEnd       DateTime
+
+  fileName        String
+  objectKey       String    // Chave opaca no R2 (ex: workspaces/{workspaceId}/exports/{uuid}.txt)
+  sha256          String    // SHA-256 do arquivo gerado
+  sizeBytes       Int
+  recordCount     Int
+  contentType     String
+  encoding        String
+  warningsCount   Int
+  retentionUntil  DateTime
+  createdAt       DateTime  @default(now())
+
+  @@unique([workspaceId, objectKey])
+  @@index([workspaceId, sha256])
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, periodStart, periodEnd])
+  @@index([workspaceId, targetSystem, layoutId])
+  @@index([retentionUntil])
 }
