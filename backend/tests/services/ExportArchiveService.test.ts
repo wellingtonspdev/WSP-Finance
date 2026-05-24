@@ -134,16 +134,41 @@ describe('ExportArchiveService & RLS', () => {
     expect(auditLog).not.toBeNull();
     expect(auditLog?.entity).toBe('AccountingExport');
 
+    // S5-005: entityId MUST be the archiveId
+    expect(auditLog?.entityId).toBe(result.id);
+
     const newState = auditLog?.newState as any;
     expect(newState).toBeDefined();
     expect(newState.archiveId).toBe(result.id);
     expect(newState.layoutId).toBe('dominio-separated-v1');
     expect(newState.targetSystem).toBe('DOMINIO');
 
+    // S5-005: newState allowlist must contain only the safe fields
+    const newStateKeys = Object.keys(newState).sort();
+    expect(newStateKeys).toEqual([
+      'archiveId',
+      'fileHash',
+      'fileName',
+      'layoutId',
+      'periodEnd',
+      'periodStart',
+      'recordCount',
+      'targetSystem',
+      'warningsCount',
+    ]);
+
     // Security check: objectKey, raw text content or PII must not be present in newState or DB fields
     expect(newState.objectKey).toBeUndefined();
-    expect(JSON.stringify(newState)).not.toContain('EMPRESA_TESTE');
-    expect(JSON.stringify(newState)).not.toContain('6000|MOVIMENTO');
+    const serializedNewState = JSON.stringify(newState);
+    expect(serializedNewState).not.toContain('EMPRESA_TESTE');
+    expect(serializedNewState).not.toContain('6000|MOVIMENTO');
+    expect(serializedNewState).not.toContain('6100|REGISTRO');
+    expect(serializedNewState).not.toContain('workspaces/');
+    expect(serializedNewState).not.toContain('exports/');
+    expect(serializedNewState).not.toContain('objectKey');
+    expect(serializedNewState).not.toContain('bucket');
+    expect(serializedNewState).not.toContain('r2://');
+    expect(serializedNewState).not.toContain('s3://');
     expect(JSON.stringify(archive)).not.toContain('6000|MOVIMENTO');
 
     // Cleanup local file
@@ -394,5 +419,65 @@ describe('ExportArchiveService & RLS', () => {
 
     // Cleanup local file
     await storageProvider.deleteFile(result.objectKey);
+  });
+
+  it('S5-005: cross-tenant getDownloadUrl — Workspace B cannot get presigned URL for Workspace A archive', async () => {
+    const textBuffer = encodeWindows1252('cross-tenant download test');
+    const hash = sha256(textBuffer);
+
+    // 1. Create a real ExportArchive in Workspace A
+    const archiveA = await withTenantContext(wsAId, async () => {
+      return await archiveService.archiveAndLog({
+        workspaceId: wsAId,
+        userId: userAId,
+        layoutId: 'dominio-separated-v1',
+        targetSystem: 'DOMINIO',
+        periodStart: new Date('2026-01-01T00:00:00.000Z'),
+        periodEnd: new Date('2026-01-31T23:59:59.000Z'),
+        fileName: 'wsp-dominio-2026-01-01_2026-01-31.txt',
+        buffer: textBuffer,
+        sha256: hash,
+        recordCount: 5,
+        contentType: 'text/plain',
+        encoding: 'windows-1252',
+        warningsCount: 0,
+      });
+    });
+
+    expect(archiveA.id).toBeDefined();
+
+    // 2. Spy on the storage provider to prove it is NOT called
+    const presignedSpy = vi.spyOn(storageProvider, 'getPresignedDownloadUrl' as any);
+
+    // 3. Workspace B tries to call getDownloadUrl with Workspace A's archiveId
+    //    The service uses prisma.exportArchive.findFirst({ where: { id, workspaceId } })
+    //    With workspaceId = wsBId, this should return null → NotFoundError
+    const { NotFoundError } = await import('../../src/errors/NotFoundError');
+    await expect(
+      withTenantContext(wsBId, async () => {
+        return await archiveService.getDownloadUrl(archiveA.id, wsBId);
+      })
+    ).rejects.toThrow(NotFoundError);
+
+    // 4. Provider MUST NOT have been called — no presigned URL generation for cross-tenant
+    expect(presignedSpy).not.toHaveBeenCalled();
+
+    // 5. Verify Workspace A can still download its own archive
+    const downloadResult = await withTenantContext(wsAId, async () => {
+      return await archiveService.getDownloadUrl(archiveA.id, wsAId);
+    });
+
+    expect(downloadResult.url).toBeDefined();
+    expect(downloadResult.expiresInSeconds).toBeLessThanOrEqual(900);
+    expect(downloadResult.fileName).toBe('wsp-dominio-2026-01-01_2026-01-31.txt');
+
+    // 6. Verify response does not contain objectKey or sensitive data
+    expect(downloadResult).not.toHaveProperty('objectKey');
+    expect(downloadResult).not.toHaveProperty('bucket');
+    expect(downloadResult).not.toHaveProperty('buffer');
+    expect(downloadResult).not.toHaveProperty('base64');
+
+    // Cleanup local file
+    await storageProvider.deleteFile(archiveA.objectKey);
   });
 });
