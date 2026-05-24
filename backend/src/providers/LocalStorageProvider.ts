@@ -104,4 +104,23 @@ export class LocalStorageProvider implements IStorageProvider {
       downloadUrl: url,
     };
   }
+
+  async getPresignedDownloadUrl(
+    objectKey: string,
+    options: { ttlSeconds: number; contentType: string; fileName: string }
+  ): Promise<{ url: string; expiresInSeconds: number }> {
+    const DEFAULT_EXPIRES_IN_SECONDS = 900;
+    const MAX_EXPIRES_IN_SECONDS = 900;
+
+    const effectiveTtl = Number.isFinite(options.ttlSeconds) && options.ttlSeconds > 0
+        ? Math.min(options.ttlSeconds, MAX_EXPIRES_IN_SECONDS)
+        : DEFAULT_EXPIRES_IN_SECONDS;
+
+    // Local provider returns a fake presigned URL for testing purposes.
+    // This URL is NOT publicly accessible and does not expose bucket internals.
+    return {
+      url: `${this.baseUrl}/local-presigned/${encodeURIComponent(options.fileName)}`,
+      expiresInSeconds: effectiveTtl,
+    };
+  }
 }
