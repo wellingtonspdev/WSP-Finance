@@ -18,11 +18,13 @@ import { OpenFinanceWebhookController } from './controllers/OpenFinanceWebhookCo
 import { AccountantCacheService } from './services/AccountantCacheService';
 import { AdminController } from './controllers/AdminController';
 import { ExportController } from './controllers/ExportController';
+import { ExportDownloadController } from './controllers/ExportDownloadController';
 import { sysPrisma } from './lib/prisma';
 
 // Middlewares
 import { AuthMiddleware } from './middlewares/AuthMiddleware';
 import { WorkspaceMiddleware } from './middlewares/WorkspaceMiddleware';
+import { WorkspaceRouteParamGuard } from './middlewares/WorkspaceRouteParamGuard';
 import { RbacMiddleware } from './middlewares/RbacMiddleware';
 import { AdminMiddleware } from './middlewares/AdminMiddleware';
 import rateLimit from 'express-rate-limit';
@@ -543,6 +545,22 @@ router.post('/export/generate', AuthMiddleware, WorkspaceMiddleware, RbacMiddlew
        #swagger.description = 'Valida as transações do período e gera o arquivo TXT em formato Domínio Separador.' */
     return exportController.generate(req, res);
 });
+
+const exportDownloadController = new ExportDownloadController();
+
+router.get(
+    '/workspaces/:workspaceId/exports/:archiveId/download',
+    AuthMiddleware,
+    WorkspaceRouteParamGuard,
+    WorkspaceMiddleware,
+    RbacMiddleware('ACCOUNTANT'),
+    (req, res) => {
+        /* #swagger.tags = ['Exportação Contábil']
+           #swagger.summary = 'Baixar Exportação Contábil'
+           #swagger.description = 'Gera uma URL pré-assinada de curta duração para download do arquivo TXT.' */
+        return exportDownloadController.download(req, res);
+    }
+);
 
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN / BACKOFFICE (bypass RLS — métricas globais apenas)

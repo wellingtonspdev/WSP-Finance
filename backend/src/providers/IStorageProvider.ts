@@ -32,4 +32,14 @@ export interface IStorageProvider {
    * Faz upload de um buffer genérico para uma chave específica
    */
   uploadBuffer(buffer: Buffer, key: string, contentType?: string): Promise<void>;
+
+  /**
+   * Gera uma URL pré-assinada para download seguro com TTL, contentType e fileName explícitos.
+   * TTL é limitado a no máximo 900 segundos.
+   */
+  getPresignedDownloadUrl(objectKey: string, options: {
+    ttlSeconds: number;
+    contentType: string;
+    fileName: string;
+  }): Promise<{ url: string; expiresInSeconds: number }>;
 }

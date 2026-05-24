@@ -201,4 +201,44 @@ export class S3StorageProvider implements IStorageProvider {
         });
         await this.client.send(command);
     }
+
+    /**
+     * Sanitizes a file name to prevent header injection in Content-Disposition.
+     * Removes CR, LF, quotes, backslashes, and non-printable characters.
+     */
+    private sanitizeFileName(fileName: string): string {
+        return fileName
+            .replace(/[\r\n]/g, '')      // Remove CRLF
+            .replace(/["\\]/g, '')        // Remove quotes and backslashes
+            .replace(/[^\x20-\x7E]/g, '') // Remove non-printable ASCII
+            .trim() || 'download';
+    }
+
+    async getPresignedDownloadUrl(
+        objectKey: string,
+        options: { ttlSeconds: number; contentType: string; fileName: string }
+    ): Promise<{ url: string; expiresInSeconds: number }> {
+        const DEFAULT_EXPIRES_IN_SECONDS = 900;
+        const MAX_EXPIRES_IN_SECONDS = 900;
+
+        const effectiveTtl = Number.isFinite(options.ttlSeconds) && options.ttlSeconds > 0
+            ? Math.min(options.ttlSeconds, MAX_EXPIRES_IN_SECONDS)
+            : DEFAULT_EXPIRES_IN_SECONDS;
+        const safeFileName = this.sanitizeFileName(options.fileName);
+
+        const commandParams: GetObjectCommandInput = {
+            Bucket: this.bucketName,
+            Key: objectKey,
+            ResponseContentType: options.contentType,
+            ResponseContentDisposition: `attachment; filename="${safeFileName}"`,
+        };
+
+        const command = new GetObjectCommand(commandParams);
+        const signedUrl = await getSignedUrl(this.client, command, { expiresIn: effectiveTtl });
+
+        return {
+            url: signedUrl,
+            expiresInSeconds: effectiveTtl,
+        };
+    }
 }
