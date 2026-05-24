@@ -261,7 +261,9 @@ describe('ExportArchiveService & RLS', () => {
   it('verifies Path Traversal protection in LocalStorageProvider with various payloads', async () => {
     const buffer = Buffer.from('traversal');
 
-    // Sibling folder attempts
+    // --- Payloads that MUST be rejected ---
+
+    // Sibling folder attempts (POSIX)
     await expect(
       storageProvider.uploadBuffer(buffer, '../uploads_evil/foo.txt')
     ).rejects.toThrow(/path traversal/i);
@@ -279,13 +281,31 @@ describe('ExportArchiveService & RLS', () => {
       storageProvider.deleteFile('/etc/passwd')
     ).rejects.toThrow(/path traversal/i);
 
-    // Absolute Windows paths
+    // Absolute Windows paths (backslash)
     await expect(
       storageProvider.uploadBuffer(buffer, 'C:\\Windows\\System32\\cmd.exe')
     ).rejects.toThrow(/path traversal/i);
 
     await expect(
       storageProvider.deleteFile('C:\\Windows\\System32\\cmd.exe')
+    ).rejects.toThrow(/path traversal/i);
+
+    // Absolute Windows paths (forward slash)
+    await expect(
+      storageProvider.uploadBuffer(buffer, 'C:/Windows/System32/cmd.exe')
+    ).rejects.toThrow(/path traversal/i);
+
+    await expect(
+      storageProvider.deleteFile('C:/Windows/System32/cmd.exe')
+    ).rejects.toThrow(/path traversal/i);
+
+    // UNC paths
+    await expect(
+      storageProvider.uploadBuffer(buffer, '\\\\server\\share\\file.txt')
+    ).rejects.toThrow(/path traversal/i);
+
+    await expect(
+      storageProvider.deleteFile('\\\\server\\share\\file.txt')
     ).rejects.toThrow(/path traversal/i);
 
     // Traversal via backslashes
@@ -297,7 +317,9 @@ describe('ExportArchiveService & RLS', () => {
       storageProvider.deleteFile('..\\evil.txt')
     ).rejects.toThrow(/path traversal/i);
 
-    // Valid subfolders within uploadFolder
+    // --- Valid paths that MUST be accepted ---
+
+    // Simple subfolder
     const validKey = 'subfolder/valid-file.txt';
     await expect(
       storageProvider.uploadBuffer(buffer, validKey)
@@ -313,6 +335,21 @@ describe('ExportArchiveService & RLS', () => {
       storageProvider.deleteFile(validKey)
     ).resolves.not.toThrow();
     expect(fs.existsSync(physicalPath)).toBe(false);
+
+    // Multi-level valid path (workspaces pattern)
+    const deepKey = 'workspaces/1/exports/uuid.txt';
+    await expect(
+      storageProvider.uploadBuffer(buffer, deepKey)
+    ).resolves.not.toThrow();
+
+    const deepPhysicalPath = path.resolve(uploadFolder, deepKey);
+    expect(fs.existsSync(deepPhysicalPath)).toBe(true);
+
+    // Clean up deep valid file
+    await expect(
+      storageProvider.deleteFile(deepKey)
+    ).resolves.not.toThrow();
+    expect(fs.existsSync(deepPhysicalPath)).toBe(false);
   });
 
   it('enforces PostgreSQL Row-Level Security: Tenant B cannot read Tenant A archives', async () => {

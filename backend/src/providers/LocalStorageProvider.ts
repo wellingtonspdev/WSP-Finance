@@ -35,25 +35,46 @@ export class LocalStorageProvider implements IStorageProvider {
       relativePath = keyOrUrl.replace(`${this.baseUrl}/files/`, '').replace(`${this.baseUrl}/uploads/`, '');
     }
 
-    // 1. Block absolute paths or root/parent traversal attempts
+    // 1. Reject empty or whitespace-only keys
+    if (!relativePath || relativePath.trim() === '') {
+      throw new Error('Invalid storage key: path traversal detected');
+    }
+
+    // 2. Reject null bytes
+    if (relativePath.includes('\0')) {
+      throw new Error('Invalid storage key: path traversal detected');
+    }
+
+    // 3. Reject any backslash (blocks Windows paths and ..\\ traversal cross-platform)
+    if (relativePath.includes('\\')) {
+      throw new Error('Invalid storage key: path traversal detected');
+    }
+
+    // 4. Cross-platform absolute path detection (OS-native + POSIX + Win32)
     if (
       path.isAbsolute(relativePath) ||
-      relativePath.includes('..') ||
-      relativePath.startsWith('/') ||
-      relativePath.startsWith('\\')
+      path.posix.isAbsolute(relativePath) ||
+      path.win32.isAbsolute(relativePath)
     ) {
-      throw new Error('Path traversal security violation');
+      throw new Error('Invalid storage key: path traversal detected');
     }
 
-    const filePath = path.resolve(this.uploadFolder, relativePath);
+    // 5. Validate each segment: reject '..', '.', and empty segments
+    const segments = relativePath.split('/');
+    if (segments.some((segment) => segment === '..' || segment === '.' || segment === '')) {
+      throw new Error('Invalid storage key: path traversal detected');
+    }
 
-    // 2. Strict sibling and parent traversal check
-    const relative = path.relative(this.uploadFolder, filePath);
+    // 6. Resolve and verify the target stays within uploadFolder
+    const root = path.resolve(this.uploadFolder);
+    const target = path.resolve(root, ...segments);
+    const relative = path.relative(root, target);
+
     if (relative.startsWith('..') || path.isAbsolute(relative)) {
-      throw new Error('Path traversal security violation');
+      throw new Error('Invalid storage key: path traversal detected');
     }
 
-    return filePath;
+    return target;
   }
 
   async uploadBuffer(buffer: Buffer, key: string, contentType?: string): Promise<void> {
