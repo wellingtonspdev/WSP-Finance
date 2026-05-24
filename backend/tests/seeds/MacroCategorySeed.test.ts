@@ -16,16 +16,18 @@ describe('MacroCategorySeed', () => {
   });
 
   it('deve rodar o seed duas vezes e ser idempotente (não duplicar)', async () => {
+    const seededCodes = ['REV_SRV', 'REV_PRO', 'DES_ALU', 'DES_TAR', 'TAX_SIM', 'PRO_LAB', 'OUT_GEN'];
+
     // 1. Executa a primeira vez
     await seedMacroCategories(prisma);
-    const countAfterFirst = await prisma.macroCategory.count();
+    const countAfterFirst = await prisma.macroCategory.count({ where: { code: { in: seededCodes } } });
 
     // O mínimo esperado após a primeira execução são 7 (quantidade de macros no seed)
-    expect(countAfterFirst).toBeGreaterThanOrEqual(7);
+    expect(countAfterFirst).toBe(7);
 
     // 2. Executa a segunda vez
     await seedMacroCategories(prisma);
-    const countAfterSecond = await prisma.macroCategory.count();
+    const countAfterSecond = await prisma.macroCategory.count({ where: { code: { in: seededCodes } } });
 
     // A contagem não deve ter mudado
     expect(countAfterSecond).toBe(countAfterFirst);

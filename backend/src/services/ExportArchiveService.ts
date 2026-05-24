@@ -3,6 +3,11 @@ import crypto from 'crypto';
 import { prisma } from '../lib/prisma';
 import { IStorageProvider } from '../providers/IStorageProvider';
 import { AuditLogService, buildExportAuditNewState } from './AuditLogService';
+import { NotFoundError } from '../errors/NotFoundError';
+import { ServiceUnavailableError } from '../errors/ServiceUnavailableError';
+
+const CANONICAL_OBJECT_KEY_REGEX = /^workspaces\/\d+\/exports\/[a-f0-9-]+\.txt$/;
+
 
 interface ArchiveAndLogDTO {
   workspaceId: number;
@@ -120,5 +125,75 @@ export class ExportArchiveService {
       // Re-throw the original dbError, not the deleteError
       throw dbError;
     }
+  }
+
+  /**
+   * Generates a presigned download URL for an existing ExportArchive.
+   *
+   * Security invariants:
+   * - Lookup always uses BOTH archiveId AND workspaceId (tenant-scoped).
+   * - objectKey is validated against canonical pattern before signing.
+   * - Provider is NEVER called if archive is not found or objectKey is invalid.
+   * - Response never contains objectKey, bucket, buffer, or raw errors.
+   * - TTL is capped at 900 seconds.
+   */
+  async getDownloadUrl(
+    archiveId: string,
+    workspaceId: number
+  ): Promise<{
+    url: string;
+    expiresInSeconds: number;
+    fileName: string;
+    contentType: string;
+  }> {
+    // 1. Tenant-scoped lookup — both id AND workspaceId
+    const archive = await prisma.exportArchive.findFirst({
+      where: {
+        id: archiveId,
+        workspaceId,
+      },
+    });
+
+    if (!archive) {
+      throw new NotFoundError('Exportação não encontrada.');
+    }
+
+    // 2. Validate objectKey canonical pattern
+    if (!CANONICAL_OBJECT_KEY_REGEX.test(archive.objectKey)) {
+      throw new ServiceUnavailableError('Export archive is unavailable.');
+    }
+
+    // 3. Validate objectKey workspace segment matches
+    const keyWorkspaceMatch = archive.objectKey.match(/^workspaces\/(\d+)\//);
+    if (!keyWorkspaceMatch || Number(keyWorkspaceMatch[1]) !== workspaceId) {
+      throw new ServiceUnavailableError('Export archive is unavailable.');
+    }
+
+    // 4. Generate presigned URL via provider
+    const TTL_SECONDS = 900;
+    let presignedResult: { url: string; expiresInSeconds: number };
+
+    try {
+      presignedResult = await this.storageProvider.getPresignedDownloadUrl(
+        archive.objectKey,
+        {
+          ttlSeconds: TTL_SECONDS,
+          contentType: archive.contentType,
+          fileName: archive.fileName,
+        }
+      );
+    } catch {
+      throw new ServiceUnavailableError(
+        'Serviço de download temporariamente indisponível.'
+      );
+    }
+
+    // 5. Return safe response — no objectKey, no bucket, no buffer
+    return {
+      url: presignedResult.url,
+      expiresInSeconds: presignedResult.expiresInSeconds,
+      fileName: archive.fileName,
+      contentType: archive.contentType,
+    };
   }
 }
