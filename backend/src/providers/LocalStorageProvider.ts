@@ -29,17 +29,50 @@ export class LocalStorageProvider implements IStorageProvider {
     };
   }
 
-  async deleteFile(fileUrl: string): Promise<void> {
-    const fileName = path.basename(fileUrl);
-    const filePath = path.join(this.uploadFolder, fileName);
-
-    try {
-      await fs.promises.stat(filePath);
-    } catch {
-      return;
+  private validatePath(keyOrUrl: string): string {
+    let relativePath = keyOrUrl;
+    if (keyOrUrl.startsWith(this.baseUrl)) {
+      relativePath = keyOrUrl.replace(`${this.baseUrl}/files/`, '').replace(`${this.baseUrl}/uploads/`, '');
     }
 
-    await fs.promises.unlink(filePath);
+    // 1. Block absolute paths or root/parent traversal attempts
+    if (
+      path.isAbsolute(relativePath) ||
+      relativePath.includes('..') ||
+      relativePath.startsWith('/') ||
+      relativePath.startsWith('\\')
+    ) {
+      throw new Error('Path traversal security violation');
+    }
+
+    const filePath = path.resolve(this.uploadFolder, relativePath);
+
+    // 2. Strict sibling and parent traversal check
+    const relative = path.relative(this.uploadFolder, filePath);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      throw new Error('Path traversal security violation');
+    }
+
+    return filePath;
+  }
+
+  async uploadBuffer(buffer: Buffer, key: string, contentType?: string): Promise<void> {
+    const filePath = this.validatePath(key);
+    const fileDir = path.dirname(filePath);
+    if (!fs.existsSync(fileDir)) {
+      fs.mkdirSync(fileDir, { recursive: true });
+    }
+    await fs.promises.writeFile(filePath, buffer);
+  }
+
+  async deleteFile(fileUrl: string): Promise<void> {
+    const filePath = this.validatePath(fileUrl);
+    try {
+      await fs.promises.stat(filePath);
+      await fs.promises.unlink(filePath);
+    } catch {
+      // Ignora silenciosamente
+    }
   }
 
   async getSignedDownloadUrl(url: string, isCertificate?: boolean): Promise<{
