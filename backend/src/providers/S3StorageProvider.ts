@@ -106,10 +106,17 @@ export class S3StorageProvider implements IStorageProvider {
                 Key: url,
             });
             await this.client.send(command);
-            console.log(`[R2 GC] Arquivo expurgado com sucesso: ${url}`);
+            console.log('[R2 GC] Storage object deletion successful', {
+                provider: 's3',
+                operation: 'deleteFile',
+            });
         } catch (error) {
-            console.error(`[R2 GC] Falha ao expurgar arquivo zumbi: ${url}`, error);
-            // Non-blocking throw 
+            const errorName = error instanceof Error ? error.name : 'UnknownError';
+            console.error('Storage object deletion failed', {
+                provider: 's3',
+                operation: 'deleteFile',
+                errorName,
+            });
         }
     }
 
@@ -181,5 +188,17 @@ export class S3StorageProvider implements IStorageProvider {
         await this.client.send(command);
 
         return objectKey;
+    }
+
+    async uploadBuffer(buffer: Buffer, key: string, contentType?: string): Promise<void> {
+        const finalContentType = contentType || 'application/octet-stream';
+        const command = new PutObjectCommand({
+            Bucket: this.bucketName,
+            Key: key,
+            Body: buffer,
+            ContentType: finalContentType,
+            ContentLength: buffer.length,
+        });
+        await this.client.send(command);
     }
 }

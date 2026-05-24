@@ -15,10 +15,11 @@ export type ExportAuditMetadata = {
     warningsCount: number;
     fileHash: string;
     fileName: string;
+    archiveId?: string;
 };
 
 export function buildExportAuditNewState(input: ExportAuditMetadata): ExportAuditMetadata {
-    return {
+    const state: ExportAuditMetadata = {
         layoutId: input.layoutId,
         targetSystem: input.targetSystem,
         periodStart: input.periodStart,
@@ -28,6 +29,12 @@ export function buildExportAuditNewState(input: ExportAuditMetadata): ExportAudi
         fileHash: input.fileHash,
         fileName: input.fileName,
     };
+
+    if (input.archiveId !== undefined) {
+        state.archiveId = input.archiveId;
+    }
+
+    return state;
 }
 
 export interface CreateAuditLogDTO {

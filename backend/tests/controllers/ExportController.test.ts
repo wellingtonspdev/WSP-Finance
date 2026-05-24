@@ -37,8 +37,11 @@ vi.mock('../../src/services/ExportValidationService', () => {
   };
 });
 
-const { mockGenerate } = vi.hoisted(() => {
-  return { mockGenerate: vi.fn() };
+const { mockGenerate, mockArchiveAndLog } = vi.hoisted(() => {
+  return {
+    mockGenerate: vi.fn(),
+    mockArchiveAndLog: vi.fn().mockResolvedValue({ id: 'mocked-archive-id', objectKey: 'mocked-key' }),
+  };
 });
 
 vi.mock('../../src/services/ExportService', () => {
@@ -46,6 +49,20 @@ vi.mock('../../src/services/ExportService', () => {
     ExportService: class {
       generate = mockGenerate;
     },
+  };
+});
+
+vi.mock('../../src/services/ExportArchiveService', () => {
+  return {
+    ExportArchiveService: class {
+      archiveAndLog = mockArchiveAndLog;
+    },
+  };
+});
+
+vi.mock('../../src/providers/S3StorageProvider', () => {
+  return {
+    S3StorageProvider: class {},
   };
 });
 
@@ -508,20 +525,17 @@ describe('ExportController - POST /export/generate', () => {
       endDate: '2026-05-31',
     });
     expect(mockGenerate).toHaveBeenCalled();
-    expect(AuditLogService.logSync).toHaveBeenCalledWith(expect.objectContaining({
-      action: 'EXPORT',
-      entity: 'AccountingExport',
-      entityId: 'mocked-hash',
-      newState: expect.objectContaining({
-        layoutId: 'dominio-separated-v1',
-        targetSystem: 'DOMINIO',
-        periodStart: '2026-05-01',
-        periodEnd: '2026-05-31',
-        recordCount: 120,
-        warningsCount: 2,
-        fileHash: 'mocked-hash',
-        fileName: 'wsp-dominio-2026-05-01_2026-05-31.txt'
-      })
+    expect(mockArchiveAndLog).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId: 1,
+      userId: 999,
+      layoutId: 'dominio-separated-v1',
+      targetSystem: 'DOMINIO',
+      periodStart: expect.any(Date),
+      periodEnd: expect.any(Date),
+      recordCount: 120,
+      warningsCount: 2,
+      sha256: 'mocked-hash',
+      fileName: 'wsp-dominio-2026-05-01_2026-05-31.txt'
     }));
 
     expect(statusMock).toHaveBeenCalledWith(200);
@@ -557,7 +571,7 @@ describe('ExportController - POST /export/generate', () => {
     expect(statusMock).toHaveBeenCalledWith(422);
     expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({ valid: false }));
     expect(mockGenerate).not.toHaveBeenCalled();
-    expect(AuditLogService.logSync).not.toHaveBeenCalled();
+    expect(mockArchiveAndLog).not.toHaveBeenCalled();
     expect(setHeaderMock).not.toHaveBeenCalled();
   });
 
@@ -571,7 +585,7 @@ describe('ExportController - POST /export/generate', () => {
     await controller.generate(req as Request, res as Response);
     expect(statusMock).toHaveBeenCalledWith(422);
     expect(mockGenerate).not.toHaveBeenCalled();
-    expect(AuditLogService.logSync).not.toHaveBeenCalled();
+    expect(mockArchiveAndLog).not.toHaveBeenCalled();
   });
 
   it('T5a - layoutId ausente retorna 400', async () => {
@@ -602,16 +616,16 @@ describe('ExportController - POST /export/generate', () => {
     expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('não suportado') }));
     expect(mockValidate).not.toHaveBeenCalled();
     expect(mockGenerate).not.toHaveBeenCalled();
-    expect(AuditLogService.logSync).not.toHaveBeenCalled();
+    expect(mockArchiveAndLog).not.toHaveBeenCalled();
   });
 
   it('T10 - AuditLog sem PII/conteúdo completo', async () => {
     req = { body: { layoutId: 'dominio-separated-v1', startDate: '2026-05-01', endDate: '2026-05-31' }, workspaceId: 1, user: { id: 999 } } as any;
     await controller.generate(req as Request, res as Response);
-    const auditCall = (AuditLogService.logSync as any).mock.calls[0][0];
+    const archiveCall = mockArchiveAndLog.mock.calls[0][0];
     const forbiddenKeys = ['content', 'fileContent', 'txt', 'rawText', 'lines', 'records', 'recordsContent', 'transactions', 'bankMovements', 'description', 'descriptions', 'history', 'fullHistory', 'complement', 'cpf', 'cnpj', 'email', 'name', 'document', 'documentNumber', 'customerName', 'workspaceName', 'payload', 'rawPayload'];
     for (const key of forbiddenKeys) {
-      expect(auditCall.newState).not.toHaveProperty(key);
+      expect(archiveCall).not.toHaveProperty(key);
     }
   });
 
@@ -620,16 +634,20 @@ describe('ExportController - POST /export/generate', () => {
     req = { body: { layoutId: 'dominio-separated-v1', startDate: '2026-05-01', endDate: '2026-05-31' }, workspaceId: 1, user: { id: 999 } } as any;
     await controller.generate(req as Request, res as Response);
     expect(statusMock).toHaveBeenCalledWith(500);
-    expect(AuditLogService.logSync).not.toHaveBeenCalled();
+    expect(mockArchiveAndLog).not.toHaveBeenCalled();
     expect(setHeaderMock).not.toHaveBeenCalled();
     expect(sendMock).not.toHaveBeenCalled();
   });
 
-  it('T12 - Falha de AuditLog não entrega arquivo como sucesso', async () => {
-    (AuditLogService.logSync as any).mockRejectedValueOnce(new Error('DB Audit Error'));
+  it('T12 - Falha de arquivamento não entrega arquivo como sucesso', async () => {
+    mockArchiveAndLog.mockRejectedValueOnce(new Error('S3/DB archiving failed'));
     req = { body: { layoutId: 'dominio-separated-v1', startDate: '2026-05-01', endDate: '2026-05-31' }, workspaceId: 1, user: { id: 999 } } as any;
     await controller.generate(req as Request, res as Response);
-    expect(statusMock).toHaveBeenCalledWith(500);
+    expect(statusMock).toHaveBeenCalledWith(503);
+    expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'error',
+      message: expect.stringContaining('Serviço de arquivamento temporariamente indisponível'),
+    }));
     expect(setHeaderMock).not.toHaveBeenCalled();
     expect(sendMock).not.toHaveBeenCalled();
   });
@@ -647,9 +665,9 @@ describe('ExportController - POST /export/generate', () => {
     await controller.generate(req as Request, res as Response);
     expect(statusMock).toHaveBeenCalledWith(200);
     expect(mockGenerate).toHaveBeenCalled();
-    expect(AuditLogService.logSync).toHaveBeenCalled();
-    const auditCall = (AuditLogService.logSync as any).mock.calls[0][0];
-    expect(auditCall.newState.warningsCount).toBe(1);
+    expect(mockArchiveAndLog).toHaveBeenCalled();
+    const archiveCall = mockArchiveAndLog.mock.calls[0][0];
+    expect(archiveCall.warningsCount).toBe(1);
   });
 });
 

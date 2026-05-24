@@ -5,6 +5,8 @@ import { ExportService } from '../services/ExportService';
 import { AuditLogService } from '../services/AuditLogService';
 import { AuditAction } from '@prisma/client';
 import { listExportLayouts } from '../config/exportLayouts';
+import { S3StorageProvider } from '../providers/S3StorageProvider';
+import { ExportArchiveService } from '../services/ExportArchiveService';
 
 // ---------------------------------------------------------------------------
 // Zod schema — strict input validation
@@ -164,23 +166,35 @@ export class ExportController {
         endDate: parsed.data.endDate,
       });
 
-      await AuditLogService.logSync({
-        userId: user.id,
-        workspaceId,
-        action: 'EXPORT' as AuditAction,
-        entity: 'AccountingExport',
-        entityId: exportResult.hash,
-        newState: {
+      // Archive generating files to S3/R2 and DB transaction
+      const storageProvider = new S3StorageProvider();
+      const archiveService = new ExportArchiveService(storageProvider);
+
+      try {
+        await archiveService.archiveAndLog({
+          workspaceId,
+          userId: user.id,
           layoutId: parsed.data.layoutId,
           targetSystem: 'DOMINIO',
-          periodStart: parsed.data.startDate,
-          periodEnd: parsed.data.endDate,
-          recordCount: exportResult.recordCount,
-          warningsCount: validationResult.summary?.warningsCount ?? validationResult.warnings.length,
-          fileHash: exportResult.hash,
+          periodStart: new Date(parsed.data.startDate),
+          periodEnd: new Date(parsed.data.endDate),
           fileName: exportResult.fileName,
-        },
-      });
+          buffer: exportResult.buffer,
+          sha256: exportResult.hash,
+          recordCount: exportResult.recordCount,
+          contentType: exportResult.contentType,
+          encoding: 'windows-1252',
+          warningsCount: validationResult.summary?.warningsCount ?? validationResult.warnings.length,
+        });
+      } catch (archiveError: any) {
+        const errMessage = archiveError instanceof Error ? archiveError.message : String(archiveError);
+        console.error(`[ExportController] Archive failed for workspaceId ${workspaceId}: ${errMessage}`);
+        res.status(503).json({
+          status: 'error',
+          message: 'Serviço de arquivamento temporariamente indisponível. O arquivo não pôde ser salvo.',
+        });
+        return;
+      }
 
       res.setHeader('Content-Type', exportResult.contentType);
       res.setHeader('Content-Disposition', `attachment; filename="${exportResult.fileName}"`);

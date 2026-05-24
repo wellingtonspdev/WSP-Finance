@@ -29,17 +29,71 @@ export class LocalStorageProvider implements IStorageProvider {
     };
   }
 
-  async deleteFile(fileUrl: string): Promise<void> {
-    const fileName = path.basename(fileUrl);
-    const filePath = path.join(this.uploadFolder, fileName);
-
-    try {
-      await fs.promises.stat(filePath);
-    } catch {
-      return;
+  private validatePath(keyOrUrl: string): string {
+    let relativePath = keyOrUrl;
+    if (keyOrUrl.startsWith(this.baseUrl)) {
+      relativePath = keyOrUrl.replace(`${this.baseUrl}/files/`, '').replace(`${this.baseUrl}/uploads/`, '');
     }
 
-    await fs.promises.unlink(filePath);
+    // 1. Reject empty or whitespace-only keys
+    if (!relativePath || relativePath.trim() === '') {
+      throw new Error('Invalid storage key: path traversal detected');
+    }
+
+    // 2. Reject null bytes
+    if (relativePath.includes('\0')) {
+      throw new Error('Invalid storage key: path traversal detected');
+    }
+
+    // 3. Reject any backslash (blocks Windows paths and ..\\ traversal cross-platform)
+    if (relativePath.includes('\\')) {
+      throw new Error('Invalid storage key: path traversal detected');
+    }
+
+    // 4. Cross-platform absolute path detection (OS-native + POSIX + Win32)
+    if (
+      path.isAbsolute(relativePath) ||
+      path.posix.isAbsolute(relativePath) ||
+      path.win32.isAbsolute(relativePath)
+    ) {
+      throw new Error('Invalid storage key: path traversal detected');
+    }
+
+    // 5. Validate each segment: reject '..', '.', and empty segments
+    const segments = relativePath.split('/');
+    if (segments.some((segment) => segment === '..' || segment === '.' || segment === '')) {
+      throw new Error('Invalid storage key: path traversal detected');
+    }
+
+    // 6. Resolve and verify the target stays within uploadFolder
+    const root = path.resolve(this.uploadFolder);
+    const target = path.resolve(root, ...segments);
+    const relative = path.relative(root, target);
+
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      throw new Error('Invalid storage key: path traversal detected');
+    }
+
+    return target;
+  }
+
+  async uploadBuffer(buffer: Buffer, key: string, contentType?: string): Promise<void> {
+    const filePath = this.validatePath(key);
+    const fileDir = path.dirname(filePath);
+    if (!fs.existsSync(fileDir)) {
+      fs.mkdirSync(fileDir, { recursive: true });
+    }
+    await fs.promises.writeFile(filePath, buffer);
+  }
+
+  async deleteFile(fileUrl: string): Promise<void> {
+    const filePath = this.validatePath(fileUrl);
+    try {
+      await fs.promises.stat(filePath);
+      await fs.promises.unlink(filePath);
+    } catch {
+      // Ignora silenciosamente
+    }
   }
 
   async getSignedDownloadUrl(url: string, isCertificate?: boolean): Promise<{
