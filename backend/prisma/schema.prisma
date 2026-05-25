@@ -92,6 +92,13 @@ enum AuditAction {
   EXPORT
 }
 
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
 // --- MODELOS ---
 
 // Usuário
@@ -184,6 +191,7 @@ model Workspace {
   accountingExportConfigs AccountingExportConfig[]
   accountingExportMappings AccountingExportMapping[]
   exportArchives ExportArchive[]
+  outboxEvents OutboxEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -512,4 +520,22 @@ model ExportArchive {
   @@index([workspaceId, periodStart, periodEnd])
   @@index([workspaceId, targetSystem, layoutId])
   @@index([retentionUntil])
+}
+
+model OutboxEvent {
+  id            String       @id @default(uuid())
+  workspaceId   Int
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  eventType     String
+  payload       Json
+  status        OutboxStatus @default(PENDING)
+  attempts      Int          @default(0)
+  nextAttemptAt DateTime     @default(now())
+  lastError     String?      @db.VarChar(1000)
+  createdAt     DateTime     @default(now())
+  processedAt   DateTime?
+
+  @@index([workspaceId])
+  @@index([status, nextAttemptAt])
+  @@index([eventType])
 }
