@@ -1,4 +1,4 @@
-import { AiInsightCode, AiInsightSeverity, Prisma } from '@prisma/client';
+import { AiInsightCode, AiInsightSeverity, Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { maskFinancialText } from '../lib/piiMasking';
 import { NotFoundError } from '../errors/NotFoundError';
@@ -27,13 +27,13 @@ export interface ListWorkspaceInsightsFilter {
   dismissed?: boolean;
 }
 
-type AiInsightClient = Pick<typeof prisma, 'aiInsight' | 'transaction'>;
+export type AiInsightClient = Pick<PrismaClient, 'aiInsight' | 'transaction'>;
 
 export class AiInsightService {
   private readonly client: AiInsightClient;
 
   constructor(client?: AiInsightClient) {
-    this.client = client ?? prisma;
+    this.client = client ?? (prisma as unknown as AiInsightClient);
   }
 
   async create(input: CreateAiInsightInput) {

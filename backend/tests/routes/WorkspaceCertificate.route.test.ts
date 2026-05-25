@@ -12,6 +12,15 @@ vi.mock('../../src/lib/prisma', () => ({
       findUnique: vi.fn(),
     },
   },
+  sysPrisma: {
+    outboxEvent: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    $transaction: vi.fn(),
+  },
 }));
 
 vi.mock('../../src/services/WorkspaceService');
