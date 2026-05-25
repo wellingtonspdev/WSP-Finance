@@ -99,6 +99,18 @@ enum OutboxStatus {
   FAILED
 }
 
+enum AiInsightSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AiInsightCode {
+  MISTURA_PATRIMONIAL
+  RISCO_MALHA_FINA
+  DESPESA_PESSOAL_POTENCIAL
+}
+
 // --- MODELOS ---
 
 // Usuário
@@ -192,6 +204,7 @@ model Workspace {
   accountingExportMappings AccountingExportMapping[]
   exportArchives ExportArchive[]
   outboxEvents OutboxEvent[]
+  aiInsights   AiInsight[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -290,8 +303,11 @@ model Transaction {
   createdAt DateTime  @default(now())
   deletedAt DateTime? // Soft Delete (Auditoria)
 
+  aiInsights  AiInsight[]
+
   @@unique([workspaceId, fitid]) // Garante unicidade do FITID dentro do workspace
   @@unique([workspaceId, hashDeduplication])
+  @@unique([workspaceId, id]) // FK composta tenant-safe para AiInsight
   @@index([workspaceId, date])
   @@index([accountId])
   @@index([workspaceId, attachmentSize]) // V3.8 Performance Engine: Acelera SUM() de Cota
@@ -538,4 +554,29 @@ model OutboxEvent {
   @@index([workspaceId])
   @@index([status, nextAttemptAt])
   @@index([eventType])
+}
+
+model AiInsight {
+  id            String            @id @default(uuid())
+  workspaceId   Int
+  transactionId String
+
+  severity      AiInsightSeverity
+  code          AiInsightCode
+  message       String
+  reason        String
+  confidence    Decimal           @db.Decimal(5, 4)
+  dismissed     Boolean           @default(false)
+
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  transaction   Transaction       @relation(fields: [workspaceId, transactionId], references: [workspaceId, id], onDelete: Cascade)
+
+  @@unique([workspaceId, transactionId, code])
+  @@index([workspaceId])
+  @@index([transactionId])
+  @@index([workspaceId, dismissed])
+  @@index([workspaceId, createdAt])
 }
