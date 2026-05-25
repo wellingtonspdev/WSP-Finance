@@ -3,8 +3,9 @@ import { OutboxService } from '../../src/services/OutboxService';
 import { OutboxWorker } from '../../src/workers/OutboxWorker';
 import { managementClient } from '../../src/test/prisma-test-clients';
 
-describe('OutboxWorker', () => {
+describe.sequential('OutboxWorker', () => {
   const workspaceId = 139801;
+  const workerTestEventType = 'OUTBOX_WORKER_TEST';
   const now = new Date('2026-05-24T13:00:00.000Z');
   let service: OutboxService;
   let worker: OutboxWorker;
@@ -15,6 +16,7 @@ describe('OutboxWorker', () => {
     service = new OutboxService(managementClient);
     worker = new OutboxWorker(service);
 
+    await managementClient.outboxEvent.deleteMany({ where: { workspaceId } });
     await managementClient.workspace.upsert({
       where: { id: workspaceId },
       update: {},
@@ -33,7 +35,7 @@ describe('OutboxWorker', () => {
     return managementClient.outboxEvent.create({
       data: {
         workspaceId,
-        eventType: 'TRANSACTION_CREATED',
+        eventType: workerTestEventType,
         payload: { transactionId: crypto.randomUUID() },
         nextAttemptAt: now,
         ...data,
@@ -45,7 +47,7 @@ describe('OutboxWorker', () => {
     const event = await createEvent();
     const handler = vi.fn().mockResolvedValue(undefined);
 
-    const result = await worker.processBatch({ limit: 10, handler, now });
+    const result = await worker.processBatch({ limit: 10, handler, now, eventType: workerTestEventType });
 
     expect(result).toEqual({ fetched: 1, claimed: 1, processed: 1, failed: 0, skipped: 0 });
     expect(handler).toHaveBeenCalledTimes(1);
@@ -60,7 +62,7 @@ describe('OutboxWorker', () => {
     await createEvent({ status: 'PROCESSED', processedAt: now });
     const handler = vi.fn().mockResolvedValue(undefined);
 
-    const result = await worker.processBatch({ limit: 10, handler, now });
+    const result = await worker.processBatch({ limit: 10, handler, now, eventType: workerTestEventType });
 
     expect(result.fetched).toBe(0);
     expect(handler).not.toHaveBeenCalled();
@@ -71,7 +73,7 @@ describe('OutboxWorker', () => {
     const handler = vi.fn().mockResolvedValue(undefined);
     vi.spyOn(service, 'claimForProcessing').mockResolvedValueOnce(false);
 
-    const result = await worker.processBatch({ limit: 10, handler, now });
+    const result = await worker.processBatch({ limit: 10, handler, now, eventType: workerTestEventType });
 
     expect(result).toEqual({ fetched: 1, claimed: 0, processed: 0, failed: 0, skipped: 1 });
     expect(handler).not.toHaveBeenCalled();
@@ -81,7 +83,7 @@ describe('OutboxWorker', () => {
     const event = await createEvent();
     const handler = vi.fn().mockRejectedValue(new Error('Falha CPF 123.456.789-09 cliente@example.com'));
 
-    const result = await worker.processBatch({ limit: 10, handler, now, maxAttempts: 3 });
+    const result = await worker.processBatch({ limit: 10, handler, now, maxAttempts: 3, eventType: workerTestEventType });
 
     expect(result).toEqual({ fetched: 1, claimed: 1, processed: 0, failed: 1, skipped: 0 });
 
@@ -102,7 +104,7 @@ describe('OutboxWorker', () => {
     });
     const handler = vi.fn().mockResolvedValue(undefined);
 
-    const result = await worker.processBatch({ limit: 10, handler, now });
+    const result = await worker.processBatch({ limit: 10, handler, now, eventType: workerTestEventType });
 
     expect(result.processed).toBe(1);
     expect(handler).toHaveBeenCalledTimes(1);
@@ -118,9 +120,37 @@ describe('OutboxWorker', () => {
     });
     const handler = vi.fn().mockResolvedValue(undefined);
 
-    const result = await worker.processBatch({ limit: 10, handler, now });
+    const result = await worker.processBatch({ limit: 10, handler, now, eventType: workerTestEventType });
 
     expect(result.fetched).toBe(0);
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('processes only the requested eventType and leaves other pending events untouched', async () => {
+    const workerEvent = await createEvent();
+    const ocrEvent = await createEvent({ eventType: 'OCR_READY' });
+    const transactionEvent = await createEvent({ eventType: 'TRANSACTION_CREATED' });
+    const handler = vi.fn().mockResolvedValue(undefined);
+
+    const result = await worker.processBatch({
+      limit: 10,
+      handler,
+      now,
+      eventType: workerTestEventType,
+    });
+
+    expect(result).toEqual({ fetched: 1, claimed: 1, processed: 1, failed: 0, skipped: 0 });
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({ id: workerEvent.id }));
+
+    const [processedWorkerEvent, untouchedOcr, untouchedTransaction] = await Promise.all([
+      managementClient.outboxEvent.findUniqueOrThrow({ where: { id: workerEvent.id } }),
+      managementClient.outboxEvent.findUniqueOrThrow({ where: { id: ocrEvent.id } }),
+      managementClient.outboxEvent.findUniqueOrThrow({ where: { id: transactionEvent.id } }),
+    ]);
+
+    expect(processedWorkerEvent.status).toBe('PROCESSED');
+    expect(untouchedOcr.status).toBe('PENDING');
+    expect(untouchedTransaction.status).toBe('PENDING');
   });
 });

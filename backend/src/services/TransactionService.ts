@@ -6,6 +6,7 @@ import { TransactionType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { UploadService } from './UploadService';
 import { AuditLogService } from './AuditLogService';
+import { OutboxService } from './OutboxService';
 import { AppError } from '../errors/AppError';
 import { tenantContext } from '../lib/tenantContext';
 import dayjs from 'dayjs';
@@ -37,11 +38,13 @@ export class TransactionService {
   private transactionRepository: TransactionRepository;
   private accountRepository: AccountRepository;
   private categoryRepository: CategoryRepository;
+  private outboxService: OutboxService;
 
   constructor() {
     this.transactionRepository = new TransactionRepository();
     this.accountRepository = new AccountRepository();
     this.categoryRepository = new CategoryRepository();
+    this.outboxService = new OutboxService();
   }
 
   async create({
@@ -174,6 +177,14 @@ export class TransactionService {
           delta: balanceDelta,
           fromAccount: accountId,
         }, tx);
+      }
+
+      if (type === 'EXPENSE') {
+        await this.outboxService.enqueueInTransaction(tx, {
+          workspaceId,
+          eventType: 'TRANSACTION_EXPENSE_CREATED',
+          payload: { transactionId: transaction.id },
+        });
       }
 
       return transaction;

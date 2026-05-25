@@ -7,6 +7,7 @@ export interface ProcessBatchInput {
   limit?: number;
   leaseMs?: number;
   maxAttempts?: number;
+  eventType?: string;
   now?: Date;
   handler: OutboxHandler;
 }
@@ -34,12 +35,14 @@ export class OutboxWorker {
 
     const events = await this.outboxService.fetchProcessableBatch({
       limit: input.limit,
+      eventType: input.eventType,
       now,
     });
     result.fetched = events.length;
 
     for (const event of events) {
       const claimed = await this.outboxService.claimForProcessing(event.id, {
+        eventType: input.eventType,
         now,
         leaseMs: input.leaseMs,
       });
