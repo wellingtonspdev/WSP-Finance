@@ -8,6 +8,7 @@ dayjs.extend(isSameOrBefore);
 
 const mocks = vi.hoisted(() => ({
   mockAuditLogSync: vi.fn(),
+  mockEnqueueInTransaction: vi.fn(),
 }));
 
 // Mocks
@@ -68,11 +69,24 @@ vi.mock('../../src/services/AuditLogService', () => {
   };
 });
 
+vi.mock('../../src/services/OutboxService', () => {
+  return {
+    OutboxService: class {
+      enqueueInTransaction = mocks.mockEnqueueInTransaction;
+    }
+  };
+});
+
 describe('TransactionService - Guardião de Período Fiscal (closedUntil)', () => {
   let transactionService: TransactionService;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.mockEnqueueInTransaction.mockResolvedValue({
+      id: 'outbox-event',
+      eventType: 'TRANSACTION_EXPENSE_CREATED',
+      payload: { transactionId: 'fake-transaction' },
+    });
     transactionService = new TransactionService();
   });
 
@@ -225,6 +239,61 @@ describe('TransactionService - Guardião de Período Fiscal (closedUntil)', () =
 
       expect(result).toHaveProperty('id', 'fake-transaction');
       expect(mocks.mockAuditLogSync).toHaveBeenCalledTimes(1);
+    });
+
+    it('T11 - enfileira Outbox TRANSACTION_EXPENSE_CREATED somente para EXPENSE com payload minimo', async () => {
+      const { prisma } = await import('../../src/lib/prisma');
+
+      (prisma.workspace.findUnique as any).mockResolvedValue({
+        id: 1,
+        type: 'BUSINESS',
+        taxRate: { dividedBy: vi.fn().mockReturnValue(0.0) },
+        closedUntil: null
+      });
+
+      await transactionService.create({
+        userId: 99,
+        description: 'Despesa Netflix com CPF 123.456.789-09',
+        amount: 39.9,
+        date: new Date('2026-02-01T10:00:00Z'),
+        type: 'EXPENSE',
+        accountId: 1,
+        categoryId: 1,
+        isPaid: false,
+        workspaceId: 1
+      });
+
+      expect(mocks.mockEnqueueInTransaction).toHaveBeenCalledTimes(1);
+      expect(mocks.mockEnqueueInTransaction).toHaveBeenCalledWith(expect.anything(), {
+        workspaceId: 1,
+        eventType: 'TRANSACTION_EXPENSE_CREATED',
+        payload: { transactionId: 'fake-transaction' },
+      });
+
+      const payload = mocks.mockEnqueueInTransaction.mock.calls[0][1].payload;
+      expect(payload).not.toHaveProperty('description');
+      expect(payload).not.toHaveProperty('document');
+      expect(payload).not.toHaveProperty('email');
+      expect(payload).not.toHaveProperty('name');
+      expect(payload).not.toHaveProperty('rawText');
+      expect(payload).not.toHaveProperty('prompt');
+      expect(payload).not.toHaveProperty('fullTransaction');
+
+      mocks.mockEnqueueInTransaction.mockClear();
+
+      await transactionService.create({
+        userId: 99,
+        description: 'Receita de servico',
+        amount: 150,
+        date: new Date('2026-02-01T10:00:00Z'),
+        type: 'INCOME',
+        accountId: 1,
+        categoryId: 1,
+        isPaid: false,
+        workspaceId: 1
+      });
+
+      expect(mocks.mockEnqueueInTransaction).not.toHaveBeenCalled();
     });
   });
 });

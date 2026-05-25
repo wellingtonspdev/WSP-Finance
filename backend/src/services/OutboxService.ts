@@ -38,10 +38,12 @@ export interface EnqueueOutboxInput {
 
 export interface FetchProcessableBatchParams {
   limit?: number;
+  eventType?: string;
   now?: Date;
 }
 
 export interface ClaimForProcessingOptions {
+  eventType?: string;
   now?: Date;
   leaseMs?: number;
 }
@@ -88,9 +90,11 @@ export class OutboxService {
   async fetchProcessableBatch(params: FetchProcessableBatchParams = {}) {
     const now = params.now ?? new Date();
     const limit = this.normalizeLimit(params.limit);
+    const eventType = this.normalizeOptionalEventType(params.eventType);
 
     return this.client.outboxEvent.findMany({
       where: {
+        ...(eventType ? { eventType } : {}),
         nextAttemptAt: { lte: now },
         OR: [
           { status: 'PENDING' },
@@ -108,6 +112,7 @@ export class OutboxService {
   async claimForProcessing(eventId: string, options: ClaimForProcessingOptions = {}): Promise<boolean> {
     const now = options.now ?? new Date();
     const leaseMs = options.leaseMs ?? DEFAULT_LEASE_MS;
+    const eventType = this.normalizeOptionalEventType(options.eventType);
     const leaseDeadline = new Date(now.getTime() + leaseMs);
 
     // Worker polling/claim is global infrastructure. This is the only outbox path
@@ -115,6 +120,7 @@ export class OutboxService {
     const result = await this.client.outboxEvent.updateMany({
       where: {
         id: eventId,
+        ...(eventType ? { eventType } : {}),
         nextAttemptAt: { lte: now },
         OR: [
           { status: 'PENDING' },
@@ -201,6 +207,11 @@ export class OutboxService {
     }
 
     return Math.min(limit, MAX_LIMIT);
+  }
+
+  private normalizeOptionalEventType(eventType?: string): string | undefined {
+    const normalized = eventType?.trim();
+    return normalized || undefined;
   }
 
   private validateAndSanitizePayload(payload: Prisma.InputJsonValue): Prisma.InputJsonObject {

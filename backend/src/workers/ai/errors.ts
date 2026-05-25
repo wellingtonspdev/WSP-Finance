@@ -1,0 +1,18 @@
+export const SAFE_AI_ERROR_CODES = {
+  PROVIDER_ERROR: 'AI_PROVIDER_ERROR',
+  PROVIDER_INVALID_JSON: 'AI_PROVIDER_INVALID_JSON',
+  PROVIDER_SCHEMA_VALIDATION_FAILED: 'AI_PROVIDER_SCHEMA_VALIDATION_FAILED',
+  INPUT_TOO_LARGE: 'AI_INPUT_TOO_LARGE',
+  UNSUPPORTED_EVENT_TYPE: 'AI_UNSUPPORTED_EVENT_TYPE',
+  TRANSACTION_NOT_FOUND: 'AI_TRANSACTION_NOT_FOUND',
+  PAYLOAD_INVALID: 'AI_PAYLOAD_INVALID',
+} as const;
+
+export type SafeAiErrorCode = typeof SAFE_AI_ERROR_CODES[keyof typeof SAFE_AI_ERROR_CODES];
+
+export class SafeAiWorkerError extends Error {
+  constructor(public readonly code: SafeAiErrorCode) {
+    super(code);
+    this.name = 'SafeAiWorkerError';
+  }
+}
