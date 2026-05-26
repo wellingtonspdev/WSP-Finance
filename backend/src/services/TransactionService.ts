@@ -209,6 +209,12 @@ export class TransactionService {
     return await this.transactionRepository.findManyByUserId(userId);
   }
 
+  async getById(id: string, workspaceId: number) {
+    const transaction = await this.transactionRepository.findDetailByIdAndWorkspace(id, workspaceId);
+    if (!transaction) throw new AppError('Transaction not found or access denied', 404);
+    return transaction;
+  }
+
   async delete(id: string, workspaceId: number, userId: number): Promise<void> {
     const transaction = await this.transactionRepository.findByIdAndWorkspace(id, workspaceId);
     if (!transaction) throw new AppError('Transaction not found or access denied', 404);

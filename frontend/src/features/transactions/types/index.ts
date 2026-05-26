@@ -79,7 +79,7 @@ export type TransactionPayloadDTO = z.infer<typeof transactionPayloadSchema>;
 
 // API Response Type for Transaction
 export interface Transaction {
-    id: number;
+    id: string;
     description: string;
     amount: number;
     date: string;
@@ -116,6 +116,25 @@ export interface Transaction {
 
     createdAt: string;
     updatedAt: string;
+
+    // AI Insights (S5-010)
+    aiInsights?: AIInsightForTransaction[];
+}
+
+// AI Insight for Transaction List DTO (S5-010)
+export type AIInsightSeverity = 'INFO' | 'WARNING' | 'CRITICAL';
+
+export interface AIInsightForTransaction {
+    id: string;
+    transactionId: string;
+    severity: AIInsightSeverity;
+    code?: string;
+    message: string;
+    reason?: string | null;
+    confidence?: string | number | null;
+    dismissed: boolean;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 // Transaction List Filter Params

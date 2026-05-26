@@ -2,6 +2,7 @@ import { AiInsightCode, AiInsightSeverity, Prisma, PrismaClient } from '@prisma/
 import { prisma } from '../lib/prisma';
 import { maskFinancialText } from '../lib/piiMasking';
 import { NotFoundError } from '../errors/NotFoundError';
+import { AppError } from '../errors/AppError';
 
 const MESSAGE_MAX_LENGTH = 500;
 const REASON_MAX_LENGTH = 1000;
@@ -25,6 +26,13 @@ export interface CreateAiInsightInput {
 
 export interface ListWorkspaceInsightsFilter {
   dismissed?: boolean;
+}
+
+export interface HubFilters {
+  dismissed?: 'all' | boolean;
+  severity?: 'INFO' | 'WARNING' | 'CRITICAL';
+  cursor?: string;
+  limit?: number;
 }
 
 export type AiInsightClient = Pick<PrismaClient, 'aiInsight' | 'transaction'>;
@@ -142,6 +150,109 @@ export class AiInsightService {
       where,
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async listForWorkspaceHub(workspaceId: number, filters?: HubFilters) {
+    const limit = filters?.limit ?? 20;
+
+    // 1. Prepare WHERE clause for list
+    const where: Prisma.AiInsightWhereInput = { workspaceId };
+
+    if (filters?.dismissed !== undefined && filters.dismissed !== 'all') {
+      where.dismissed = filters.dismissed;
+    }
+
+    if (filters?.severity) {
+      where.severity = filters.severity;
+    }
+
+    // 2. Fetch list with pagination
+    let insights;
+    try {
+      insights = await this.client.aiInsight.findMany({
+        where,
+        take: limit + 1,
+        skip: filters?.cursor ? 1 : undefined,
+        cursor: filters?.cursor ? { id: filters.cursor } : undefined,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: {
+          id: true,
+          workspaceId: true,
+          transactionId: true,
+          severity: true,
+          code: true,
+          message: true,
+          reason: true,
+          confidence: true,
+          dismissed: true,
+          createdAt: true,
+          updatedAt: true,
+          transaction: {
+            select: {
+              id: true,
+              description: true,
+              amount: true,
+              date: true,
+              type: true,
+              category: { select: { name: true } },
+              account: { select: { name: true } }
+            }
+          }
+        }
+      });
+    } catch (error: any) {
+      const message = typeof error.message === 'string' ? error.message.toLowerCase() : '';
+      const isCursorLookupError = Boolean(filters?.cursor) && (
+        error.code === 'P2025' ||
+        error.code === 'P2018' ||
+        message.includes('cursor')
+      );
+
+      if (isCursorLookupError) {
+        throw new AppError('Invalid cursor', 400);
+      }
+      throw error;
+    }
+
+    const hasMore = insights.length > limit;
+    const data = hasMore ? insights.slice(0, limit) : insights;
+    const nextCursor = hasMore && data.length > 0 ? data[data.length - 1].id : null;
+
+    // Transform relation output to match DTO
+    const formattedData = data.map(item => ({
+      ...item,
+      transaction: {
+        id: item.transaction.id,
+        description: item.transaction.description,
+        amount: item.transaction.amount,
+        date: item.transaction.date,
+        type: item.transaction.type,
+        categoryName: item.transaction.category?.name ?? null,
+        accountName: item.transaction.account?.name ?? null,
+      }
+    }));
+
+    // 3. Compute Summary (workspace-wide)
+    const [activeCount, criticalCount, warningCount, infoCount, dismissedCount] = await Promise.all([
+      this.client.aiInsight.count({ where: { workspaceId, dismissed: false } }),
+      this.client.aiInsight.count({ where: { workspaceId, dismissed: false, severity: 'CRITICAL' } }),
+      this.client.aiInsight.count({ where: { workspaceId, dismissed: false, severity: 'WARNING' } }),
+      this.client.aiInsight.count({ where: { workspaceId, dismissed: false, severity: 'INFO' } }),
+      this.client.aiInsight.count({ where: { workspaceId, dismissed: true } }),
+    ]);
+
+    return {
+      data: formattedData,
+      nextCursor,
+      hasMore,
+      summary: {
+        activeCount,
+        criticalCount,
+        warningCount,
+        infoCount,
+        dismissedCount
+      }
+    };
   }
 
   async dismiss(workspaceId: number, insightId: string) {

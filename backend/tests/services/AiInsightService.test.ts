@@ -1,6 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { AiInsightService } from '../../src/services/AiInsightService';
+import { AppError } from '../../src/errors/AppError';
 import { applicationClient, managementClient, withTestWorkspace } from '../../src/test/prisma-test-clients';
 import { withEphemeralTransaction } from '../../src/test/transaction-proxy';
 
@@ -459,5 +460,192 @@ describe('AiInsightService', () => {
 
     const all = await service.listByWorkspace(wsAId);
     expect(all).toHaveLength(2);
+  });
+
+  // ──────────────────────────────────────────────────────────
+  // listForWorkspaceHub: DTO, Filters, and Summary
+  // ──────────────────────────────────────────────────────────
+  describe('listForWorkspaceHub', () => {
+    let txId2: string;
+    let txId3: string;
+    let insight1: any;
+    let insight2: any;
+    let insight3: any;
+
+    beforeEach(async () => {
+      // Create additional transactions to have multiple insights
+      const tx2 = await managementClient.transaction.create({
+        data: {
+          description: 'TX 2',
+          amount: new Prisma.Decimal('50.00'),
+          date: new Date('2026-05-02T10:00:00Z'),
+          type: 'EXPENSE',
+          accountId: accountIdA,
+          categoryId,
+          workspaceId: wsAId,
+        },
+      });
+      txId2 = tx2.id;
+
+      const tx3 = await managementClient.transaction.create({
+        data: {
+          description: 'TX 3',
+          amount: new Prisma.Decimal('10.00'),
+          date: new Date('2026-05-03T10:00:00Z'),
+          type: 'EXPENSE',
+          accountId: accountIdA,
+          categoryId,
+          workspaceId: wsAId,
+        },
+      });
+      txId3 = tx3.id;
+
+      // insight1: WARNING, active
+      insight1 = await service.create({
+        ...validInput(),
+        transactionId: txIdA,
+        severity: 'WARNING',
+        code: 'MISTURA_PATRIMONIAL',
+      });
+
+      // insight2: CRITICAL, active
+      insight2 = await service.create({
+        ...validInput(),
+        transactionId: txId2,
+        severity: 'CRITICAL',
+        code: 'RISCO_MALHA_FINA',
+        message: 'Critical issue',
+        reason: 'Missing CNPJ',
+      });
+
+      // insight3: INFO, dismissed
+      insight3 = await service.create({
+        ...validInput(),
+        transactionId: txId3,
+        severity: 'INFO',
+        code: 'DESPESA_PESSOAL_POTENCIAL',
+        message: 'Info issue',
+        reason: 'Just info',
+      });
+      await service.dismiss(wsAId, insight3.id);
+    });
+
+    it('returns summary workspace-wide irrespective of filters', async () => {
+      // Filter by severity CRITICAL
+      const result = await service.listForWorkspaceHub(wsAId, { severity: 'CRITICAL' });
+      // Data should only have 1 item (CRITICAL)
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].severity).toBe('CRITICAL');
+
+      // Summary must reflect ALL workspace insights
+      expect(result.summary).toEqual({
+        activeCount: 2, // warning + critical
+        criticalCount: 1,
+        warningCount: 1,
+        infoCount: 0,
+        dismissedCount: 1,
+      });
+    });
+
+    it('filters by dismissed correctly', async () => {
+      const active = await service.listForWorkspaceHub(wsAId, { dismissed: false });
+      expect(active.data).toHaveLength(2);
+      expect(active.data.map((i: any) => i.id)).not.toContain(insight3.id);
+
+      const dismissed = await service.listForWorkspaceHub(wsAId, { dismissed: true });
+      expect(dismissed.data).toHaveLength(1);
+      expect(dismissed.data[0].id).toBe(insight3.id);
+
+      const all = await service.listForWorkspaceHub(wsAId, { dismissed: 'all' });
+      expect(all.data).toHaveLength(3);
+    });
+
+    it('returns minimal transaction DTO without leaking sensitive fields', async () => {
+      const result = await service.listForWorkspaceHub(wsAId, { dismissed: false });
+
+      const insight = result.data[0];
+      // Should not have rawResponse, prompt, payload
+      expect((insight as any).rawResponse).toBeUndefined();
+      expect((insight as any).prompt).toBeUndefined();
+      expect((insight as any).payload).toBeUndefined();
+      // Transaction DTO check
+      expect(insight.transaction).toBeDefined();
+      expect(insight.transaction.id).toBeDefined();
+      expect(insight.transaction.description).toBeDefined();
+      expect(insight.transaction.amount).toBeDefined();
+      expect(insight.transaction.date).toBeDefined();
+      expect(insight.transaction.type).toBeDefined();
+      expect(insight.transaction.categoryName).toBeDefined();
+      expect(insight.transaction.accountName).toBeDefined();
+      // Should not have full transaction fields
+      expect((insight.transaction as any).workspaceId).toBeUndefined();
+    });
+
+    it('handles cursor pagination safely', async () => {
+      // We have 3 items. Fetch limit 2
+      const firstPage = await service.listForWorkspaceHub(wsAId, { dismissed: 'all', limit: 2 });
+      expect(firstPage.data).toHaveLength(2);
+      expect(firstPage.hasMore).toBe(true);
+      expect(firstPage.nextCursor).toBeDefined();
+
+      const secondPage = await service.listForWorkspaceHub(wsAId, { dismissed: 'all', limit: 2, cursor: firstPage.nextCursor! });
+      expect(secondPage.data).toHaveLength(1);
+      expect(secondPage.hasMore).toBe(false);
+      expect(secondPage.nextCursor).toBeNull();
+      // All 3 items should be unique
+      const allIds = [...firstPage.data.map((i: any) => i.id), ...secondPage.data.map((i: any) => i.id)];
+      const uniqueIds = new Set(allIds);
+      expect(uniqueIds.size).toBe(3);
+    });
+
+    it('maps cursor lookup errors to AppError 400 without masking unrelated Prisma validation errors', async () => {
+      const fakeClient = {
+        aiInsight: {
+          findMany: vi.fn(),
+          count: vi.fn(),
+        },
+        transaction: {
+          findFirst: vi.fn(),
+        },
+      } as any;
+      const isolatedService = new AiInsightService(fakeClient);
+
+      fakeClient.aiInsight.findMany.mockRejectedValueOnce({ code: 'P2025', message: 'Record to skip does not exist' });
+      await expect(isolatedService.listForWorkspaceHub(wsAId, { cursor: 'missing-cursor' }))
+        .rejects
+        .toMatchObject({ message: 'Invalid cursor', statusCode: 400 });
+
+      const validationError = Object.assign(new Error('Unknown argument `unexpected`'), {
+        name: 'PrismaClientValidationError',
+      });
+      fakeClient.aiInsight.findMany.mockRejectedValueOnce(validationError);
+
+      await expect(isolatedService.listForWorkspaceHub(wsAId, { cursor: 'cursor-with-query-bug' }))
+        .rejects
+        .toBe(validationError);
+      expect(validationError).not.toBeInstanceOf(AppError);
+    });
+
+    it('isolates cross-tenant data', async () => {
+      // Create insight in wsB
+      const txB = await managementClient.transaction.findFirst({ where: { workspaceId: wsBId } });
+      await service.create({
+        workspaceId: wsBId,
+        transactionId: txB!.id,
+        severity: 'CRITICAL',
+        code: 'MISTURA_PATRIMONIAL',
+        message: 'Tenant B issue',
+        reason: 'Tenant B reason',
+        confidence: 0.9,
+      });
+
+      // wsA should not see wsB data in data or summary
+      const resultA = await service.listForWorkspaceHub(wsAId, { dismissed: 'all' });
+      expect(resultA.data.map((i: any) => i.workspaceId)).not.toContain(wsBId);
+      const idsA = resultA.data.map((i: any) => i.id);
+      const wsBInsights = await managementClient.aiInsight.findMany({ where: { workspaceId: wsBId } });
+      expect(idsA).not.toContain(wsBInsights[0].id);
+      expect(resultA.summary.criticalCount).toBe(1); // the one from wsA, not wsB
+    });
   });
 });

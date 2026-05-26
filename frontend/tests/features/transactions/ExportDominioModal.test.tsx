@@ -5,6 +5,7 @@ import { TransactionHistoryPage } from '../../../src/features/transactions/pages
 import { useWorkspaceStore } from '../../../src/shared/stores/useWorkspaceStore';
 import * as exportApi from '../../../src/features/transactions/api/exportDominio';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
 // Mocks
@@ -49,12 +50,15 @@ describe('ExportDominioModal & TransactionHistoryPage', () => {
     });
 
     const renderPage = () => {
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         return render(
-            <MemoryRouter initialEntries={['/1/transactions']}>
-                <Routes>
-                    <Route path="/:workspaceId/transactions" element={<TransactionHistoryPage />} />
-                </Routes>
-            </MemoryRouter>
+            <QueryClientProvider client={queryClient}>
+                <MemoryRouter initialEntries={['/1/transactions']}>
+                    <Routes>
+                        <Route path="/:workspaceId/transactions" element={<TransactionHistoryPage />} />
+                    </Routes>
+                </MemoryRouter>
+            </QueryClientProvider>
         );
     };
 

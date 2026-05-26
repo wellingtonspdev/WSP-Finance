@@ -46,7 +46,23 @@ export class TransactionRepository {
       orderBy: { date: 'desc' },
       include: {
         category: { select: { name: true, icon: true, color: true } },
-        account: { select: { name: true } }
+        account: { select: { name: true } },
+        aiInsights: {
+          where: { dismissed: false },
+          select: {
+            id: true,
+            transactionId: true,
+            severity: true,
+            code: true,
+            message: true,
+            reason: true,
+            confidence: true,
+            dismissed: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       }
     });
   }
@@ -74,6 +90,32 @@ export class TransactionRepository {
   async findByIdAndWorkspace(id: string, workspaceId: number): Promise<Transaction | null> {
     return await prisma.transaction.findFirst({
       where: { id, workspaceId }
+    });
+  }
+
+  async findDetailByIdAndWorkspace(id: string, workspaceId: number): Promise<Transaction | null> {
+    return await prisma.transaction.findFirst({
+      where: { id, workspaceId },
+      include: {
+        category: { select: { name: true, icon: true, color: true } },
+        account: { select: { name: true } },
+        aiInsights: {
+          where: { dismissed: false },
+          select: {
+            id: true,
+            transactionId: true,
+            severity: true,
+            code: true,
+            message: true,
+            reason: true,
+            confidence: true,
+            dismissed: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      }
     });
   }
 

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, AiInsightSeverity, AiInsightCode } from '@prisma/client';
 import { Decimal } from 'decimal.js';
 
 /**
@@ -87,6 +87,18 @@ export async function seedTimeTravel(prisma: PrismaClient, configs: TimeTravelCo
 
                 const desc = FUZZY_SALE_DESCRIPTIONS[Math.floor(Math.random() * FUZZY_SALE_DESCRIPTIONS.length)];
 
+                const isHighValue = gross.toNumber() > 450;
+                const aiInsightsData = (isHighValue && m === 0) ? {
+                    create: [{
+                        severity: AiInsightSeverity.CRITICAL,
+                        code: AiInsightCode.RISCO_MALHA_FINA,
+                        message: 'Receita atípica detectada (possível fraude ou erro).',
+                        reason: 'O valor da transação está 400% acima da média histórica para o dia.',
+                        confidence: new Decimal(0.85),
+                        workspace: { connect: { id: cfg.workspaceId } }
+                    }]
+                } : undefined;
+
                 await prisma.transaction.create({
                     data: {
                         accountId: cfg.accountId,
@@ -105,6 +117,7 @@ export async function seedTimeTravel(prisma: PrismaClient, configs: TimeTravelCo
                         attachmentUrl: shouldHaveAttachment
                             ? `https://storage.wsp.finance/receipts/${cfg.workspaceId}/${txDate.toISOString().split('T')[0]}_${i}.pdf`
                             : null,
+                        aiInsights: aiInsightsData
                     }
                 });
                 workspaceCount++;
@@ -124,6 +137,26 @@ export async function seedTimeTravel(prisma: PrismaClient, configs: TimeTravelCo
 
                 const expenseDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 10);
 
+                const expenseInsights = (template.descPrefix.includes('Pró-Labore') && m === 1) ? {
+                    create: [{
+                        severity: AiInsightSeverity.WARNING,
+                        code: AiInsightCode.DESPESA_PESSOAL_POTENCIAL,
+                        message: 'Pró-labore divergente da folha.',
+                        reason: 'O valor lançado não bate com o recibo de pró-labore cadastrado para o mês.',
+                        confidence: new Decimal(0.92),
+                        workspace: { connect: { id: cfg.workspaceId } }
+                    }]
+                } : (template.descPrefix.includes('Aluguel') && m === 2) ? {
+                    create: [{
+                        severity: AiInsightSeverity.INFO,
+                        code: AiInsightCode.MISTURA_PATRIMONIAL,
+                        message: 'Renovação de contrato de aluguel próxima.',
+                        reason: 'Identificamos que o reajuste do IGP-M deve ocorrer no próximo vencimento.',
+                        confidence: new Decimal(0.78),
+                        workspace: { connect: { id: cfg.workspaceId } }
+                    }]
+                } : undefined;
+
                 await prisma.transaction.create({
                     data: {
                         accountId: cfg.accountId,
@@ -137,6 +170,7 @@ export async function seedTimeTravel(prisma: PrismaClient, configs: TimeTravelCo
                         attachmentUrl: shouldHaveAttachment
                             ? `https://storage.wsp.finance/invoices/${cfg.workspaceId}/${template.descPrefix.replace(/\s/g, '_')}_${targetDate.getMonth() + 1}.pdf`
                             : null,
+                        aiInsights: expenseInsights
                     }
                 });
                 workspaceCount++;

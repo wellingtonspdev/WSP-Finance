@@ -19,6 +19,7 @@ import { AccountantCacheService } from './services/AccountantCacheService';
 import { AdminController } from './controllers/AdminController';
 import { ExportController } from './controllers/ExportController';
 import { ExportDownloadController } from './controllers/ExportDownloadController';
+import { AiInsightController } from './controllers/AiInsightController';
 import { sysPrisma } from './lib/prisma';
 
 // Middlewares
@@ -72,6 +73,7 @@ const bankMovementController = new BankMovementController();
 const openFinanceWebhookController = new OpenFinanceWebhookController();
 const accountantCacheService = new AccountantCacheService();
 const adminController = new AdminController();
+const aiInsightController = new AiInsightController();
 
 // ==============================================================================
 // AUTENTICAÇÃO & IDENTIDADE
@@ -404,6 +406,13 @@ router.get('/transactions', AuthMiddleware, WorkspaceMiddleware, (req, res, next
     return transactionController.list(req, res);
 });
 
+router.get('/transactions/:id', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+    /* #swagger.tags = ['Transações']
+       #swagger.summary = 'Detalhes do Lançamento'
+       #swagger.description = 'Retorna os detalhes completos de uma transação específica.' */
+    return transactionController.getById(req, res);
+});
+
 router.post('/transactions', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
     /* #swagger.tags = ['Transações']
        #swagger.summary = 'Criar Movimentação Financeira'
@@ -524,6 +533,24 @@ router.post('/bank-movements/:id/reject', AuthMiddleware, WorkspaceMiddleware, (
        #swagger.summary = 'Rejeitar Movimento'
        #swagger.description = 'Marca o movimento como REJECTED sem criar Transaction.' */
     return bankMovementController.reject(req, res);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// AI INSIGHTS (Alertas Pedagógicos)
+// ═══════════════════════════════════════════════════════════════════
+
+router.get('/ai-insights', AuthMiddleware, WorkspaceMiddleware, (req, res) => {
+    /* #swagger.tags = ['AI Insights']
+       #swagger.summary = 'Listar Alertas Pedagógicos (Análises Hub)'
+       #swagger.description = 'Lista e resume alertas de IA para o workspace com paginação por cursor.' */
+    return aiInsightController.listForHub(req, res);
+});
+
+router.patch('/ai-insights/:id/dismiss', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('EDITOR'), (req, res) => {
+    /* #swagger.tags = ['AI Insights']
+       #swagger.summary = 'Ignorar Alerta Pedagógico'
+       #swagger.description = 'Marca um insight de IA como ignorado. Não deleta o registro. Não altera transação, saldo ou ledger. Requer EDITOR, ACCOUNTANT ou OWNER.' */
+    return aiInsightController.dismiss(req, res);
 });
 
 // ═══════════════════════════════════════════════════════════════════

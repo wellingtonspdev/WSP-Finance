@@ -2,20 +2,26 @@ import { Home, Receipt, Plus, BarChart2, User } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useUI } from '../../context/UIProvider';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useWorkspaceStore } from '../../stores/useWorkspaceStore';
 
 export function BottomNav() {
   const { openTransactionModal } = useUI();
   const navigate = useNavigate();
   const location = useLocation();
+  const { activeMembership } = useWorkspaceStore();
 
   // Active tab inference from pathname
-  const activeTab = location.pathname.includes('/transactions') ? 'extract' : 'home';
+  const activeTab = location.pathname.includes('/transactions')
+    ? 'extract'
+    : location.pathname.includes('/analises')
+      ? 'analytics'
+      : 'home';
 
   const navItems = [
-    { id: 'home', icon: Home, label: 'Home', action: () => navigate('/') },
-    { id: 'extract', icon: Receipt, label: 'Extrato', action: () => navigate('/transactions') },
+    { id: 'home', icon: Home, label: 'Home', action: () => navigate(`/${activeMembership?.id || ''}/dashboard`) },
+    { id: 'extract', icon: Receipt, label: 'Extrato', action: () => navigate(`/${activeMembership?.id || ''}/transactions`) },
     { id: 'add', icon: Plus, label: '', isFab: true, action: openTransactionModal },
-    { id: 'analytics', icon: BarChart2, label: 'Análises', action: () => { } },
+    { id: 'analytics', icon: BarChart2, label: 'Análises', action: () => navigate(`/${activeMembership?.id || ''}/analises`) },
     { id: 'profile', icon: User, label: 'Perfil', action: () => { } },
   ];
 
