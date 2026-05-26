@@ -73,6 +73,21 @@ export class TransactionController {
     return res.status(200).json(transactions);
   }
 
+  async getById(req: Request, res: Response) {
+    const { id } = req.params;
+    const workspaceId = req.workspaceId!;
+
+    try {
+      const transaction = await this.transactionService.getById(id, workspaceId);
+      return res.status(200).json(transaction);
+    } catch (err: any) {
+      if (err.message.includes('not found') || err.message.includes('access denied')) {
+        return res.status(404).json({ message: err.message });
+      }
+      throw err;
+    }
+  }
+
   async delete(req: Request, res: Response) {
     const { id } = req.params;
     const workspaceId = req.workspaceId!;

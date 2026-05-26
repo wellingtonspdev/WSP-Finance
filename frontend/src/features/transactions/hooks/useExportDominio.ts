@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { validateDominioExport, generateDominioExport } from '../api/exportDominio';
-import type { ExportValidateResponse, ExportValidationIssue } from '../types/export';
+import type { ExportValidateResponse } from '../types/export';
 import { isAxiosError } from 'axios';
 
 export type ModalState = 'idle' | 'validating' | 'ready' | 'blocked' | 'downloading' | 'error';

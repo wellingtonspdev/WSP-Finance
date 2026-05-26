@@ -7,6 +7,9 @@ import { useAttachment } from '../hooks/useAttachment';
 import { AttachmentPreview } from '../components/AttachmentPreview';
 import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 import { ExportDominioModal } from '../components/ExportDominioModal';
+import { dismissAIInsight } from '../api/aiInsightApi';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../../../config/queryKeys';
 
 export function TransactionHistoryPage() {
     const [filterMode, setFilterMode] = useState<'ALL' | 'PACT' | 'SERVICES' | 'SUBS'>('ALL');
@@ -23,6 +26,7 @@ export function TransactionHistoryPage() {
 
     const activeMembership = useWorkspaceStore(state => state.activeMembership);
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+    const queryClient = useQueryClient();
 
     // Flatten pages into single array
     const transactions = useMemo(
@@ -51,7 +55,7 @@ export function TransactionHistoryPage() {
         [isFetchingNextPage, hasNextPage, fetchNextPage]
     );
 
-    const handlePreviewAttachment = async (id: number) => {
+    const handlePreviewAttachment = async (id: string) => {
         const txIdStr = String(id);
         const result = await getSignedUrl(txIdStr);
         if (result) {
@@ -65,6 +69,18 @@ export function TransactionHistoryPage() {
         setPreviewData(null);
         clearError();
     };
+
+    /**
+     * Dismiss an AI Insight: calls PATCH /ai-insights/:id/dismiss,
+     * then invalidates the transaction list cache.
+     */
+    const handleDismissInsight = useCallback(async (insightId: string) => {
+        await dismissAIInsight(insightId);
+        // Invalidate transaction list cache to refetch fresh data
+        queryClient.invalidateQueries({
+            queryKey: queryKeys.transactions.all(workspaceId || 'null'),
+        });
+    }, [queryClient, workspaceId]);
 
     // 1. Skeleton Loaders em Tema Escuro
     if (isLoading) {
@@ -174,6 +190,7 @@ export function TransactionHistoryPage() {
                                         onEdit={(id) => console.log('Edit', id)}
                                         onDelete={(id) => console.log('Delete', id)}
                                         onPreviewAttachment={(id) => handlePreviewAttachment(id)}
+                                        onDismissInsight={handleDismissInsight}
                                     />
                                 </div>
                             ))

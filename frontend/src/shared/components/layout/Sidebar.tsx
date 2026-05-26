@@ -4,7 +4,7 @@ import { useAuth } from '../../../app/AuthProvider';
 import { useUI } from '../../../shared/context/UIProvider';
 import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 import { useNavigate, useLocation } from 'react-router-dom';
-import logo from '../../../assets/wsp_finance_sem_fundo.png';
+import logo from '../../../assets/logo_WSP_Finance_sem_fundo.svg';
 
 export function Sidebar() {
   const { logout } = useAuth();
@@ -19,7 +19,9 @@ export function Sidebar() {
       ? 'team'
       : location.pathname.includes('/documents')
         ? 'documents'
-        : 'home';
+        : location.pathname.includes('/analises')
+          ? 'analytics'
+          : 'home';
   const isAccountant = activeMembership?.role === 'ACCOUNTANT';
 
   const navItems = [
@@ -27,7 +29,7 @@ export function Sidebar() {
     { id: 'extract', icon: Receipt, label: 'Extrato', action: () => navigate(`/${activeMembership?.id || ''}/transactions`) },
     { id: 'documents', icon: FileText, label: 'Documentos', action: () => navigate(`/${activeMembership?.id || ''}/documents`) },
     { id: 'team', icon: User, label: 'Equipe', action: () => navigate(`/${activeMembership?.id || ''}/team`) },
-    { id: 'analytics', icon: BarChart2, label: 'Análises', action: () => { } },
+    { id: 'analytics', icon: BarChart2, label: 'Análises', action: () => navigate(`/${activeMembership?.id || ''}/analises`) },
   ];
 
   return (

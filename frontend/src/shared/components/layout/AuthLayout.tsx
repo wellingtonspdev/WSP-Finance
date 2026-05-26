@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import logo from '../../../assets/wsp_finance_sem_fundo.png';
+import logo from '../../../assets/logo_WSP_Finance_sem_fundo.svg';
 
 interface AuthLayoutProps {
   children: ReactNode;

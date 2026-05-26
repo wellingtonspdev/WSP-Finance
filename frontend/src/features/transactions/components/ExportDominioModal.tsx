@@ -19,8 +19,7 @@ export function ExportDominioModal({ isOpen, onClose }: ExportDominioModalProps)
         handleDateChange,
         validate,
         download,
-        reset,
-        setModalState
+        reset
     } = useExportDominio();
 
     const handleClose = () => {
@@ -185,7 +184,7 @@ export function ExportDominioModal({ isOpen, onClose }: ExportDominioModalProps)
                             <Button
                                 type="button"
                                 onClick={download}
-                                disabled={modalState !== 'ready' || modalState === 'downloading'}
+                                disabled={modalState !== 'ready'}
                                 isLoading={modalState === 'downloading'}
                                 className="w-full h-14 text-lg bg-brand-gradient text-white border-transparent shadow-lg shadow-purple-500/20 hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100 transition-all flex items-center justify-center gap-2"
                             >

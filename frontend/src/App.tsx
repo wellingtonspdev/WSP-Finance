@@ -48,6 +48,9 @@ const TeamSettingsPage = lazy(() =>
 const DocumentsPage = lazy(() =>
   import('./features/workspaces/routes/DocumentsPage').then((module) => ({ default: module.DocumentsPage }))
 );
+const AnalysisPage = lazy(() =>
+  import('./features/ai-insights/pages/AnalysisPage').then((module) => ({ default: module.AnalysisPage }))
+);
 const AdminDashboardPage = lazy(() =>
   import('./features/admin/routes/AdminDashboardPage').then((module) => ({ default: module.AdminDashboardPage }))
 );
@@ -137,6 +140,7 @@ export default function App() {
                 <Route path=":workspaceId/dashboard" element={<DashboardPage />} />
                 <Route path=":workspaceId/transactions" element={<TransactionHistoryPage />} />
                 <Route path=":workspaceId/documents" element={<DocumentsPage />} />
+                <Route path=":workspaceId/analises" element={<AnalysisPage />} />
                 <Route path=":workspaceId/team" element={<TeamSettingsPage />} />
               </Route>
             </Routes>
