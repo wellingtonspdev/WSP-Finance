@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import type { Transaction } from '../types';
+import React, { useState, useMemo } from 'react';
+import type { Transaction, AIInsightForTransaction } from '../types';
 import { formatDecimalToBrl } from '../../../shared/lib/moneyFormat';
 import { ShoppingBag, Pencil, Trash, Clock, Tag, Briefcase, Zap, Home, DollarSign, Wallet, Paperclip, Eye } from 'lucide-react';
 import { useCapabilities } from '../../../shared/hooks/useCapabilities';
 import { LockIcon } from '../../../shared/components/LockIcon';
 import { isDateLocked } from '../../../shared/lib/fiscalLock';
 import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
+import { AIInsightBadge } from './AIInsightBadge';
 
 const ICON_MAP: Record<string, React.ElementType> = {
     'tag': Tag,
@@ -19,16 +20,41 @@ const ICON_MAP: Record<string, React.ElementType> = {
 
 interface TransactionAccordionItemProps {
     transaction: Transaction;
-    onEdit?: (id: number) => void;
-    onDelete?: (id: number) => void;
-    onPreviewAttachment?: (id: number, e: React.MouseEvent) => void;
+    onEdit?: (id: string) => void;
+    onDelete?: (id: string) => void;
+    onPreviewAttachment?: (id: string, e: React.MouseEvent) => void;
+    onDismissInsight?: (insightId: string) => Promise<void>;
+    defaultExpanded?: boolean;
 }
 
-export function TransactionAccordionItem({ transaction, onEdit, onDelete, onPreviewAttachment }: TransactionAccordionItemProps) {
-    const [isExpanded, setIsExpanded] = useState(false);
+// Severity priority: CRITICAL > WARNING > INFO
+const SEVERITY_PRIORITY: Record<string, number> = { CRITICAL: 3, WARNING: 2, INFO: 1 };
+
+/** Select the most important active insight: highest severity, then most recent. */
+function selectTopInsight(insights?: AIInsightForTransaction[]): AIInsightForTransaction | null {
+    if (!insights || insights.length === 0) return null;
+    const active = insights.filter(i => !i.dismissed);
+    if (active.length === 0) return null;
+    return active.sort((a, b) => {
+        const diff = (SEVERITY_PRIORITY[b.severity] ?? 0) - (SEVERITY_PRIORITY[a.severity] ?? 0);
+        if (diff !== 0) return diff;
+        // Same severity: most recent first
+        return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
+    })[0];
+}
+
+export function TransactionAccordionItem({ transaction, onEdit, onDelete, onPreviewAttachment, onDismissInsight, defaultExpanded = false }: TransactionAccordionItemProps) {
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     const { canEdit, activeRole } = useCapabilities();
     const closedUntil = useWorkspaceStore(s => s.activeMembership?.closedUntil ?? null);
     const isLocked = isDateLocked(transaction.date, closedUntil);
+
+    // Select the most important insight (CRITICAL > WARNING > INFO, then most recent)
+    const topInsight = useMemo(() => selectTopInsight(transaction.aiInsights), [transaction.aiInsights]);
+
+    // canDismiss: OWNER, ACCOUNTANT, EDITOR can dismiss. VIEWER cannot.
+    // NOT derived from canEdit (which excludes ACCOUNTANT).
+    const canDismissInsight = activeRole === 'OWNER' || activeRole === 'ACCOUNTANT' || activeRole === 'EDITOR';
 
     // Bypass: ACCOUNTANT pode operar em períodos fechados (backend permite)
     const isActionBlocked = isLocked && activeRole !== 'ACCOUNTANT';
@@ -101,6 +127,14 @@ export function TransactionAccordionItem({ transaction, onEdit, onDelete, onPrev
             {/* Accordion Detailed Content */}
             {isExpanded && (
                 <div className="p-5 bg-black/10 animate-[fadeIn_0.2s_ease-out]">
+                    {/* AI Insight Badge (pedagogical alert) */}
+                    {topInsight && (
+                        <AIInsightBadge
+                            insight={topInsight}
+                            canDismiss={canDismissInsight}
+                            onDismiss={onDismissInsight}
+                        />
+                    )}
                     <div className="flex flex-col gap-3">
 
                         {/* If it's a PACT Marketplace sell, show receipt */}

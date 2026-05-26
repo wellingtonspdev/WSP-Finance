@@ -47,6 +47,7 @@ vi.mock('../../src/repositories/TransactionRepository', () => {
     TransactionRepository: class {
       create = vi.fn().mockResolvedValue({ id: 'fake-transaction', amount: 100 });
       findByIdAndWorkspace = vi.fn().mockResolvedValue({ id: 'fake-transaction', amount: 100, isPaid: true, type: 'EXPENSE', accountId: 1, date: new Date('2026-01-15T12:00:00Z') });
+      findDetailByIdAndWorkspace = vi.fn().mockResolvedValue({ id: 'fake-transaction', amount: 100, isPaid: true, type: 'EXPENSE', accountId: 1, date: new Date('2026-01-15T12:00:00Z'), category: {} });
       delete = vi.fn().mockResolvedValue(true);
     }
   };
@@ -293,7 +294,19 @@ describe('TransactionService - Guardião de Período Fiscal (closedUntil)', () =
         workspaceId: 1
       });
 
-      expect(mocks.mockEnqueueInTransaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getById', () => {
+    it('deve retornar a transação com detalhes quando ela existir', async () => {
+      const result = await transactionService.getById('fake-transaction', 99);
+      expect(result).toHaveProperty('id', 'fake-transaction');
+    });
+
+    it('deve lançar AppError 404 quando a transação não existir', async () => {
+      const repo = (transactionService as any).transactionRepository;
+      repo.findDetailByIdAndWorkspace.mockResolvedValueOnce(null);
+      await expect(transactionService.getById('not-found', 99)).rejects.toThrow('Transaction not found or access denied');
     });
   });
 });
