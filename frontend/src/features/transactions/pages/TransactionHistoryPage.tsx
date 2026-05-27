@@ -10,6 +10,7 @@ import { ExportDominioModal } from '../components/ExportDominioModal';
 import { dismissAIInsight } from '../api/aiInsightApi';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../../config/queryKeys';
+import { AppLayout } from '../../../shared/components/layout/AppLayout';
 
 export function TransactionHistoryPage() {
     const [filterMode, setFilterMode] = useState<'ALL' | 'PACT' | 'SERVICES' | 'SUBS'>('ALL');
@@ -85,35 +86,39 @@ export function TransactionHistoryPage() {
     // 1. Skeleton Loaders em Tema Escuro
     if (isLoading) {
         return (
-            <div className="flex-1 px-4 pt-6 bg-brand-dark min-h-screen text-white">
-                <div className="flex items-center justify-between mb-6 px-2 animate-pulse">
-                    <div className="h-4 bg-white/10 rounded w-24"></div>
-                    <div className="h-4 bg-white/10 rounded w-32"></div>
-                </div>
-                <div className="space-y-4">
-                    {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className="bg-[#1e293b]/50 border border-white/10 rounded-2xl h-20 animate-pulse flex items-center px-4 justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-white/10"></div>
-                                <div className="space-y-2">
-                                    <div className="h-3 bg-white/10 rounded w-32"></div>
-                                    <div className="h-2 bg-white/10 rounded w-20"></div>
+            <AppLayout>
+                <div className="flex-1 pt-6 text-white w-full">
+                    <div className="flex items-center justify-between mb-6 px-2 animate-pulse">
+                        <div className="h-4 bg-white/10 rounded w-24"></div>
+                        <div className="h-4 bg-white/10 rounded w-32"></div>
+                    </div>
+                    <div className="space-y-4">
+                        {[1, 2, 3, 4, 5].map(i => (
+                            <div key={i} className="bg-[#1e293b]/50 border border-white/10 rounded-2xl h-20 animate-pulse flex items-center px-4 justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-white/10"></div>
+                                    <div className="space-y-2">
+                                        <div className="h-3 bg-white/10 rounded w-32"></div>
+                                        <div className="h-2 bg-white/10 rounded w-20"></div>
+                                    </div>
+                                </div>
+                                <div className="space-y-2 flex flex-col items-end">
+                                    <div className="h-4 bg-white/10 rounded w-24"></div>
+                                    <div className="h-2 bg-white/10 rounded w-10"></div>
                                 </div>
                             </div>
-                            <div className="space-y-2 flex flex-col items-end">
-                                <div className="h-4 bg-white/10 rounded w-24"></div>
-                                <div className="h-2 bg-white/10 rounded w-10"></div>
-                            </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
-            </div>
+            </AppLayout>
         );
     }
 
     if (isError) {
         return (
-            <div className="p-8 text-center text-red-500 bg-brand-dark min-h-screen">Erro ao carregar transações. Verifique sua conexão.</div>
+            <AppLayout>
+                <div className="p-8 text-center text-red-500 w-full">Erro ao carregar transações. Verifique sua conexão.</div>
+            </AppLayout>
         );
     }
 
@@ -124,23 +129,29 @@ export function TransactionHistoryPage() {
     });
 
     return (
-        <div className="min-h-screen bg-brand-dark flex flex-col relative">
-            <div className="relative z-10 flex flex-col h-full pt-4">
-                {/* Header Subido */}
-                <header className="px-6 pt-6 pb-4 flex items-center justify-between z-20 sticky top-0 bg-[#11051f]/60 backdrop-blur-xl border-b border-white/5">
-                    <button
-                        onClick={() => navigate(`/${workspaceId}/dashboard`)}
-                        className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors text-slate-300"
-                    >
-                        <ArrowLeft className="w-6 h-6" />
-                    </button>
-                    <h1 className="text-xl font-semibold text-white">Extrato</h1>
-                    <button className="p-2 -mr-2 rounded-full hover:bg-white/10 transition-colors text-slate-300">
-                        <Filter className="w-6 h-6" />
-                    </button>
-                </header>
+        <AppLayout>
+            <div className="flex flex-col relative w-full h-full text-white">
+                <div className="relative z-10 flex flex-col h-full lg:pt-4">
+                    {/* Header Subido - condicionado ao mobile */}
+                    <header className="lg:hidden px-6 pt-6 pb-4 flex items-center justify-between z-20 sticky top-0 bg-[#11051f]/60 backdrop-blur-xl border-b border-white/5">
+                        <button
+                            onClick={() => navigate(`/${workspaceId}/dashboard`)}
+                            className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors text-slate-300"
+                        >
+                            <ArrowLeft className="w-6 h-6" />
+                        </button>
+                        <h1 className="text-xl font-semibold text-white">Extrato</h1>
+                        <button className="p-2 -mr-2 rounded-full hover:bg-white/10 transition-colors text-slate-300">
+                            <Filter className="w-6 h-6" />
+                        </button>
+                    </header>
 
-                <main className="flex-1 px-4 pb-32">
+                    {/* Desktop header title */}
+                    <div className="hidden lg:flex items-center justify-between mb-6 px-1">
+                        <h1 className="text-2xl font-bold text-white">Extrato</h1>
+                    </div>
+
+                    <main className="flex-1 pb-16 lg:pb-8">
                     {/* Filtros em Pílula */}
                     <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2 px-1">
                         <button
@@ -223,10 +234,11 @@ export function TransactionHistoryPage() {
                 errorUrl={attachmentError}
             />
 
-            <ExportDominioModal
-                isOpen={isExportModalOpen}
-                onClose={() => setIsExportModalOpen(false)}
-            />
-        </div>
+                <ExportDominioModal
+                    isOpen={isExportModalOpen}
+                    onClose={() => setIsExportModalOpen(false)}
+                />
+            </div>
+        </AppLayout>
     );
 }

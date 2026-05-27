@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useParams, Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore';
 import { useAuth } from '../../../app/AuthProvider';
-import { useWorkspace } from '../../../features/workspaces/context/WorkspaceProvider';
+import { useWorkspace } from '../../../features/workspaces/context/useWorkspace';
 
 export function WorkspaceGuard() {
     const { workspaceId: workspaceIdParam } = useParams<{ workspaceId: string }>();
@@ -19,7 +19,7 @@ export function WorkspaceGuard() {
     useEffect(() => {
         // 1. Ao montar ou o user mudar, garante que as memberships do Auth(usuário) passem pro store do Workspace
         if (user?.memberships) {
-            setMemberships(user.memberships as any); // Type cast temporário até ajustar interface unificada
+            setMemberships(user.memberships as unknown as Parameters<typeof setMemberships>[0]); // Type cast temporário até ajustar interface unificada
         }
     }, [user, setMemberships]);
 
@@ -52,7 +52,7 @@ export function WorkspaceGuard() {
             if (user.type === 'ACCOUNTANT') {
                 // Bloqueio Hard-Kill: Se ele está tentando acessar QUALQUER workspace via paramId ou não tem param
                 if (workspaceIdParam) {
-                    const targetMembership = user.memberships?.find(m => (m as any).workspaceId?.toString() === workspaceIdParam || m.id?.toString() === workspaceIdParam);
+                    const targetMembership = user.memberships?.find(m => (m as { workspaceId?: number | string }).workspaceId?.toString() === workspaceIdParam || m.id?.toString() === workspaceIdParam);
                     if (targetMembership?.type === 'PERSONAL') {
                         // Contador não pode acessar conta pessoal (mesmo a dele). Força devolução para a Torre.
                         navigate(`/accountant/hub`, { replace: true });

@@ -10,6 +10,7 @@ import type { AiInsightItem } from '../types';
 import type { HubFilters } from '../types';
 import { getInsightPresentation, formatInsightCurrency } from '../presentation';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
+import { AppLayout } from '../../../shared/components/layout/AppLayout';
 
 type FilterTab = 'all' | 'critical' | 'warning' | 'info' | 'dismissed';
 
@@ -63,7 +64,7 @@ export function AnalysisPage() {
       if (workspaceId) {
         queryClient.invalidateQueries({ queryKey: [AI_INSIGHTS_QUERY_KEY, workspaceId] });
       }
-    } catch (error) {
+    } catch {
       setDismissError('Não foi possível ignorar o alerta. Tente novamente.');
     }
   };
@@ -83,17 +84,21 @@ export function AnalysisPage() {
 
   if (isLoading) {
     return (
-      <div data-testid="analysis-skeleton" className="min-h-screen bg-brand-dark p-6 text-white flex justify-center items-center">
-        <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
-      </div>
+      <AppLayout>
+        <div data-testid="analysis-skeleton" className="p-6 text-white flex justify-center items-center w-full h-full">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+        </div>
+      </AppLayout>
     );
   }
 
   if (isError) {
     return (
-      <div className="min-h-screen bg-brand-dark p-6 text-white flex justify-center items-center">
-        <div className="text-red-500">Erro ao carregar as análises. Verifique sua conexão.</div>
-      </div>
+      <AppLayout>
+        <div className="p-6 text-white flex justify-center items-center w-full h-full">
+          <div className="text-red-500">Erro ao carregar as análises. Verifique sua conexão.</div>
+        </div>
+      </AppLayout>
     );
   }
 
@@ -101,25 +106,34 @@ export function AnalysisPage() {
   const summary = data?.summary;
 
   return (
-    <div className="min-h-screen bg-brand-dark flex flex-col relative text-white">
-      <header className="px-6 pt-6 pb-4 flex items-center justify-between z-20 sticky top-0 bg-[#11051f]/60 backdrop-blur-xl border-b border-white/5">
-        <button
-          onClick={() => navigate(`/${workspaceId}/dashboard`)}
-          className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors text-slate-300"
-          aria-label="Voltar"
-        >
-          <ArrowLeft className="w-6 h-6" />
-        </button>
-        <div className="text-center">
-          <h1 className="text-xl font-semibold">Análises</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
+    <AppLayout>
+      <div className="flex flex-col relative text-white w-full h-full">
+        <header className="lg:hidden px-6 pt-6 pb-4 flex items-center justify-between z-20 sticky top-0 bg-[#11051f]/60 backdrop-blur-xl border-b border-white/5">
+          <button
+            onClick={() => navigate(`/${workspaceId}/dashboard`)}
+            className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors text-slate-300"
+            aria-label="Voltar"
+          >
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <div className="text-center">
+            <h1 className="text-xl font-semibold">Análises</h1>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Revise pontos de atenção pedagógicos
+            </p>
+          </div>
+          <div className="w-10"></div> {/* Spacer */}
+        </header>
+
+        {/* Desktop header title */}
+        <div className="hidden lg:flex flex-col mb-6 px-1 pt-4 max-w-4xl mx-auto w-full">
+          <h1 className="text-2xl font-bold text-white">Análises</h1>
+          <p className="text-sm text-slate-400 mt-1">
             Revise pontos de atenção pedagógicos gerados a partir das suas transações.
           </p>
         </div>
-        <div className="w-10"></div> {/* Spacer */}
-      </header>
 
-      <main className="flex-1 px-4 py-6 max-w-4xl mx-auto w-full">
+        <main className="flex-1 pb-16 lg:pb-8 max-w-4xl mx-auto w-full">
         {/* Educational disclaimer */}
         <div className="mb-6 px-4 py-3 bg-blue-500/5 border border-blue-500/10 rounded-xl text-xs text-blue-300/80 text-center">
           Esses alertas são sugestões educativas e não substituem a análise do contador.
@@ -274,6 +288,7 @@ export function AnalysisPage() {
         onClose={() => setSelectedTransactionId(null)}
         transactionId={selectedTransactionId}
       />
-    </div>
+      </div>
+    </AppLayout>
   );
 }

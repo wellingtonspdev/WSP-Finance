@@ -1,21 +1,14 @@
-import { createContext, useContext, useState } from 'react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
-
-interface UIContextType {
-    isTransactionModalOpen: boolean;
-    openTransactionModal: () => void;
-    closeTransactionModal: () => void;
-    isMobileMenuOpen: boolean;
-    openMobileMenu: () => void;
-    closeMobileMenu: () => void;
-    toggleMobileMenu: () => void;
-}
-
-const UIContext = createContext<UIContextType | undefined>(undefined);
+import { UIContext } from './UIContext';
 
 export function UIProvider({ children }: { children: ReactNode }) {
     const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+        const stored = localStorage.getItem('wsp_sidebar_collapsed');
+        return stored === 'true';
+    });
 
     const openTransactionModal = () => setIsTransactionModalOpen(true);
     const closeTransactionModal = () => setIsTransactionModalOpen(false);
@@ -23,6 +16,14 @@ export function UIProvider({ children }: { children: ReactNode }) {
     const openMobileMenu = () => setIsMobileMenuOpen(true);
     const closeMobileMenu = () => setIsMobileMenuOpen(false);
     const toggleMobileMenu = () => setIsMobileMenuOpen(prev => !prev);
+
+    const toggleSidebar = () => {
+        setIsSidebarCollapsed(prev => {
+            const newState = !prev;
+            localStorage.setItem('wsp_sidebar_collapsed', String(newState));
+            return newState;
+        });
+    };
 
     return (
         <UIContext.Provider value={{
@@ -32,17 +33,11 @@ export function UIProvider({ children }: { children: ReactNode }) {
             isMobileMenuOpen,
             openMobileMenu,
             closeMobileMenu,
-            toggleMobileMenu
+            toggleMobileMenu,
+            isSidebarCollapsed,
+            toggleSidebar
         }}>
             {children}
         </UIContext.Provider>
     );
-}
-
-export function useUI() {
-    const context = useContext(UIContext);
-    if (context === undefined) {
-        throw new Error('useUI must be used within a UIProvider');
-    }
-    return context;
 }

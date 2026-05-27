@@ -6,7 +6,7 @@ import { transactionFormSchema } from '../types';
 import type { CreateTransactionDTO } from '../types';
 import { useCategories } from '../hooks/useCategories';
 import { useAccounts } from '../hooks/useAccounts';
-import { useWorkspace } from '../../workspaces/context/WorkspaceProvider';
+import { useWorkspace } from '../../workspaces/context/useWorkspace';
 import { useAccountsByWorkspace } from '../api/getAccountsByWorkspace';
 import { useTransactionMutation, type TransCategory } from '../hooks/useTransactionMutation';
 import { MoneyInput } from '../../../shared/components/ui/MoneyInput';
@@ -45,7 +45,7 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
             abortUpload();
             reset();
         }
-    }, [isOpen]);
+    }, [isOpen, abortUpload, reset]);
 
     // Data Fetchers
     const { data: categories, isLoading: isLoadingCategories } = useCategories();
@@ -93,8 +93,9 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
     const onSubmit = async (data: CreateTransactionDTO) => {
         try {
             await submitTransaction(data, transCategory);
-        } catch (error: any) {
-            toastError(error?.message || 'Erro inesperado no formulário. Verifique os dados.');
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : 'Erro inesperado no formulário. Verifique os dados.';
+            toastError(msg);
             console.error('Submit transaction caught error:', error);
         }
     };
