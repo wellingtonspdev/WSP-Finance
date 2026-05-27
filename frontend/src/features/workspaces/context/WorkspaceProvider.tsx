@@ -1,47 +1,50 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { Workspace } from '../types';
 import { useAuth } from '../../../app/AuthProvider';
+import { WorkspaceContext } from './WorkspaceContext';
 
-interface WorkspaceContextType {
-  workspaces: Workspace[];
-  activeWorkspace: Workspace | null;
-  isLoading: boolean;
-  switchWorkspace: (workspaceId: number) => void;
-}
-
-const WorkspaceContext = createContext<WorkspaceContextType>({} as WorkspaceContextType);
+const EMPTY_WORKSPACES: Workspace[] = [];
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   // const queryClient = useQueryClient(); // Removido por nÃ£o ser mais necessÃ¡rio
-  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
+  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
 
   // PACT V3: Varrendo memberships direto do Payload de AutenticaÃ§Ã£o (Zero Request)
-  const workspaces = user?.memberships || [];
+  const workspaces = useMemo(() => user?.memberships || EMPTY_WORKSPACES, [user?.memberships]);
   const isLoading = false; // Como Ã© local, nÃ£o hÃ¡ loading async
 
-  // Efeito de InicializaÃ§Ã£o e SeleÃ§Ã£o AutomÃ¡tica
-  useEffect(() => {
-    if (workspaces.length > 0 && !activeWorkspace) {
-      // Tenta recuperar do storage ou pega o primeiro
-      const storedId = localStorage.getItem('wsp_active_workspace');
-      const found = workspaces.find((w: any) => w.id === Number(storedId));
-
-      const target = found || workspaces[0];
-
-      // Define o workspace inicial
-      setActiveWorkspace(target);
+  // Derivação de estado para evitar setState no useEffect
+  const activeWorkspace = useMemo(() => {
+    if (workspaces.length === 0) {
+      return null;
     }
-  }, [workspaces, activeWorkspace]);
+
+    const selectedId = selectedWorkspace?.id;
+    const selectedFromCurrentMemberships = selectedId
+      ? workspaces.find((w: Workspace) => w.id === selectedId)
+      : null;
+
+    if (selectedFromCurrentMemberships) {
+      return selectedFromCurrentMemberships;
+    }
+
+    const storedId = localStorage.getItem('wsp_active_workspace');
+    const storedFromCurrentMemberships = storedId
+      ? workspaces.find((w: Workspace) => w.id === Number(storedId))
+      : null;
+
+    return storedFromCurrentMemberships || workspaces[0];
+  }, [selectedWorkspace, workspaces]);
 
   // FunÃ§Ã£o de Troca de Contexto (Hard Reset)
   const switchWorkspace = (workspaceId: number) => {
-    const target = workspaces.find((w: any) => w.id === workspaceId);
+    const target = workspaces.find((w: Workspace) => w.id === workspaceId);
     if (!target) return;
 
     // 1. Atualiza Estado Local
-    setActiveWorkspace(target);
+    setSelectedWorkspace(target);
     localStorage.setItem('wsp_active_workspace', workspaceId.toString());
 
     // 2. O React Query jÃ¡ segmenta os dados por [workspaceId] em queryKeys.ts
@@ -62,5 +65,3 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     </WorkspaceContext.Provider>
   );
 }
-
-export const useWorkspace = () => useContext(WorkspaceContext);

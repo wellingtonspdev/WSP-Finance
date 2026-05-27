@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Eye } from 'lucide-react';
+import { ArrowDown, ArrowUp, Eye, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { CardSkeleton } from '../../../shared/components/skeletons/CardSkeleton';
 import type { DashboardSummary } from '../api/getSummary';
@@ -6,10 +6,21 @@ import type { DashboardSummary } from '../api/getSummary';
 interface Props {
   data?: DashboardSummary;
   isLoading: boolean;
+  error?: Error | null;
 }
 
-export function SummaryCards({ data, isLoading }: Props) {
-  if (isLoading) {
+export function SummaryCards({ data, isLoading, error }: Props) {
+  if (error && !data) {
+    return (
+      <div className="px-6 lg:px-0 mb-8 p-6 bg-red-500/10 border border-red-500/20 rounded-3xl flex flex-col items-center justify-center min-h-[200px]">
+        <AlertTriangle className="w-8 h-8 text-red-500 mb-2" />
+        <p className="text-red-400 font-medium">Erro ao carregar resumo</p>
+        <p className="text-red-500/80 text-sm mt-1">Tente novamente mais tarde.</p>
+      </div>
+    );
+  }
+
+  if (!data || (isLoading && !data)) {
     return (
       <div className="px-6 lg:px-0 mb-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1"><CardSkeleton /></div>
@@ -44,7 +55,7 @@ export function SummaryCards({ data, isLoading }: Props) {
         </div>
         <div className="flex items-baseline gap-1">
           <span className="text-4xl lg:text-5xl font-bold text-white tracking-tight">
-            {formatCurrency(data?.balance.total || 0)}
+            {formatCurrency(data.balance.total)}
           </span>
         </div>
         <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
@@ -64,7 +75,7 @@ export function SummaryCards({ data, isLoading }: Props) {
             </div>
             <span className="text-slate-300 text-sm font-medium">Entradas</span>
           </div>
-          <p className="text-xl lg:text-2xl font-bold text-white">{formatCurrency(data?.flow.income || 0)}</p>
+          <p className="text-xl lg:text-2xl font-bold text-white">{formatCurrency(data.flow.income)}</p>
           <p className="text-xs text-green-400 mt-1">+12% vs mês anterior</p>
         </div>
 
@@ -76,7 +87,7 @@ export function SummaryCards({ data, isLoading }: Props) {
             </div>
             <span className="text-slate-300 text-sm font-medium">Saídas</span>
           </div>
-          <p className="text-xl lg:text-2xl font-bold text-white mb-2">{formatCurrency(data?.flow.expense || 0)}</p>
+          <p className="text-xl lg:text-2xl font-bold text-white mb-2">{formatCurrency(data.flow.expense)}</p>
 
           {/* Barra de Progresso */}
           <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">

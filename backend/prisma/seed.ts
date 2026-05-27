@@ -8,6 +8,7 @@ import { seedAuditAndChaos } from './seed/modules/04_Auditor';
 import { seedLifeCycle } from './seed/modules/05_LifeCycle';
 import { seedBankMovements } from './seed/modules/06_BankMovements';
 import { seedDashboardCache } from './seed/modules/07_DashboardCache';
+import { seedPersonalDemo, PERSONAL_DEMO_EXPECTED_COUNT } from './seed/modules/08_PersonalDemo';
 
 const directUrl = process.env.DIRECT_URL;
 const prisma = directUrl 
@@ -268,14 +269,20 @@ async function main() {
     { workspaceId: identities.workspaces.mariaBusinessId, accountId: structures.business.mariaBusinessId.checkingId, count: 20 }
   ]);
 
-  // ── FASE 7: PÓS-PROCESSAMENTO ──
+  // ── FASE 7: PERSONAL DEMO ──
+  const personalDemoResult = await seedPersonalDemo(prisma);
+  if (personalDemoResult.count !== PERSONAL_DEMO_EXPECTED_COUNT) {
+    throw new Error(`[Seed] Personal demo seed: esperava ${PERSONAL_DEMO_EXPECTED_COUNT} transacoes, obteve ${personalDemoResult.count}`);
+  }
+
+  // ── FASE 8: PÓS-PROCESSAMENTO ──
   await recalculateBalances();
 
-  // ── FASE 8: DASHBOARD CACHE ──
-  console.log('\n📊 [Fase 8] Inicializando Dashboard Cache...');
+  // ── FASE 9: DASHBOARD CACHE ──
+  console.log('\n📊 [Fase 9] Inicializando Dashboard Cache...');
   await seedDashboardCache(prisma, identities);
 
-  // ── FASE 9: RLS VALIDATION ──
+  // ── FASE 10: RLS VALIDATION ──
   await validateRLS();
 
   // ══════════════════════════════════════════════════════════════
@@ -293,6 +300,7 @@ async function main() {
   console.log(`   🏢 Workspaces:     22 (10 BUSINESS + 10 PERSONAL + 2 Contabilidade)`);
   console.log(`   🔗 ACCOUNTANT links: 10 (Wellington → 10 empresas)`);
   console.log(`   💳 Transações:     ${timeTravelResult.count + auditResult.chaosCount}`);
+  console.log(`   👤 Demo Pessoal:  ${personalDemoResult.count}`);
   console.log(`   📋 Audit Logs:     ${auditResult.auditCount}`);
   console.log(`   🗂️ Bank Movements: ${bankMovementResult.count}`);
   console.log(`   📩 Convites:       ${lifeCycleResult.inviteCount}`);

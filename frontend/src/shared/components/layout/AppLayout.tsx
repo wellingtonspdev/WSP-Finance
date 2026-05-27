@@ -1,8 +1,8 @@
-import { Suspense, lazy, type ReactNode } from 'react';
+import { useState, Suspense, lazy, type ReactNode } from 'react';
 import { useAuth } from '../../../app/AuthProvider';
 import { AccountantBottomNav } from '../../../features/accountant/components/AccountantBottomNav';
 import { AccountantSidebar } from '../../../features/accountant/components/AccountantSidebar';
-import { useUI } from '../../context/UIProvider';
+import { useUI } from '../../context/useUI';
 import { useCapabilities } from '../../hooks/useCapabilities';
 import { AuditBanner } from './AuditBanner';
 import { BottomNav } from './BottomNav';
@@ -20,9 +20,22 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { isTransactionModalOpen, closeTransactionModal, toggleMobileMenu } = useUI();
+  const { isTransactionModalOpen, closeTransactionModal, toggleMobileMenu, isSidebarCollapsed, toggleSidebar } = useUI();
   const { canViewAuditBanner } = useCapabilities();
   const { user } = useAuth();
+
+  const [isAccountantSidebarCollapsed, setIsAccountantSidebarCollapsed] = useState(() => {
+    const stored = localStorage.getItem('wsp_accountant_sidebar_collapsed');
+    return stored === 'true';
+  });
+
+  const toggleAccountantSidebar = () => {
+    setIsAccountantSidebarCollapsed(prev => {
+      const newState = !prev;
+      localStorage.setItem('wsp_accountant_sidebar_collapsed', String(newState));
+      return newState;
+    });
+  };
 
   const isAccountantPersona =
     user?.type === 'ACCOUNTANT' || user?.memberships?.some((membership) => membership.role === 'ACCOUNTANT');
@@ -44,7 +57,14 @@ export function AppLayout({ children }: AppLayoutProps) {
         )}
       </div>
 
-      {isAccountantPersona ? <AccountantSidebar /> : <Sidebar />}
+      {isAccountantPersona ? (
+        <AccountantSidebar
+          isCollapsed={isAccountantSidebarCollapsed}
+          onToggle={toggleAccountantSidebar}
+        />
+      ) : (
+        <Sidebar isCollapsed={isSidebarCollapsed} onToggle={toggleSidebar} />
+      )}
 
       <div className="flex-1 flex flex-col h-full relative z-10 w-full overflow-hidden">
         {canViewAuditBanner && <AuditBanner />}

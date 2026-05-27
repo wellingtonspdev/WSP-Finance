@@ -1,227 +1,196 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import { app } from '../../src/server';
-import { prisma } from '../../src/lib/prisma';
 import { getJwtSecret } from '../../src/config/authEnv';
+import { sysPrisma } from '../../src/lib/prisma';
 
-const repositoryMocks = vi.hoisted(() => ({
-  findDetailByIdAndWorkspace: vi.fn(),
-  findByIdAndWorkspace: vi.fn(),
-  findManyByWorkspace: vi.fn(),
-  findManyByUserId: vi.fn(),
-  create: vi.fn(),
-  delete: vi.fn(),
-}));
+type RouteContext = {
+  userId: number;
+  token: string;
+  personalWorkspaceId: number;
+  businessWorkspaceId: number;
+  readableTransactionId: string;
+};
 
-vi.mock('../../src/lib/prisma', () => ({
-  prisma: {
-    workspaceMember: {
-      findUnique: vi.fn(),
-    },
-    workspace: {
-      findUnique: vi.fn(),
-    },
-    $transaction: vi.fn(),
-  },
-}));
+const DEMO_HASH_PREFIX = 'DEMO_PERSONAL_JOAO_';
 
-vi.mock('../../src/lib/tenantContext', () => ({
-  tenantContext: {
-    getStore: vi.fn(),
-    run: vi.fn((_store: any, fn: () => void) => fn()),
-  },
-}));
+function makeToken(userId: number) {
+  return jwt.sign({ sub: String(userId) }, getJwtSecret());
+}
 
-vi.mock('../../src/repositories/TransactionRepository', () => ({
-  TransactionRepository: class {
-    findDetailByIdAndWorkspace = repositoryMocks.findDetailByIdAndWorkspace;
-    findByIdAndWorkspace = repositoryMocks.findByIdAndWorkspace;
-    findManyByWorkspace = repositoryMocks.findManyByWorkspace;
-    findManyByUserId = repositoryMocks.findManyByUserId;
-    create = repositoryMocks.create;
-    delete = repositoryMocks.delete;
-  },
-}));
-
-vi.mock('../../src/repositories/AccountRepository', () => ({
-  AccountRepository: class {
-    findByIdAndWorkspace = vi.fn();
-    updateBalance = vi.fn();
-  },
-}));
-
-vi.mock('../../src/repositories/CategoryRepository', () => ({
-  CategoryRepository: class {
-    findByIdAndWorkspace = vi.fn();
-  },
-}));
-
-vi.mock('../../src/services/OutboxService', () => ({
-  OutboxService: class {
-    enqueueInTransaction = vi.fn();
-  },
-}));
-
-vi.mock('../../src/services/AuditLogService', () => ({
-  AuditLogService: {
-    logSync: vi.fn(),
-    logAsync: vi.fn(),
-  },
-}));
-
-vi.mock('../../src/lib/checkEnvironment', () => ({
-  checkPrivileges: vi.fn(),
-}));
-
-const makeToken = (id: number) => jwt.sign({ sub: String(id), email: 'test@wsp.com' }, getJwtSecret());
-
-describe('GET /transactions/:id', () => {
-  const userId = 1;
-  const workspaceId = 1998;
-  const transactionId = '123e4567-e89b-12d3-a456-426614174000';
-
-  const transactionDetail = {
-    id: transactionId,
-    description: 'Compra de material',
-    amount: 120.5,
-    date: new Date('2026-05-01T10:00:00.000Z'),
-    type: 'EXPENSE',
-    isPaid: true,
-    status: 'COMPLETED',
-    accountId: 11,
-    categoryId: 22,
-    workspaceId,
-    category: { name: 'Material', icon: 'tag', color: '#2563eb' },
-    account: { name: 'Conta PJ' },
-    aiInsights: [
-      {
-        id: 'insight-1',
-        transactionId,
-        severity: 'WARNING',
-        code: 'MISTURA_PATRIMONIAL',
-        message: 'Ponto para revisar',
-        reason: 'Contexto educativo',
-        confidence: '0.7000',
-        dismissed: false,
-        createdAt: new Date('2026-05-01T10:00:00.000Z'),
-        updatedAt: new Date('2026-05-01T10:00:00.000Z'),
+async function resolveRouteContext(): Promise<RouteContext> {
+  const joao = await sysPrisma.user.findUnique({
+    where: { email: 'joao@wsp.finance' },
+    include: {
+      memberships: {
+        include: { workspace: true },
       },
-    ],
-    createdAt: new Date('2026-05-01T10:00:00.000Z'),
-    updatedAt: new Date('2026-05-01T10:00:00.000Z'),
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(prisma.workspaceMember.findUnique).mockResolvedValue({
-      id: 10,
-      userId,
-      workspaceId,
-      role: 'VIEWER',
-      joinedAt: new Date(),
-      workspace: { type: 'BUSINESS' },
-    } as any);
+    },
   });
 
-  it('T01 - returns 401 without auth', async () => {
+  if (!joao) {
+    throw new Error('[Transaction.route.test] joao@wsp.finance not found. Run the demo seed before this integration test.');
+  }
+
+  const personalMembership = joao.memberships.find((membership) => membership.workspace.type === 'PERSONAL');
+  const businessMembership = joao.memberships.find((membership) => membership.workspace.type === 'BUSINESS');
+
+  if (!personalMembership || !businessMembership) {
+    throw new Error('[Transaction.route.test] Joao must have both PERSONAL and BUSINESS memberships.');
+  }
+
+  const readableTransaction = await sysPrisma.transaction.findFirst({
+    where: {
+      workspaceId: personalMembership.workspaceId,
+      hashDeduplication: { startsWith: DEMO_HASH_PREFIX },
+    },
+    orderBy: { date: 'desc' },
+    select: { id: true },
+  });
+
+  if (!readableTransaction) {
+    throw new Error('[Transaction.route.test] No personal demo transaction found for Joao.');
+  }
+
+  return {
+    userId: joao.id,
+    token: makeToken(joao.id),
+    personalWorkspaceId: personalMembership.workspaceId,
+    businessWorkspaceId: businessMembership.workspaceId,
+    readableTransactionId: readableTransaction.id,
+  };
+}
+
+describe('GET /transactions/:id - DB-backed route integration', () => {
+  let ctx: RouteContext;
+
+  beforeAll(async () => {
+    ctx = await resolveRouteContext();
+  });
+
+  it('returns 401 without auth', async () => {
     const res = await request(app)
-      .get(`/transactions/${transactionId}`)
-      .set('x-workspace-id', String(workspaceId));
+      .get(`/transactions/${ctx.readableTransactionId}`)
+      .set('x-workspace-id', String(ctx.personalWorkspaceId));
 
     expect(res.status).toBe(401);
-    expect(repositoryMocks.findDetailByIdAndWorkspace).not.toHaveBeenCalled();
   });
 
-  it('T02 - returns 400 without x-workspace-id', async () => {
+  it('returns 400 without x-workspace-id', async () => {
     const res = await request(app)
-      .get(`/transactions/${transactionId}`)
-      .set('Authorization', `Bearer ${makeToken(userId)}`);
+      .get(`/transactions/${ctx.readableTransactionId}`)
+      .set('Authorization', `Bearer ${ctx.token}`);
 
     expect(res.status).toBe(400);
-    expect(repositoryMocks.findDetailByIdAndWorkspace).not.toHaveBeenCalled();
+    expect(res.body.message).toMatch(/x-workspace-id/i);
   });
 
-  it('T03 - returns 403 when user is not a workspace member', async () => {
-    vi.mocked(prisma.workspaceMember.findUnique).mockResolvedValueOnce(null);
-
+  it('returns 403 when the authenticated user has no membership', async () => {
     const res = await request(app)
-      .get(`/transactions/${transactionId}`)
-      .set('Authorization', `Bearer ${makeToken(userId)}`)
-      .set('x-workspace-id', String(workspaceId));
+      .get(`/transactions/${ctx.readableTransactionId}`)
+      .set('Authorization', `Bearer ${makeToken(999999)}`)
+      .set('x-workspace-id', String(ctx.personalWorkspaceId));
 
     expect(res.status).toBe(403);
-    expect(repositoryMocks.findDetailByIdAndWorkspace).not.toHaveBeenCalled();
   });
 
-  it('T04 - returns 404 for an unknown transaction', async () => {
-    repositoryMocks.findDetailByIdAndWorkspace.mockResolvedValueOnce(null);
-
+  it('returns 404 for an unknown transaction without enumerating workspace data', async () => {
     const res = await request(app)
-      .get(`/transactions/${transactionId}`)
-      .set('Authorization', `Bearer ${makeToken(userId)}`)
-      .set('x-workspace-id', String(workspaceId));
+      .get('/transactions/00000000-0000-4000-8000-000000000000')
+      .set('Authorization', `Bearer ${ctx.token}`)
+      .set('x-workspace-id', String(ctx.personalWorkspaceId));
 
     expect(res.status).toBe(404);
     expect(res.body.message).toMatch(/not found|access denied/i);
-    expect(repositoryMocks.findDetailByIdAndWorkspace).toHaveBeenCalledWith(transactionId, workspaceId);
   });
 
-  it('T05 - returns 404 for a transaction from another workspace without enumeration', async () => {
-    repositoryMocks.findDetailByIdAndWorkspace.mockResolvedValueOnce(null);
-
+  it('returns a readable transaction and keeps AI internals out of the response', async () => {
     const res = await request(app)
-      .get(`/transactions/${transactionId}`)
-      .set('Authorization', `Bearer ${makeToken(userId)}`)
-      .set('x-workspace-id', String(workspaceId));
-
-    expect(res.status).toBe(404);
-    expect(res.body.message).toBe('Transaction not found or access denied');
-    expect(repositoryMocks.findDetailByIdAndWorkspace).toHaveBeenCalledWith(transactionId, workspaceId);
-  });
-
-  it('T06 - returns 200 for a readable transaction and uses id plus workspaceId', async () => {
-    repositoryMocks.findDetailByIdAndWorkspace.mockResolvedValueOnce(transactionDetail);
-
-    const res = await request(app)
-      .get(`/transactions/${transactionId}`)
-      .set('Authorization', `Bearer ${makeToken(userId)}`)
-      .set('x-workspace-id', String(workspaceId));
+      .get(`/transactions/${ctx.readableTransactionId}`)
+      .set('Authorization', `Bearer ${ctx.token}`)
+      .set('x-workspace-id', String(ctx.personalWorkspaceId));
 
     expect(res.status).toBe(200);
-    expect(res.body.id).toBe(transactionId);
-    expect(res.body.description).toBe(transactionDetail.description);
-    expect(res.body.aiInsights).toHaveLength(1);
-    expect(repositoryMocks.findDetailByIdAndWorkspace).toHaveBeenCalledWith(transactionId, workspaceId);
+    expect(res.body.id).toBe(ctx.readableTransactionId);
+    expect(res.body.workspaceId).toBe(ctx.personalWorkspaceId);
+    expect(res.body).toHaveProperty('category');
+    expect(res.body).toHaveProperty('account');
+
+    for (const insight of res.body.aiInsights ?? []) {
+      expect(insight).not.toHaveProperty('prompt');
+      expect(insight).not.toHaveProperty('rawResponse');
+      expect(insight).not.toHaveProperty('outboxPayload');
+      expect(insight).not.toHaveProperty('providerInput');
+    }
+  });
+});
+
+describe('GET /transactions?limit=5 - DB-backed recent activity proof', () => {
+  let ctx: RouteContext;
+
+  beforeAll(async () => {
+    ctx = await resolveRouteContext();
   });
 
-  it('T07 - returns a safe DTO without AI internals', async () => {
-    repositoryMocks.findDetailByIdAndWorkspace.mockResolvedValueOnce(transactionDetail);
-
+  it('returns recent PERSONAL demo transactions through the real route stack', async () => {
     const res = await request(app)
-      .get(`/transactions/${transactionId}`)
-      .set('Authorization', `Bearer ${makeToken(userId)}`)
-      .set('x-workspace-id', String(workspaceId));
-
-    const insight = res.body.aiInsights[0];
-    expect(insight).not.toHaveProperty('prompt');
-    expect(insight).not.toHaveProperty('rawResponse');
-    expect(insight).not.toHaveProperty('outboxPayload');
-    expect(insight).not.toHaveProperty('providerInput');
-  });
-
-  it('T08 - does not mutate transaction, ledger, balance, or account data', async () => {
-    repositoryMocks.findDetailByIdAndWorkspace.mockResolvedValueOnce(transactionDetail);
-
-    const res = await request(app)
-      .get(`/transactions/${transactionId}`)
-      .set('Authorization', `Bearer ${makeToken(userId)}`)
-      .set('x-workspace-id', String(workspaceId));
+      .get('/transactions?limit=5')
+      .set('Authorization', `Bearer ${ctx.token}`)
+      .set('x-workspace-id', String(ctx.personalWorkspaceId));
 
     expect(res.status).toBe(200);
-    expect(repositoryMocks.findDetailByIdAndWorkspace).toHaveBeenCalledTimes(1);
-    expect(repositoryMocks.create).not.toHaveBeenCalled();
-    expect(repositoryMocks.delete).not.toHaveBeenCalled();
-    expect(repositoryMocks.findByIdAndWorkspace).not.toHaveBeenCalled();
+    expect(res.body).toEqual({
+      data: expect.any(Array),
+      nextCursor: expect.any(String),
+      hasMore: true,
+    });
+    expect(res.body.data).toHaveLength(5);
+    expect(res.body.data.every((tx: any) => tx.workspaceId === ctx.personalWorkspaceId)).toBe(true);
+    expect(res.body.data.every((tx: any) => String(tx.hashDeduplication).startsWith(DEMO_HASH_PREFIX))).toBe(true);
+  });
+
+  it('keeps PERSONAL demo transactions out of the BUSINESS listing', async () => {
+    const res = await request(app)
+      .get('/transactions?limit=5')
+      .set('Authorization', `Bearer ${ctx.token}`)
+      .set('x-workspace-id', String(ctx.businessWorkspaceId));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('data');
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data.every((tx: any) => tx.workspaceId === ctx.businessWorkspaceId)).toBe(true);
+    expect(res.body.data.some((tx: any) => String(tx.hashDeduplication).startsWith(DEMO_HASH_PREFIX))).toBe(false);
+  });
+
+  it('preserves date desc ordering and the pagination contract', async () => {
+    const res = await request(app)
+      .get('/transactions?limit=5')
+      .set('Authorization', `Bearer ${ctx.token}`)
+      .set('x-workspace-id', String(ctx.personalWorkspaceId));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(5);
+    expect(res.body.hasMore).toBe(true);
+    expect(typeof res.body.nextCursor).toBe('string');
+
+    for (let index = 1; index < res.body.data.length; index += 1) {
+      const previous = new Date(res.body.data[index - 1].date).getTime();
+      const current = new Date(res.body.data[index].date).getTime();
+      expect(previous).toBeGreaterThanOrEqual(current);
+    }
+  });
+
+  it('returns 400 without x-workspace-id and 401 without auth', async () => {
+    const withoutWorkspace = await request(app)
+      .get('/transactions?limit=5')
+      .set('Authorization', `Bearer ${ctx.token}`);
+
+    const withoutAuth = await request(app)
+      .get('/transactions?limit=5')
+      .set('x-workspace-id', String(ctx.personalWorkspaceId));
+
+    expect(withoutWorkspace.status).toBe(400);
+    expect(withoutAuth.status).toBe(401);
   });
 });

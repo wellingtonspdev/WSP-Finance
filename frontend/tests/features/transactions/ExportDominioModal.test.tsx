@@ -7,6 +7,7 @@ import * as exportApi from '../../../src/features/transactions/api/exportDominio
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
+import { UIProvider } from '../../../src/shared/context/UIProvider';
 
 // Mocks
 vi.mock('framer-motion', () => ({
@@ -36,6 +37,9 @@ vi.mock('../../../src/features/transactions/hooks/useAttachment', () => ({
         clearError: vi.fn(),
     })
 }));
+vi.mock('../../../src/features/workspaces/context/useWorkspace', () => ({
+    useWorkspace: () => ({ activeWorkspace: { id: 1 } })
+}));
 
 describe('ExportDominioModal & TransactionHistoryPage', () => {
     beforeEach(() => {
@@ -53,56 +57,63 @@ describe('ExportDominioModal & TransactionHistoryPage', () => {
         const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         return render(
             <QueryClientProvider client={queryClient}>
-                <MemoryRouter initialEntries={['/1/transactions']}>
-                    <Routes>
-                        <Route path="/:workspaceId/transactions" element={<TransactionHistoryPage />} />
-                    </Routes>
-                </MemoryRouter>
+                <UIProvider>
+                    <MemoryRouter initialEntries={['/1/transactions']}>
+                        <Routes>
+                            <Route path="/:workspaceId/transactions" element={<TransactionHistoryPage />} />
+                        </Routes>
+                    </MemoryRouter>
+                </UIProvider>
             </QueryClientProvider>
         );
     };
 
     // T01
     it('T01 — Renderiza botão para OWNER em workspace BUSINESS', () => {
-        vi.mocked(useWorkspaceStore).mockImplementation((selector: any) => selector({
-            activeMembership: { type: 'BUSINESS', role: 'OWNER' }
-        }));
+        vi.mocked(useWorkspaceStore).mockImplementation((selector?: any) => {
+            const state = { activeMembership: { type: 'BUSINESS', role: 'OWNER' } };
+            return selector ? selector(state) : state;
+        });
         renderPage();
         expect(screen.getByRole('button', { name: /Exportar Domínio/i })).toBeInTheDocument();
     });
 
     // T02
     it('T02 — Renderiza botão para ACCOUNTANT em workspace BUSINESS', () => {
-        vi.mocked(useWorkspaceStore).mockImplementation((selector: any) => selector({
-            activeMembership: { type: 'BUSINESS', role: 'ACCOUNTANT' }
-        }));
+        vi.mocked(useWorkspaceStore).mockImplementation((selector?: any) => {
+            const state = { activeMembership: { type: 'BUSINESS', role: 'ACCOUNTANT' } };
+            return selector ? selector(state) : state;
+        });
         renderPage();
         expect(screen.getByRole('button', { name: /Exportar Domínio/i })).toBeInTheDocument();
     });
 
     // T03
     it('T03 — Não renderiza botão para EDITOR', () => {
-        vi.mocked(useWorkspaceStore).mockImplementation((selector: any) => selector({
-            activeMembership: { type: 'BUSINESS', role: 'EDITOR' }
-        }));
+        vi.mocked(useWorkspaceStore).mockImplementation((selector?: any) => {
+            const state = { activeMembership: { type: 'BUSINESS', role: 'EDITOR' } };
+            return selector ? selector(state) : state;
+        });
         renderPage();
         expect(screen.queryByRole('button', { name: /Exportar Domínio/i })).not.toBeInTheDocument();
     });
 
     // T04
     it('T04 — Não renderiza botão para VIEWER', () => {
-        vi.mocked(useWorkspaceStore).mockImplementation((selector: any) => selector({
-            activeMembership: { type: 'BUSINESS', role: 'VIEWER' }
-        }));
+        vi.mocked(useWorkspaceStore).mockImplementation((selector?: any) => {
+            const state = { activeMembership: { type: 'BUSINESS', role: 'VIEWER' } };
+            return selector ? selector(state) : state;
+        });
         renderPage();
         expect(screen.queryByRole('button', { name: /Exportar Domínio/i })).not.toBeInTheDocument();
     });
 
     // T05
     it('T05 — Não renderiza botão em workspace não BUSINESS', () => {
-        vi.mocked(useWorkspaceStore).mockImplementation((selector: any) => selector({
-            activeMembership: { type: 'PERSONAL', role: 'OWNER' }
-        }));
+        vi.mocked(useWorkspaceStore).mockImplementation((selector?: any) => {
+            const state = { activeMembership: { type: 'PERSONAL', role: 'OWNER' } };
+            return selector ? selector(state) : state;
+        });
         renderPage();
         expect(screen.queryByRole('button', { name: /Exportar Domínio/i })).not.toBeInTheDocument();
     });

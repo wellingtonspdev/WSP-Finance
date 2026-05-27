@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ShieldCheck, Loader2 } from 'lucide-react';
 import { useAuth } from '../../../app/AuthProvider';
@@ -11,9 +11,10 @@ export function InviteLandingPage() {
     const navigate = useNavigate();
     const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
     const { acceptInvite, isLoading: isAccepting, error } = useInvites(0); // WorkspaceID fake p/ chamadas globais
-    const setMemberships = useWorkspaceStore((state: any) => state.setMemberships);
+    const setMemberships = useWorkspaceStore((state: ReturnType<typeof useWorkspaceStore.getState>) => state.setMemberships);
 
     const [hasProcessed, setHasProcessed] = useState(false);
+    const processingRef = useRef(false);
 
     useEffect(() => {
         // 1. Aguarda a verificação de sessão terminar
@@ -29,10 +30,11 @@ export function InviteLandingPage() {
         }
 
         // 3. Se logado mas já processou (Prevenção de double call no React StrictMode)
-        if (hasProcessed || !token) return;
+        if (hasProcessed || processingRef.current || !token) return;
 
         // 4. Se logado e tem token, executa o Handshake Assíncrono
         const processInvite = async () => {
+            processingRef.current = true;
             setHasProcessed(true);
 
             const sessionPendingToken = sessionStorage.getItem('pending_invite_token');
@@ -50,7 +52,7 @@ export function InviteLandingPage() {
                 // Zero Timeout: O Contador vê o novo card instantaneamente no seletor.
                 try {
                     const updatedWorkspaces = await getWorkspaces();
-                    setMemberships(updatedWorkspaces as any);
+                    setMemberships(updatedWorkspaces as unknown as ReturnType<typeof useWorkspaceStore.getState>['memberships']);
                     // O Redirecionamento Final joga ele direto pro Dashboard do cliente (Onde o ThemeWrapper fará a tela ficar Azul!)
                     navigate(`/${result.workspaceId}/dashboard`, { replace: true });
                 } catch (err) {
@@ -62,7 +64,7 @@ export function InviteLandingPage() {
         };
 
         processInvite();
-    }, [isAuthenticated, isAuthLoading, token, navigate]); // Removed dependencies to avoid infinite loops on state changes
+    }, [isAuthenticated, isAuthLoading, token, navigate, acceptInvite, setMemberships, hasProcessed]); // Removed dependencies to avoid infinite loops on state changes
 
     if (isAuthLoading || isAccepting || (!error && !hasProcessed)) {
         return (

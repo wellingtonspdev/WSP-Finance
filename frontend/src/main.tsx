@@ -4,7 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './shared/lib/react-query';
 import { AuthProvider } from './app/AuthProvider';
 import { WorkspaceProvider } from './features/workspaces/context/WorkspaceProvider';
-import { ToastProvider } from './shared/hooks/useToast';
+import { ToastProvider } from './shared/hooks/ToastProvider';
 import App from './App';
 import './index.css';
 
