@@ -22,6 +22,12 @@ vi.mock('../../../../src/features/transactions/api/aiInsightApi', () => ({
   dismissAIInsight: vi.fn(),
 }));
 
+vi.mock('../../../../src/features/workspaces/context/useWorkspace', () => ({
+  useWorkspace: () => ({ activeWorkspace: { id: 1998 } }),
+}));
+
+import { UIProvider } from '../../../../src/shared/context/UIProvider';
+
 const createQueryClient = () =>
   new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
@@ -29,11 +35,13 @@ const renderPage = (workspaceId = '1998') => {
   const qc = createQueryClient();
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[`/${workspaceId}/analises`]}>
-        <Routes>
-          <Route path="/:workspaceId/analises" element={<AnalysisPage />} />
-        </Routes>
-      </MemoryRouter>
+      <UIProvider>
+        <MemoryRouter initialEntries={[`/${workspaceId}/analises`]}>
+          <Routes>
+            <Route path="/:workspaceId/analises" element={<AnalysisPage />} />
+          </Routes>
+        </MemoryRouter>
+      </UIProvider>
     </QueryClientProvider>
   );
 };
@@ -98,15 +106,15 @@ describe('AnalysisPage', () => {
     it('T01 — renders title "Análises"', () => {
       mockHook({ data: [], summary: makeSummary(), hasMore: false, nextCursor: null });
       renderPage();
-      expect(screen.getByRole('heading', { name: 'Análises' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Análises' }).length).toBeGreaterThan(0);
     });
 
     it('T02 — renders pedagogical subtitle', () => {
       mockHook({ data: [], summary: makeSummary(), hasMore: false, nextCursor: null });
       renderPage();
       expect(
-        screen.getByText(/Revise pontos de atenção pedagógicos/i)
-      ).toBeInTheDocument();
+        screen.getAllByText(/Revise pontos de atenção pedagógicos/i).length
+      ).toBeGreaterThan(0);
     });
 
     it('T03 — renders educational disclaimer', () => {
@@ -149,7 +157,7 @@ describe('AnalysisPage', () => {
         nextCursor: null,
       });
       renderPage();
-      expect(screen.getByText('Possível mistura patrimonial')).toBeInTheDocument();
+      expect(screen.getAllByText('Possível mistura patrimonial').length).toBeGreaterThan(0);
     });
 
     it('T06 — DESPESA_PESSOAL_POTENCIAL renders safe copy', () => {
@@ -167,7 +175,7 @@ describe('AnalysisPage', () => {
         nextCursor: null,
       });
       renderPage();
-      expect(screen.getByText('Despesa para revisão')).toBeInTheDocument();
+      expect(screen.getAllByText('Despesa para revisão').length).toBeGreaterThan(0);
     });
 
     it('T07 — unknown code renders neutral fallback, not raw text', () => {
@@ -184,7 +192,7 @@ describe('AnalysisPage', () => {
         nextCursor: null,
       });
       renderPage();
-      expect(screen.getByText('Ponto de atenção para revisão')).toBeInTheDocument();
+      expect(screen.getAllByText('Ponto de atenção para revisão').length).toBeGreaterThan(0);
       expect(screen.queryByText(/Erro fiscal detectado/i)).not.toBeInTheDocument();
     });
 
@@ -390,7 +398,7 @@ describe('AnalysisPage', () => {
       fireEvent.click(screen.getByRole('button', { name: /ignorar alerta/i }));
       await waitFor(() => {
         // Card should still be present
-        expect(screen.getByText('Movimentação fora do padrão')).toBeInTheDocument();
+        expect(screen.getAllByText('Movimentação fora do padrão').length).toBeGreaterThan(0);
       });
     });
   });

@@ -1,5 +1,5 @@
 import { useAuth } from '../../../app/AuthProvider';
-import { useWorkspace } from '../../../features/workspaces/context/WorkspaceProvider';
+import { useWorkspace } from '../../../features/workspaces/context/useWorkspace';
 import { Bell } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useLocation, useNavigate } from 'react-router-dom';

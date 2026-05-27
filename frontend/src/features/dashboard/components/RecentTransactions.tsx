@@ -1,6 +1,6 @@
 import type { Transaction } from '../api/getRecentTransactions';
 import { ListSkeleton } from '../../../shared/components/skeletons/ListSkeleton';
-import { ShoppingCart, ArrowRight, Paperclip } from 'lucide-react';
+import { ShoppingCart, ArrowRight, Paperclip, AlertTriangle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
 import { useAttachment } from '../../transactions/hooks/useAttachment';
@@ -9,9 +9,10 @@ import { AttachmentPreview } from '../../transactions/components/AttachmentPrevi
 interface Props {
   data?: Transaction[];
   isLoading: boolean;
+  error?: Error | null;
 }
 
-export function RecentTransactions({ data, isLoading }: Props) {
+export function RecentTransactions({ data, isLoading, error }: Props) {
   const navigate = useNavigate();
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
@@ -33,7 +34,18 @@ export function RecentTransactions({ data, isLoading }: Props) {
     clearError();
   };
 
-  if (isLoading) {
+  if (error && !data) {
+    return (
+      <section className="px-6 lg:px-0 flex-1">
+        <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-2xl flex flex-col items-center justify-center min-h-[150px]">
+          <AlertTriangle className="w-6 h-6 text-red-500 mb-2" />
+          <p className="text-red-400 font-medium">Erro ao carregar transações</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (!data || (isLoading && !data)) {
     return (
       <section className="px-6 lg:px-0 flex-1">
         <div className="h-6 w-40 bg-white/10 rounded animate-pulse mb-4"></div>

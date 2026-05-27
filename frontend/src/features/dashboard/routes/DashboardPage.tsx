@@ -4,13 +4,13 @@ import { SummaryCards } from '../components/SummaryCards';
 import { RecentTransactions } from '../components/RecentTransactions';
 import { useDashboard } from '../hooks/useDashboard';
 import { AlertTriangle, Receipt, Users } from 'lucide-react';
-import { useUI } from '../../../shared/context/UIProvider';
+import { useUI } from '../../../shared/context/useUI';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCapabilities } from '../../../shared/hooks/useCapabilities';
 import { useState } from 'react';
 
 export function DashboardPage() {
-  const { summary, transactions, isLoading } = useDashboard();
+  const { summary, transactions, isLoading, error } = useDashboard();
   const { openTransactionModal } = useUI();
   const navigate = useNavigate();
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -19,7 +19,7 @@ export function DashboardPage() {
 
   return (
     <AppLayout>
-      <SummaryCards data={summary} isLoading={isLoading} />
+      <SummaryCards data={summary} isLoading={isLoading} error={error} />
 
       {/* Alerta de Risco (Condicional) */}
       {summary?.metrics.breakEvenPoint != null && summary.metrics.breakEvenPoint > 0 && (
@@ -76,7 +76,7 @@ export function DashboardPage() {
       </section>
 
       {/* Histórico Recente e Delegação (Ordem de Relevância) */}
-      <RecentTransactions data={transactions} isLoading={isLoading} />
+      <RecentTransactions data={transactions} isLoading={isLoading} error={error} />
 
       {/* Modal de Delegação e Equipe */}
       <TeamManagement isOpen={isTeamModalOpen} onClose={() => setIsTeamModalOpen(false)} />

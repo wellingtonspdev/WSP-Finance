@@ -1,6 +1,6 @@
 import { Home, Receipt, Plus, BarChart2, User } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useUI } from '../../context/UIProvider';
+import { useUI } from '../../context/useUI';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore';
 

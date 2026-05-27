@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import axios from 'axios';
 import { useCreateTransaction } from './useCreateTransaction';
 import { useCreateBridge } from '../../workspaces/hooks/useCreateBridge';
-import { useWorkspace } from '../../workspaces/context/WorkspaceProvider';
+import { useWorkspace } from '../../workspaces/context/useWorkspace';
 import { useToast } from '../../../shared/hooks/useToast';
 import type { CreateTransactionDTO } from '../types';
 import { requestCloudflareUpload } from '../../../services/uploadCloudflare';
@@ -94,16 +94,16 @@ export function useTransactionMutation(onSuccessCallback?: () => void) {
                 // Sucesso: Removemos o arquivo pesado para não trafegar ao Node.js
                 delete data.attachment;
 
-            } catch (err: any) {
+            } catch (err: unknown) {
                 setIsUploading(false);
                 setUploadProgress(0);
 
-                if (axios.isCancel(err) || err.name === 'CanceledError') {
+                if (axios.isCancel(err) || (err instanceof Error && err.name === 'CanceledError')) {
                     toastError('Upload cancelado com sucesso.');
-                } else if (err.response?.status === 402) {
+                } else if (axios.isAxiosError(err) && err.response?.status === 402) {
                     toastError(err.response.data.message || 'Armazenamento cheio (1GB). Remova recibos antigos.');
                 } else {
-                    toastError(err?.message || 'Falha na conexão de rede ao salvar arquivo.');
+                    toastError(err instanceof Error ? err.message : 'Falha na conexão de rede ao salvar arquivo.');
                 }
 
                 // ABORTO TOTAL: Não disparamos o createTransaction abaixo para proteger o Prisma
@@ -115,14 +115,14 @@ export function useTransactionMutation(onSuccessCallback?: () => void) {
 
         // 3. Tudo seguro -> Gravamos a Transação + Referência R2 no Banco
         // Sanitização do Payload: Remover campos que NÃO pertencem ao schema do Backend
-        const sanitizedPayload: Record<string, any> = {
+        const sanitizedPayload: Partial<CreateTransactionDTO> & Record<string, unknown> = {
             description: data.description,
             amount: Number(data.amount),
             date: data.date,
             type: data.type === 'BRIDGE' ? 'INCOME' : data.type, // Backend não conhece 'BRIDGE'
             accountId: Number(data.accountId),
             categoryId: Number(data.categoryId),
-            isPaid: data.isPaid === true || data.isPaid === 'true' as any, // Coerção: <select> envia string
+            isPaid: data.isPaid === true || (data.isPaid as unknown as string) === 'true', // Coerção: <select> envia string
         };
 
         // Campos opcionais de Marketplace (somente se preenchidos e > 0)
