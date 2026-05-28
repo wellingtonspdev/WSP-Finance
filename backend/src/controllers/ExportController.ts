@@ -5,7 +5,7 @@ import { ExportService } from '../services/ExportService';
 import { AuditLogService } from '../services/AuditLogService';
 import { AuditAction } from '@prisma/client';
 import { listExportLayouts } from '../config/exportLayouts';
-import { S3StorageProvider } from '../providers/S3StorageProvider';
+import { getExportStorageProvider } from '../providers/exportStorageProviderFactory';
 import { ExportArchiveService } from '../services/ExportArchiveService';
 
 // ---------------------------------------------------------------------------
@@ -167,7 +167,7 @@ export class ExportController {
       });
 
       // Archive generating files to S3/R2 and DB transaction
-      const storageProvider = new S3StorageProvider();
+      const storageProvider = getExportStorageProvider();
       const archiveService = new ExportArchiveService(storageProvider);
 
       try {

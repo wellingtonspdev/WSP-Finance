@@ -16,9 +16,13 @@ const app = express();
 export { app };
 
 // Middlewares Globais
-// CORREÇÃO CORS: Permitir credenciais e origem específica
+// CORREÇÃO CORS: Permitir credenciais e origem específica baseada no ambiente
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? [process.env.FRONTEND_URL || '']
+  : ['http://localhost:5173', 'http://127.0.0.1:4173', 'http://localhost:4173'];
+
 app.use(cors({
-  origin: 'http://localhost:5173', // URL do Frontend
+  origin: allowedOrigins,
   credentials: true, // Permite Cookies
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-workspace-id']
