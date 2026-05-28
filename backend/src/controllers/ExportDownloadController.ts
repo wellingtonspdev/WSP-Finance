@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
 import { ExportArchiveService } from '../services/ExportArchiveService';
-import { S3StorageProvider } from '../providers/S3StorageProvider';
+import { getExportStorageProvider } from '../providers/exportStorageProviderFactory';
 
 export class ExportDownloadController {
   private service: ExportArchiveService;
 
   constructor() {
-    this.service = new ExportArchiveService(new S3StorageProvider());
+    this.service = new ExportArchiveService(getExportStorageProvider());
   }
 
   async download(req: Request, res: Response) {
