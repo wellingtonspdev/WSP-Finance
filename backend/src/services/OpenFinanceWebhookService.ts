@@ -23,9 +23,9 @@ export class OpenFinanceWebhookService {
   }
 
   isAuthorized(authorizationHeader?: string): boolean {
-    const expectedToken = process.env.OPEN_FINANCE_WEBHOOK_KEY || 'webhook-auth-key-mock';
+    const expectedToken = process.env.OPEN_FINANCE_WEBHOOK_KEY;
 
-    if (!authorizationHeader) {
+    if (!expectedToken || !authorizationHeader) {
       return false;
     }
 

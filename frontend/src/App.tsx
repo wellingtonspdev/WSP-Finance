@@ -45,6 +45,9 @@ const TransactionHistoryPage = lazy(() =>
 const TeamSettingsPage = lazy(() =>
   import('./features/workspaces/routes/TeamSettingsPage').then((module) => ({ default: module.TeamSettingsPage }))
 );
+const TelegramConfigPage = lazy(() =>
+  import('./features/workspaces/routes/TelegramConfigPage').then((module) => ({ default: module.TelegramConfigPage }))
+);
 const DocumentsPage = lazy(() =>
   import('./features/workspaces/routes/DocumentsPage').then((module) => ({ default: module.DocumentsPage }))
 );
@@ -142,6 +145,7 @@ export default function App() {
                 <Route path=":workspaceId/documents" element={<DocumentsPage />} />
                 <Route path=":workspaceId/analises" element={<AnalysisPage />} />
                 <Route path=":workspaceId/team" element={<TeamSettingsPage />} />
+                <Route path=":workspaceId/telegram" element={<TelegramConfigPage />} />
               </Route>
             </Routes>
           </Suspense>

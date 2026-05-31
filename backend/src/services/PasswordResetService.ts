@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'node:crypto';
 import { UserRepository } from '../repositories/UserRepository';
 import { EtherealMailProvider } from '../providers/EtherealMailProvider';
 import { IMailProvider } from '../providers/IMailProvider';
@@ -24,7 +25,7 @@ export class PasswordResetService {
     }
 
     // Gerar código numérico de 6 dígitos (Fácil para mobile)
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = crypto.randomInt(100000, 999999).toString();
 
     // Expira em 15 minutos
     const expiresAt = new Date();

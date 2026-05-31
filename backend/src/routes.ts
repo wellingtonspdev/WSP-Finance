@@ -20,6 +20,7 @@ import { AdminController } from './controllers/AdminController';
 import { ExportController } from './controllers/ExportController';
 import { ExportDownloadController } from './controllers/ExportDownloadController';
 import { AiInsightController } from './controllers/AiInsightController';
+import { TelegramIntegrationController } from './controllers/TelegramIntegrationController';
 import { sysPrisma } from './lib/prisma';
 
 // Middlewares
@@ -74,6 +75,7 @@ const openFinanceWebhookController = new OpenFinanceWebhookController();
 const accountantCacheService = new AccountantCacheService();
 const adminController = new AdminController();
 const aiInsightController = new AiInsightController();
+const telegramIntegrationController = new TelegramIntegrationController();
 
 // ==============================================================================
 // AUTENTICAÇÃO & IDENTIDADE
@@ -163,14 +165,14 @@ router.post('/api/webhooks/open-finance', (req, res, next) => {
     return openFinanceWebhookController.ingest(req, res);
 });
 
-router.get('/external/document/:cnpj', (req, res, next) => {
+router.get('/external/document/:cnpj', AuthMiddleware, (req, res, next) => {
     /* #swagger.tags = ['Integrações']
        #swagger.summary = 'Consultar CNPJ (Receita Federal)'
        #swagger.description = 'Limpa, formata e consulta automaticamente um CNPJ retornando Razão Social, Nome Fantasia e CNAE Ativo.' */
     return externalDataController.getCnpj(req, res);
 });
 
-router.get('/external/location/:cep', (req, res, next) => {
+router.get('/external/location/:cep', AuthMiddleware, (req, res, next) => {
     /* #swagger.tags = ['Integrações']
        #swagger.summary = 'Consultar CEP (ViaCEP)'
        #swagger.description = 'Busca endereço completo (Rua, Bairro, Cidade e UF) a partir de um código postal brasileiro.' */
@@ -551,6 +553,38 @@ router.patch('/ai-insights/:id/dismiss', AuthMiddleware, WorkspaceMiddleware, Rb
        #swagger.summary = 'Ignorar Alerta Pedagógico'
        #swagger.description = 'Marca um insight de IA como ignorado. Não deleta o registro. Não altera transação, saldo ou ledger. Requer EDITOR, ACCOUNTANT ou OWNER.' */
     return aiInsightController.dismiss(req, res);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// TELEGRAM INTEGRATION (Pareamento e Configuração)
+// ═══════════════════════════════════════════════════════════════════
+
+router.post('/integrations/telegram/pairing-code', AuthMiddleware, (req, res) => {
+    /* #swagger.tags = ['Telegram']
+       #swagger.summary = 'Gerar Código de Pareamento Telegram'
+       #swagger.description = 'Gera um código temporário para pareamento via bot do Telegram. O vínculo é do usuário, não do workspace. Destino é opcional.' */
+    return telegramIntegrationController.generateLink(req, res);
+});
+
+router.delete('/integrations/telegram/link/:id', AuthMiddleware, (req, res) => {
+    /* #swagger.tags = ['Telegram']
+       #swagger.summary = 'Revogar Vínculo Telegram'
+       #swagger.description = 'Revoga um TelegramUserLink do usuário autenticado. Ownership validado no service.' */
+    return telegramIntegrationController.revokeLink(req, res);
+});
+
+router.get('/integrations/telegram', AuthMiddleware, (req, res) => {
+    /* #swagger.tags = ['Telegram']
+       #swagger.summary = 'Status do Vínculo Telegram'
+       #swagger.description = 'Retorna o vínculo Telegram ativo do usuário autenticado com seus destinos, sem expor hashes ou tokens.' */
+    return telegramIntegrationController.getStatus(req, res);
+});
+
+router.post('/integrations/telegram/destinations', AuthMiddleware, (req, res) => {
+    /* #swagger.tags = ['Telegram']
+       #swagger.summary = 'Adicionar Destino ao Telegram'
+       #swagger.description = 'Adiciona um novo destino (Workspace/Conta e Categorias) ao vínculo ativo do usuário.' */
+    return telegramIntegrationController.createDestination(req, res);
 });
 
 // ═══════════════════════════════════════════════════════════════════

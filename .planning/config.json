@@ -1,0 +1,25 @@
+{
+  "model_profile": "default",
+  "commit_docs": false,
+  "search_gitignored": false,
+  "branching_strategy": "manual",
+  "phase_branch_template": "codex/phase-{phase}",
+  "milestone_branch_template": "codex/milestone-{milestone}",
+  "quick_branch_template": "codex/quick-{slug}",
+  "runtime": "codex",
+  "workflow": {
+    "research": true,
+    "plan_check": true,
+    "verifier": true,
+    "nyquist_validation": true,
+    "ai_integration_phase": false,
+    "context_coverage_gate": true,
+    "post_planning_gaps": true,
+    "tdd_mode": false,
+    "mvp_mode": false,
+    "auto_advance": false,
+    "text_mode": false
+  },
+  "parallelization": true,
+  "brave_search": false
+}

@@ -37,6 +37,7 @@ enum MovementSource {
   OPEN_FINANCE
   OCR
   MANUAL
+  TELEGRAM_OCR
 }
 
 enum MovementStatus {
@@ -90,6 +91,11 @@ enum AuditAction {
   ATTACHMENT_VIEW // Fase C: Auditoria de visualização de anexo
   CATEGORY_UPDATE // Fase C: Auditoria de alteração de categoria
   EXPORT
+  OCR_INGESTION
+  OCR_CONFIRMATION
+  OCR_CANCELLATION
+  TELEGRAM_LINK_CREATED
+  TELEGRAM_LINK_REVOKED
 }
 
 enum OutboxStatus {
@@ -579,4 +585,100 @@ model AiInsight {
   @@index([transactionId])
   @@index([workspaceId, dismissed])
   @@index([workspaceId, createdAt])
+}
+
+// Vínculo Persistente Telegram ↔ Usuário
+model TelegramUserLink {
+  id                 String   @id @default(uuid())
+  telegramChatIdHash String
+  telegramUserIdHash String?
+  telegramUsername   String?
+  userId             Int
+  activeDestinationId String?
+  status             String   @default("ACTIVE")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  revokedAt          DateTime?
+
+  destinations       TelegramDestination[]
+
+  @@index([telegramChatIdHash])
+  @@index([telegramUserIdHash])
+  @@index([userId])
+  @@index([status])
+}
+
+// Destino Configurado pelo Usuário (Empresa/Pessoal)
+model TelegramDestination {
+  id                       String   @id @default(uuid())
+  telegramUserLinkId       String
+  userId                   Int
+  workspaceId              Int
+  accountId                Int
+  defaultExpenseCategoryId Int?
+  defaultIncomeCategoryId  Int?
+  label                    String?
+  isDefault                Boolean  @default(false)
+  status                   String   @default("ACTIVE")
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  revokedAt                DateTime?
+
+  telegramUserLink         TelegramUserLink @relation(fields: [telegramUserLinkId], references: [id], onDelete: Cascade)
+
+  @@index([telegramUserLinkId])
+  @@index([userId])
+  @@index([workspaceId])
+  @@index([status])
+}
+
+// Token Assinado para Conexão
+model TelegramLinkToken {
+  id                       String   @id @default(uuid())
+  codeHash                 String   @unique
+  attempts                 Int      @default(0)
+  maxAttempts              Int      @default(3)
+  userId                   Int
+
+  // Opcionais se criados no momento do vínculo
+  defaultWorkspaceId       Int?
+  defaultAccountId         Int?
+  defaultExpenseCategoryId Int?
+  defaultIncomeCategoryId  Int?
+
+  expiresAt                DateTime
+  usedAt                   DateTime?
+  createdAt                DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Rascunho temporário de OCR via Telegram
+model TelegramOcrDraft {
+  id                 String   @id @default(uuid())
+  telegramChatIdHash String
+  telegramUserIdHash String?
+  userId             Int
+
+  // OCR Data
+  extractedData      Json
+  fileId             String?
+
+  // Dados de Destino (selecionados no fluxo)
+  workspaceId        Int?
+  accountId          Int?
+  categoryId         Int?
+
+  // Controle de estado
+  step               String   @default("AWAITING_WORKSPACE")
+  status             String   @default("PENDING")
+
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([telegramChatIdHash])
+  @@index([userId])
+  @@index([status])
 }
