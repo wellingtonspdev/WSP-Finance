@@ -12,21 +12,16 @@ export class TelegramIntegrationController {
 
   /**
    * Gera o link de pareamento user-first.
-   * Destino (workspaceId, accountId, categorias) é totalmente opcional.
+   * Destino (workspaceId, categorias) é totalmente opcional.
    * O usuário pode parear primeiro e configurar destinos depois no app.
    */
   async generateLink(req: Request, res: Response) {
     const bodySchema = z.object({
       defaultWorkspaceId: z.number().int().positive().optional(),
-      defaultAccountId: z.number().int().positive().optional(),
       defaultExpenseCategoryId: z.number().int().positive().optional(),
       defaultIncomeCategoryId: z.number().int().positive().optional(),
-    }).refine(
+    }).strict().refine(
       (data) => {
-        // Se informar account, deve informar workspace
-        if (data.defaultAccountId !== undefined && data.defaultWorkspaceId === undefined) {
-          return false;
-        }
         // Se informar categoria, deve informar workspace
         if (
           (data.defaultExpenseCategoryId !== undefined || data.defaultIncomeCategoryId !== undefined) &&
@@ -36,7 +31,7 @@ export class TelegramIntegrationController {
         }
         return true;
       },
-      { message: 'defaultWorkspaceId é obrigatório quando accountId ou categorias são informados' },
+      { message: 'defaultWorkspaceId é obrigatório quando categorias são informadas' },
     );
 
     const body = bodySchema.parse(req.body);
@@ -46,7 +41,6 @@ export class TelegramIntegrationController {
       const result = await this.linkService.generateLink({
         userId,
         defaultWorkspaceId: body.defaultWorkspaceId,
-        defaultAccountId: body.defaultAccountId,
         defaultExpenseCategoryId: body.defaultExpenseCategoryId,
         defaultIncomeCategoryId: body.defaultIncomeCategoryId,
       });
@@ -112,12 +106,11 @@ export class TelegramIntegrationController {
   async createDestination(req: Request, res: Response) {
     const bodySchema = z.object({
       workspaceId: z.number().int().positive(),
-      accountId: z.number().int().positive(),
       defaultExpenseCategoryId: z.number().int().positive().optional(),
       defaultIncomeCategoryId: z.number().int().positive().optional(),
       label: z.string().max(50).optional(),
       isDefault: z.boolean().optional(),
-    });
+    }).strict();
 
     const body = bodySchema.parse(req.body);
     const userId = req.user!.id;

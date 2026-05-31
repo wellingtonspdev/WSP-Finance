@@ -5,7 +5,6 @@ import { AppError } from '../errors/AppError';
 export interface GenerateTokenDTO {
   userId: number;
   defaultWorkspaceId?: number;
-  defaultAccountId?: number;
   defaultExpenseCategoryId?: number;
   defaultIncomeCategoryId?: number;
 }
@@ -13,7 +12,6 @@ export interface GenerateTokenDTO {
 export interface TelegramLinkTokenPayload {
   userId: number;
   defaultWorkspaceId?: number;
-  defaultAccountId?: number;
   defaultExpenseCategoryId?: number;
   defaultIncomeCategoryId?: number;
 }
@@ -54,7 +52,6 @@ export class TelegramLinkTokenService {
         maxAttempts: 3,
         userId: data.userId,
         defaultWorkspaceId: data.defaultWorkspaceId,
-        defaultAccountId: data.defaultAccountId,
         defaultExpenseCategoryId: data.defaultExpenseCategoryId,
         defaultIncomeCategoryId: data.defaultIncomeCategoryId,
         expiresAt,
@@ -121,7 +118,6 @@ export class TelegramLinkTokenService {
     return {
       userId: token.userId,
       defaultWorkspaceId: token.defaultWorkspaceId ?? undefined,
-      defaultAccountId: token.defaultAccountId ?? undefined,
       defaultExpenseCategoryId: token.defaultExpenseCategoryId ?? undefined,
       defaultIncomeCategoryId: token.defaultIncomeCategoryId ?? undefined,
     };

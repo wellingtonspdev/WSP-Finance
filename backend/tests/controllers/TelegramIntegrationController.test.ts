@@ -27,14 +27,13 @@ describe('TelegramIntegrationController', () => {
   });
 
   describe('generateLink', () => {
-    it('gera link com sucesso quando dados sao validos', async () => {
-      mockReq.body = { defaultWorkspaceId: 10, defaultAccountId: 1, defaultExpenseCategoryId: 2 };
+    it('gera link sem defaultAccountId quando dados sao validos', async () => {
+      mockReq.body = { defaultWorkspaceId: 10, defaultExpenseCategoryId: 2 };
       const expiresAt = new Date();
       vi.mocked(TelegramLinkService.prototype.generateLink).mockResolvedValue({
         pairingCode: 'CODE123',
         botUsername: 'TestBot',
         expiresAt,
-        telegramUrl: 'https://t.me/TestBot?start=CODE123',
       });
 
       await controller.generateLink(mockReq as Request, mockRes as Response);
@@ -42,7 +41,6 @@ describe('TelegramIntegrationController', () => {
       expect(TelegramLinkService.prototype.generateLink).toHaveBeenCalledWith({
         userId: 1,
         defaultWorkspaceId: 10,
-        defaultAccountId: 1,
         defaultExpenseCategoryId: 2,
         defaultIncomeCategoryId: undefined,
       });
@@ -54,20 +52,55 @@ describe('TelegramIntegrationController', () => {
       });
     });
 
-    it('retorna 400 (throw ZodError) se validacao zod falhar', async () => {
-      // Passando id de conta sem passar workspace (viola refine)
-      mockReq.body = { defaultAccountId: 1 };
+    it('rejeita defaultAccountId no payload publico', async () => {
+      mockReq.body = { defaultWorkspaceId: 10, defaultAccountId: 1 };
+
       await expect(controller.generateLink(mockReq as Request, mockRes as Response)).rejects.toThrow(z.ZodError);
+      expect(TelegramLinkService.prototype.generateLink).not.toHaveBeenCalled();
+    });
+
+    it('rejeita categoria sem defaultWorkspaceId', async () => {
+      mockReq.body = { defaultExpenseCategoryId: 1 };
+
+      await expect(controller.generateLink(mockReq as Request, mockRes as Response)).rejects.toThrow(z.ZodError);
+      expect(TelegramLinkService.prototype.generateLink).not.toHaveBeenCalled();
     });
 
     it('trata AppError corretamente', async () => {
-      mockReq.body = { defaultWorkspaceId: 10, defaultAccountId: 1 };
+      mockReq.body = { defaultWorkspaceId: 10 };
       vi.mocked(TelegramLinkService.prototype.generateLink).mockRejectedValue(new AppError('Erro customizado', 403));
 
       await controller.generateLink(mockReq as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(403);
       expect(mockRes.json).toHaveBeenCalledWith({ message: 'Erro customizado' });
+    });
+  });
+
+  describe('createDestination', () => {
+    it('cria destino sem accountId publico', async () => {
+      mockReq.body = { workspaceId: 10, label: 'Empresa', isDefault: true };
+      vi.mocked(TelegramLinkService.prototype.createDestination).mockResolvedValue({ id: 'dest_1' });
+
+      await controller.createDestination(mockReq as Request, mockRes as Response);
+
+      expect(TelegramLinkService.prototype.createDestination).toHaveBeenCalledWith(1, {
+        workspaceId: 10,
+        label: 'Empresa',
+        isDefault: true,
+      });
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        id: 'dest_1',
+        message: 'Destino adicionado com sucesso.',
+      });
+    });
+
+    it('rejeita accountId no payload publico de destino', async () => {
+      mockReq.body = { workspaceId: 10, accountId: 1 };
+
+      await expect(controller.createDestination(mockReq as Request, mockRes as Response)).rejects.toThrow(z.ZodError);
+      expect(TelegramLinkService.prototype.createDestination).not.toHaveBeenCalled();
     });
   });
 

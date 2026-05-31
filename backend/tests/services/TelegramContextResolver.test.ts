@@ -56,8 +56,8 @@ describe('TelegramContextResolver', () => {
   it('returns destination choice when multiple exist and no default', async () => {
     vi.mocked(prisma.telegramUserLink.findFirst).mockResolvedValue({ id: 'link_1', userId: 3 } as any);
     vi.mocked(prisma.telegramDestination.findMany).mockResolvedValue([
-      { id: 'dest_1', workspaceId: 1, accountId: 2, label: 'Work' },
-      { id: 'dest_2', workspaceId: 5, accountId: 6, label: 'Personal' }
+      { id: 'dest_1', workspaceId: 1, accountId: 2, label: 'Empresa' },
+      { id: 'dest_2', workspaceId: 5, accountId: 6, label: 'Pessoal' }
     ] as any);
 
     const result = await resolver.resolve('12345');
@@ -66,6 +66,7 @@ describe('TelegramContextResolver', () => {
     if (isDestinationChoice(result)) {
       expect(result.destinations).toHaveLength(2);
       expect(result.userId).toBe(3);
+      expect(result.destinations.map(destination => destination.label)).toEqual(['Empresa', 'Pessoal']);
     }
   });
 

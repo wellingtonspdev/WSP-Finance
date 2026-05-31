@@ -3,13 +3,16 @@ import { AppError } from '../errors/AppError';
 import { TelegramLinkTokenService, GenerateTokenDTO } from './TelegramLinkTokenService';
 import crypto from 'crypto';
 import { AuditLogService } from './AuditLogService';
-import { Prisma } from '@prisma/client';
+import { Prisma, WorkspaceType } from '@prisma/client';
+import { AccountRepository } from '../repositories/AccountRepository';
 
 export class TelegramLinkService {
   private tokenService: TelegramLinkTokenService;
+  private accountRepository: AccountRepository;
 
   constructor() {
     this.tokenService = new TelegramLinkTokenService();
+    this.accountRepository = new AccountRepository();
   }
 
   private hashIdentifier(identifier: string): string {
@@ -18,6 +21,20 @@ export class TelegramLinkService {
       throw new AppError('TELEGRAM_IDENTIFIER_HASH_SECRET is not configured', 500);
     }
     return crypto.createHmac('sha256', secret).update(identifier).digest('hex');
+  }
+
+  private async resolveDefaultAccount(workspaceId: number, workspaceType: WorkspaceType) {
+    const account = await this.accountRepository.findDefaultByWorkspace(workspaceId, workspaceType);
+
+    if (!account) {
+      throw new AppError('Conta padrao do workspace nao encontrada', 400);
+    }
+
+    return account;
+  }
+
+  private getDefaultDestinationLabel(workspaceType: WorkspaceType): string {
+    return workspaceType === 'PERSONAL' ? 'Pessoal' : 'Empresa';
   }
 
   /**
@@ -30,21 +47,14 @@ export class TelegramLinkService {
     if (data.defaultWorkspaceId !== undefined) {
       const membership = await prisma.workspaceMember.findUnique({
         where: { userId_workspaceId: { userId: data.userId, workspaceId: data.defaultWorkspaceId } },
+        include: { workspace: true },
       });
 
       if (!membership) {
-        throw new AppError('Usuário não é membro do workspace informado', 403);
+        throw new AppError('Usuario nao e membro do workspace informado', 403);
       }
 
-      if (data.defaultAccountId !== undefined) {
-        const account = await prisma.account.findUnique({
-          where: { id: data.defaultAccountId },
-        });
-
-        if (!account || account.workspaceId !== data.defaultWorkspaceId) {
-          throw new AppError('Conta inválida ou não pertence ao workspace', 400);
-        }
-      }
+      await this.resolveDefaultAccount(data.defaultWorkspaceId, membership.workspace.type);
 
       if (data.defaultExpenseCategoryId !== undefined) {
         const expenseCategory = await prisma.category.findUnique({
@@ -98,6 +108,29 @@ export class TelegramLinkService {
 
     const telegramChatIdHash = this.hashIdentifier(chatId);
     const telegramUserIdHash = telegramUserId ? this.hashIdentifier(telegramUserId) : null;
+    let defaultDestination: {
+      workspaceId: number;
+      accountId: number;
+      label: string;
+    } | null = null;
+
+    if (payload.defaultWorkspaceId) {
+      const membership = await prisma.workspaceMember.findUnique({
+        where: { userId_workspaceId: { userId: payload.userId, workspaceId: payload.defaultWorkspaceId } },
+        include: { workspace: true },
+      });
+
+      if (!membership) {
+        throw new AppError('Usuario nao e membro do workspace informado', 403);
+      }
+
+      const account = await this.resolveDefaultAccount(payload.defaultWorkspaceId, membership.workspace.type);
+      defaultDestination = {
+        workspaceId: payload.defaultWorkspaceId,
+        accountId: account.id,
+        label: this.getDefaultDestinationLabel(membership.workspace.type),
+      };
+    }
 
     return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       let hasDestination = false;
@@ -139,15 +172,16 @@ export class TelegramLinkService {
       });
 
       // Criar destino default se o token continha informações de destino
-      if (payload.defaultWorkspaceId && payload.defaultAccountId) {
+      if (defaultDestination) {
         const dest = await tx.telegramDestination.create({
           data: {
             telegramUserLinkId: newLink.id,
             userId: payload.userId,
-            workspaceId: payload.defaultWorkspaceId,
-            accountId: payload.defaultAccountId,
+            workspaceId: defaultDestination.workspaceId,
+            accountId: defaultDestination.accountId,
             defaultExpenseCategoryId: payload.defaultExpenseCategoryId,
             defaultIncomeCategoryId: payload.defaultIncomeCategoryId,
+            label: defaultDestination.label,
             isDefault: true,
             status: 'ACTIVE',
           },
@@ -352,7 +386,6 @@ export class TelegramLinkService {
     userId: number,
     data: {
       workspaceId: number;
-      accountId: number;
       defaultExpenseCategoryId?: number;
       defaultIncomeCategoryId?: number;
       label?: string;
@@ -370,22 +403,16 @@ export class TelegramLinkService {
     // Validar membership
     const membership = await prisma.workspaceMember.findUnique({
       where: { userId_workspaceId: { userId, workspaceId: data.workspaceId } },
+      include: { workspace: true },
     });
 
-    if (!membership) {
-      throw new AppError('Usuário não é membro do workspace informado', 403);
-    }
+      if (!membership) {
+        throw new AppError('Usuario nao e membro do workspace informado', 403);
+      }
 
-    // Validar account
-    const account = await prisma.account.findUnique({
-      where: { id: data.accountId },
-    });
+      const account = await this.resolveDefaultAccount(data.workspaceId, membership.workspace.type);
 
-    if (!account || account.workspaceId !== data.workspaceId) {
-      throw new AppError('Conta inválida ou não pertence ao workspace', 400);
-    }
-
-    // Validar category
+      // Validar category
     if (data.defaultExpenseCategoryId) {
       const expenseCategory = await prisma.category.findUnique({
         where: { id: data.defaultExpenseCategoryId },
@@ -413,10 +440,10 @@ export class TelegramLinkService {
           telegramUserLinkId: activeLink.id,
           userId,
           workspaceId: data.workspaceId,
-          accountId: data.accountId,
+          accountId: account.id,
           defaultExpenseCategoryId: data.defaultExpenseCategoryId,
           defaultIncomeCategoryId: data.defaultIncomeCategoryId,
-          label: data.label,
+          label: data.label ?? this.getDefaultDestinationLabel(membership.workspace.type),
           status: 'ACTIVE',
         },
       });

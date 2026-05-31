@@ -26,7 +26,6 @@ export interface TelegramStatusResponse {
 
 export interface GenerateLinkDTO {
   defaultWorkspaceId?: number;
-  defaultAccountId?: number;
   defaultExpenseCategoryId?: number;
   defaultIncomeCategoryId?: number;
 }

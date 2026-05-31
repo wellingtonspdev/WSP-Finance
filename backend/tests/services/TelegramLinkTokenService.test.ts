@@ -28,7 +28,6 @@ describe('TelegramLinkTokenService', () => {
     const result = await service.generateToken({
       userId: 1,
       defaultWorkspaceId: 2,
-      defaultAccountId: 3,
       defaultExpenseCategoryId: 4
     });
 
@@ -40,7 +39,6 @@ describe('TelegramLinkTokenService', () => {
       data: expect.objectContaining({
         userId: 1,
         defaultWorkspaceId: 2,
-        defaultAccountId: 3,
         defaultExpenseCategoryId: 4,
         codeHash: expect.any(String),
         expiresAt: expect.any(Date),
