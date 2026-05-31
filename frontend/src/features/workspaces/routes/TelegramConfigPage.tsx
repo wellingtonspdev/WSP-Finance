@@ -63,12 +63,10 @@ export function TelegramConfigPage() {
     }, [link?.status, generatedLink, wasPending, clearGeneratedLink, setSuccessMsg]);
 
     const activeLink = link?.status === 'ACTIVE' ? link : null;
-    const hasWorkspaceDestination = selectedWorkspaceId != null;
 
     const handleGenerate = async (e: FormEvent) => {
         e.preventDefault();
-        if (!selectedWorkspaceId) return;
-        await createLink({ defaultWorkspaceId: selectedWorkspaceId });
+        await createLink({ defaultWorkspaceId: selectedWorkspaceId || undefined });
     };
 
     const handleRevoke = async (id: string) => {
@@ -178,12 +176,18 @@ export function TelegramConfigPage() {
                                 <select
                                     id="telegram-destination-workspace"
                                     value={selectedWorkspaceId ?? ''}
-                                    onChange={(event) => setSelectedWorkspaceId(Number(event.target.value))}
+                                    onChange={(event) => {
+                                        const val = event.target.value;
+                                        setSelectedWorkspaceId(val ? Number(val) : null);
+                                    }}
                                     disabled={isLoading || memberships.length === 0}
                                     className="w-full bg-white/5 border border-white/10 rounded-xl text-white px-3 py-2.5 outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-50"
                                 >
                                     {memberships.length === 0 && (
                                         <option value="" className="text-black">Nenhum workspace disponivel</option>
+                                    )}
+                                    {memberships.length > 0 && (
+                                        <option value="" className="text-black">Nenhum destino padrão (Opcional)</option>
                                     )}
                                     {memberships.map((workspace) => (
                                         <option key={workspace.id} value={workspace.id} className="text-black">
@@ -194,7 +198,7 @@ export function TelegramConfigPage() {
                             </div>
                             <button
                                 onClick={handleGenerate}
-                                disabled={isLoading || !hasWorkspaceDestination}
+                                disabled={isLoading}
                                 className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#D946EF] to-[#3B82F6] text-white font-bold text-sm shadow-lg hover:shadow-purple-500/30 transition-all flex items-center gap-2 disabled:opacity-50"
                             >
                                 <Link2 className="w-4 h-4" />
