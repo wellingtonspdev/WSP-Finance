@@ -6,6 +6,7 @@ import { useWorkspace } from '../../workspaces/context/useWorkspace';
 import { useToast } from '../../../shared/hooks/useToast';
 import type { CreateTransactionDTO } from '../types';
 import { requestCloudflareUpload } from '../../../services/uploadCloudflare';
+import { buildBridgePayload, buildTransactionPayload } from '../buildTransactionPayload';
 
 export type TransCategory = 'INCOME_SIMPLE' | 'INCOME_MARKETPLACE' | 'EXPENSE' | 'BRIDGE';
 
@@ -38,17 +39,11 @@ export function useTransactionMutation(onSuccessCallback?: () => void) {
             }
 
             if (!data.toWorkspaceId) {
-                toastError('Preencha todas as contas para a transferência.');
+                toastError('Selecione o workspace de destino da transferência.');
                 return;
             }
 
-            const dto = {
-                fromWorkspaceId: activeWorkspace.id,
-                toWorkspaceId: data.toWorkspaceId,
-                amount: data.amount,
-                description: data.description || 'Transferência Pró-labore',
-                date: new Date(data.date).toISOString()
-            };
+            const dto = buildBridgePayload(data, activeWorkspace.id);
 
             createBridge(dto, {
                 onSuccess: () => {
@@ -113,27 +108,7 @@ export function useTransactionMutation(onSuccessCallback?: () => void) {
 
         // 3. Tudo seguro -> Gravamos a Transação + Referência R2 no Banco
         // Sanitização do Payload: Remover campos que NÃO pertencem ao schema do Backend
-        const sanitizedPayload: Partial<CreateTransactionDTO> & Record<string, unknown> = {
-            description: data.description,
-            amount: Number(data.amount),
-            date: data.date,
-            type: data.type === 'BRIDGE' ? 'INCOME' : data.type, // Backend não conhece 'BRIDGE'
-            categoryId: Number(data.categoryId),
-            isPaid: data.isPaid === true || (data.isPaid as unknown as string) === 'true', // Coerção: <select> envia string
-        };
-
-        if (data.accountId && Number(data.accountId) > 0) sanitizedPayload.accountId = Number(data.accountId);
-
-        // Campos opcionais de Marketplace (somente se preenchidos e > 0)
-        if (data.grossAmount && Number(data.grossAmount) > 0) sanitizedPayload.grossAmount = Number(data.grossAmount);
-        if (data.marketplaceFee && Number(data.marketplaceFee) > 0) sanitizedPayload.marketplaceFee = Number(data.marketplaceFee);
-        if (data.shippingCost && Number(data.shippingCost) > 0) sanitizedPayload.shippingCost = Number(data.shippingCost);
-        if (data.productCost && Number(data.productCost) > 0) sanitizedPayload.productCost = Number(data.productCost);
-        if (data.platformFeeRate && Number(data.platformFeeRate) > 0) sanitizedPayload.platformFeeRate = Number(data.platformFeeRate);
-
-        // Anexo R2 (já processado acima)
-        if (finalAttachmentUrl) sanitizedPayload.attachmentUrl = finalAttachmentUrl;
-        if (data.attachmentSize && data.attachmentSize > 0) sanitizedPayload.attachmentSize = data.attachmentSize;
+        const sanitizedPayload = buildTransactionPayload(data, finalAttachmentUrl);
 
         createTransaction(
             sanitizedPayload as CreateTransactionDTO,

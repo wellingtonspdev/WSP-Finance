@@ -9,6 +9,7 @@ Focus: preserve Phase 1/2 hardening, keep Telegram/OCR baseline intact, and plan
 - [x] **Phase 1: Core Hardening** - Security hardening verified with score 5/5.
 - [x] **Phase 2: Manual Transactions without accountId + Taxes Off** - Manual transaction creation accepts omitted `accountId`, resolves default accounts, and disables automatic tax provisioning.
 - [ ] **Phase 3: Bridge / Manual Pro-Labore without Explicit Accounts** - Plan bridge transfer contract simplification so the client sends workspaces only and backend resolves default accounts.
+- [ ] **Phase 6: Frontend Simplificado Existente** - Align existing frontend flows with simplified backend contracts, hiding account and tax complexity from primary user paths.
 
 ## Phase Details
 
@@ -72,3 +73,25 @@ Plans:
 
 Plans:
 - [ ] 03-01-PLAN.md - TDD-first backend plan for bridge contract simplification using existing default-account repository helper.
+
+### Phase 6: Frontend Simplificado Existente
+
+**Goal:** Remover da experiencia principal a complexidade de contas e impostos, alinhando payloads aos contratos backend simplificados.
+
+**Depends on:** Phase 2, Phase 3, Phase 5
+
+**Status:** Planned
+
+**Success Criteria:**
+1. Criacao de transacao nao exibe seletor de conta e nao envia `accountId`.
+2. Criacao de transacao mantem categoria, valor, data, status e anexo.
+3. Pro-labore manual nao exibe seletores de conta origem/destino.
+4. Pro-labore manual envia apenas workspaces, valor, descricao e data.
+5. Telegram config permite escolher workspace pessoal/empresa sem escolher conta.
+6. Exibicao de transacoes nao destaca conta como elemento principal.
+7. Exibicao de transacoes nao mostra imposto/liquido quando `taxAmount` e `netValue` forem `null`.
+8. Tipos frontend tratam `accountId` como ausente nos payloads publicos simplificados.
+9. Nenhuma recorrencia, pendencia, cron, backend change ou reescrita ampla de dashboard e criada nesta fase.
+
+Plans:
+- [x] 06-01-PLAN.md - TDD-first frontend plan for existing simplified transaction, bridge, Telegram, and transaction display flows.

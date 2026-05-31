@@ -1,13 +1,11 @@
 import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useForm, Controller, useWatch } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { transactionFormSchema } from '../types';
 import type { CreateTransactionDTO } from '../types';
 import { useCategories } from '../hooks/useCategories';
-import { useAccounts } from '../hooks/useAccounts';
 import { useWorkspace } from '../../workspaces/context/useWorkspace';
-import { useAccountsByWorkspace } from '../api/getAccountsByWorkspace';
 import { useTransactionMutation, type TransCategory } from '../hooks/useTransactionMutation';
 import { MoneyInput } from '../../../shared/components/ui/MoneyInput';
 import { Input } from '../../../shared/components/ui/Input';
@@ -18,7 +16,7 @@ import { useEffect } from 'react';
 
 import {
     X, ArrowUpRight, ArrowDownRight, Store,
-    FileText, Calendar, Wallet, Repeat
+    FileText, Calendar, Repeat
 } from 'lucide-react';
 
 interface TransactionModalProps {
@@ -50,7 +48,6 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
 
     // Data Fetchers
     const { data: categories, isLoading: isLoadingCategories } = useCategories();
-    const { data: SourceAccounts, isLoading: isLoadingAccounts } = useAccounts();
 
     const { control, register, handleSubmit, reset, setValue, formState: { errors } } = useForm<CreateTransactionDTO>({
         resolver: zodResolver(transactionFormSchema),
@@ -59,21 +56,12 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
             amount: 0,
             isPaid: true,
             categoryId: 0,
-            accountId: 0,
             toWorkspaceId: 0,
-            toAccountId: 0,
             description: '',
             date: new Date().toISOString().split('T')[0],
         }
     });
     resetRef.current = reset;
-
-    const watchToWorkspaceId = useWatch({ control, name: 'toWorkspaceId' });
-
-    // Carrega dinamicamente contas bancárias do workspace DESTINO selecionado
-    const { data: DestinationAccounts, isLoading: isLoadingDestAccounts } = useAccountsByWorkspace(
-        watchToWorkspaceId && watchToWorkspaceId !== 0 ? watchToWorkspaceId : null
-    );
 
     // Renderização controlada por AnimatePresence (sem early return)
 
@@ -325,7 +313,7 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
 
                                     {/* CONDICIONAL: SE FOR TRANSAÇÃO GLOBAL, MOSTRA AS CATEGORIAS */}
                                     {transCategory !== 'BRIDGE' && (
-                                        <div className="grid grid-cols-2 gap-4 pt-2 pb-6 relative z-50">
+                                        <div className="pt-2 pb-6 relative z-50">
                                             <div>
                                                 <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Categoria</label>
                                                 <Controller
@@ -344,24 +332,6 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
                                                 />
                                                 {errors.categoryId?.message && <p className="text-red-500 text-xs mt-1 ml-1">{errors.categoryId.message}</p>}
                                             </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Conta Bancária</label>
-                                                <Controller
-                                                    control={control}
-                                                    name="accountId"
-                                                    render={({ field }) => (
-                                                        <CustomSelect
-                                                            value={field.value}
-                                                            onChange={field.onChange}
-                                                            options={SourceAccounts?.map(a => ({ value: a.id, label: a.name })) || []}
-                                                            disabled={isLoadingAccounts}
-                                                            error={errors.accountId?.message}
-                                                            placeholder="Selecione..."
-                                                        />
-                                                    )}
-                                                />
-                                                {errors.accountId?.message && <p className="text-red-500 text-xs mt-1 ml-1">{errors.accountId.message}</p>}
-                                            </div>
                                         </div>
                                     )}
 
@@ -369,36 +339,12 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
                                     {transCategory === 'BRIDGE' && (
                                         <div className="space-y-4 pt-2 p-4 pb-6 bg-blue-500/10 border border-blue-500/20 rounded-2xl relative z-40">
                                             <div className="flex items-center gap-2 mb-2">
-                                                <Wallet className="w-4 h-4 text-blue-400" />
-                                                <h3 className="text-sm font-semibold text-blue-200">De onde o dinheiro vai sair?</h3>
+                                                <Repeat className="w-4 h-4 text-blue-400" />
+                                                <h3 className="text-sm font-semibold text-blue-200">Destino do pró-labore</h3>
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Conta de Origem ({activeWorkspace?.type === 'BUSINESS' ? 'Empresa Atual' : 'Pessoal Atual'})</label>
-                                                <Controller
-                                                    control={control}
-                                                    name="accountId"
-                                                    render={({ field }) => (
-                                                        <CustomSelect
-                                                            value={field.value}
-                                                            onChange={field.onChange}
-                                                            options={SourceAccounts?.map(a => ({ value: a.id, label: a.name })) || []}
-                                                            disabled={isLoadingAccounts}
-                                                            placeholder="Selecione a conta que irá pagar..."
-                                                        />
-                                                    )}
-                                                />
-                                            </div>
-
-                                            <div className="w-full h-px bg-white/10 my-4" />
-
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Repeat className="w-4 h-4 text-purple-400" />
-                                                <h3 className="text-sm font-semibold text-purple-200">Para onde ele vai?</h3>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-4">
                                                 <div>
-                                                    <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Ambiente de Destino</label>
+                                                    <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Workspace de Destino</label>
                                                     <Controller
                                                         control={control}
                                                         name="toWorkspaceId"
@@ -408,25 +354,9 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
                                                                 onChange={field.onChange}
                                                                 options={workspaces.filter(w => w.id !== activeWorkspace?.id).map(w => ({
                                                                     value: w.id,
-                                                                    label: `${w.type === 'BUSINESS' ? '🏢 ' : '👤 '} ${w.name}`
+                                                                    label: `${w.type === 'BUSINESS' ? 'Empresa' : 'Pessoal'} - ${w.name}`
                                                                 }))}
                                                                 placeholder="Selecione..."
-                                                            />
-                                                        )}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Conta que vai Receber</label>
-                                                    <Controller
-                                                        control={control}
-                                                        name="toAccountId"
-                                                        render={({ field }) => (
-                                                            <CustomSelect
-                                                                value={field.value}
-                                                                onChange={field.onChange}
-                                                                options={DestinationAccounts?.map(a => ({ value: a.id, label: a.name })) || []}
-                                                                disabled={isLoadingDestAccounts || !watchToWorkspaceId}
-                                                                placeholder={isLoadingDestAccounts ? 'Buscando contas...' : 'Selecione...'}
                                                             />
                                                         )}
                                                     />

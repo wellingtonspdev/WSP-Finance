@@ -7,12 +7,10 @@ export const transactionFormSchema = z.object({
     date: z.string(),
     type: z.enum(['INCOME', 'EXPENSE', 'BRIDGE']),
 
-    accountId: z.number().int().optional(),
     categoryId: z.number().int().optional(),
     isPaid: z.boolean(),
 
     toWorkspaceId: z.number().int().optional(),
-    toAccountId: z.number().int().optional(),
 
     grossAmount: z.number().optional(),
     marketplaceFee: z.number().optional(),
@@ -50,11 +48,9 @@ export const transactionPayloadSchema = z.object({
     amount: z.number().min(0.01, 'O valor nao pode ser zero'),
     date: z.string(),
     type: z.enum(['INCOME', 'EXPENSE', 'BRIDGE']),
-    accountId: z.number().int().optional(),
     categoryId: z.number().int().optional(),
     isPaid: z.boolean(),
     toWorkspaceId: z.number().int().optional(),
-    toAccountId: z.number().int().optional(),
     grossAmount: z.number().optional(),
     marketplaceFee: z.number().optional(),
     shippingCost: z.number().optional(),

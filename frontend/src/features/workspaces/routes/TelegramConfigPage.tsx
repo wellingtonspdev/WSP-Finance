@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { MessageCircle, Link2, Unlink, Copy, ExternalLink, CheckCircle2, XCircle } from 'lucide-react';
 import { AppLayout } from '../../../shared/components/layout/AppLayout';
 import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
@@ -10,8 +11,9 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; b
 };
 
 export function TelegramConfigPage() {
-    const { activeMembership } = useWorkspaceStore();
+    const { activeMembership, memberships } = useWorkspaceStore();
     const canEdit = activeMembership?.role === 'OWNER' || activeMembership?.role === 'EDITOR';
+    const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number | null>(activeMembership?.id ?? null);
 
     const {
         link, generatedLink, isLoading, error, successMsg, setSuccessMsg,
@@ -22,6 +24,15 @@ export function TelegramConfigPage() {
     const [copied, setCopied] = useState(false);
     const [wasPending, setWasPending] = useState(false);
 
+    useEffect(() => {
+        if (selectedWorkspaceId) return;
+
+        const defaultWorkspace = activeMembership ?? memberships[0] ?? null;
+        if (defaultWorkspace) {
+            setSelectedWorkspaceId(defaultWorkspace.id);
+        }
+    }, [activeMembership, memberships, selectedWorkspaceId]);
+
     // Carrega status inicial
     useEffect(() => {
         loadStatus();
@@ -29,7 +40,7 @@ export function TelegramConfigPage() {
 
     // Polling contínuo enquanto aguarda o pareamento do Telegram
     useEffect(() => {
-        let interval: NodeJS.Timeout;
+        let interval: ReturnType<typeof setInterval> | undefined;
         if (generatedLink && link?.status !== 'ACTIVE') {
             interval = setInterval(() => {
                 loadStatus();
@@ -52,10 +63,12 @@ export function TelegramConfigPage() {
     }, [link?.status, generatedLink, wasPending, clearGeneratedLink, setSuccessMsg]);
 
     const activeLink = link?.status === 'ACTIVE' ? link : null;
+    const hasWorkspaceDestination = selectedWorkspaceId != null;
 
     const handleGenerate = async (e: FormEvent) => {
         e.preventDefault();
-        await createLink({});
+        if (!selectedWorkspaceId) return;
+        await createLink({ defaultWorkspaceId: selectedWorkspaceId });
     };
 
     const handleRevoke = async (id: string) => {
@@ -156,11 +169,32 @@ export function TelegramConfigPage() {
                         </h2>
                         <div className="bg-white/5 backdrop-blur-[12px] border border-white/10 rounded-2xl p-5">
                             <p className="text-sm text-slate-300 mb-4">
-                                Ao gerar o código numérico, o bot do Telegram será associado à sua conta. Informações sobre workspace, conta e categoria serão solicitadas pelo bot na sua primeira transação.
+                                Ao gerar o código numérico, o bot do Telegram será associado ao seu usuário. As próximas transações serão direcionadas pelo workspace e pela categoria escolhidos no bot.
                             </p>
+                            <div className="mb-4">
+                                <label htmlFor="telegram-destination-workspace" className="block text-xs font-medium text-slate-400 mb-2">
+                                    Workspace de destino
+                                </label>
+                                <select
+                                    id="telegram-destination-workspace"
+                                    value={selectedWorkspaceId ?? ''}
+                                    onChange={(event) => setSelectedWorkspaceId(Number(event.target.value))}
+                                    disabled={isLoading || memberships.length === 0}
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl text-white px-3 py-2.5 outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-50"
+                                >
+                                    {memberships.length === 0 && (
+                                        <option value="" className="text-black">Nenhum workspace disponivel</option>
+                                    )}
+                                    {memberships.map((workspace) => (
+                                        <option key={workspace.id} value={workspace.id} className="text-black">
+                                            {workspace.type === 'BUSINESS' ? 'Empresa' : 'Pessoal'} - {workspace.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                             <button
                                 onClick={handleGenerate}
-                                disabled={isLoading}
+                                disabled={isLoading || !hasWorkspaceDestination}
                                 className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#D946EF] to-[#3B82F6] text-white font-bold text-sm shadow-lg hover:shadow-purple-500/30 transition-all flex items-center gap-2 disabled:opacity-50"
                             >
                                 <Link2 className="w-4 h-4" />

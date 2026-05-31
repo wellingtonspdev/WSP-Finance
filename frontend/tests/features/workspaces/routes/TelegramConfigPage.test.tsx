@@ -1,9 +1,8 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TelegramConfigPage } from '../../../../src/features/workspaces/routes/TelegramConfigPage';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
+import { TelegramConfigPage } from '../../../../src/features/workspaces/routes/TelegramConfigPage';
 
-// Mocks
 vi.mock('../../../../src/shared/components/layout/AppLayout', () => ({
   AppLayout: ({ children }: any) => <div data-testid="app-layout">{children}</div>,
 }));
@@ -16,67 +15,98 @@ vi.mock('../../../../src/features/workspaces/hooks/useTelegramConfig', () => ({
   useTelegramConfig: vi.fn(),
 }));
 
-// Ignore API requests for options
-vi.mock('../../../../src/features/transactions/api/getAccounts', () => ({
-  getAccounts: vi.fn().mockResolvedValue([]),
-}));
-vi.mock('../../../../src/features/transactions/api/getCategories', () => ({
-  getCategories: vi.fn().mockResolvedValue([]),
-}));
-
 import { useWorkspaceStore } from '../../../../src/shared/stores/useWorkspaceStore';
 import { useTelegramConfig } from '../../../../src/features/workspaces/hooks/useTelegramConfig';
 
 describe('TelegramConfigPage', () => {
+  const createLink = vi.fn();
+
   beforeEach(() => {
     vi.clearAllMocks();
-  });
 
-  const renderComponent = () => {
-    return render(
-      <MemoryRouter>
-        <TelegramConfigPage />
-      </MemoryRouter>
-    );
-  };
-
-  it('renderiza cabecalho corretamente', () => {
     vi.mocked(useWorkspaceStore).mockReturnValue({
-      activeMembership: { role: 'OWNER', name: 'WSP Finance Demo' },
+      activeMembership: { id: 10, name: 'Empresa WSP', type: 'BUSINESS', role: 'OWNER' },
+      memberships: [
+        { id: 10, name: 'Empresa WSP', type: 'BUSINESS', role: 'OWNER' },
+        { id: 11, name: 'Joao', type: 'PERSONAL', role: 'OWNER' },
+      ],
     } as any);
 
     vi.mocked(useTelegramConfig).mockReturnValue({
-      links: [],
+      link: null,
       generatedLink: null,
       isLoading: false,
       error: null,
       successMsg: null,
-      loadLinks: vi.fn(),
-      createLink: vi.fn(),
+      setSuccessMsg: vi.fn(),
+      loadStatus: vi.fn(),
+      createLink,
       revokeLink: vi.fn(),
       clearMessages: vi.fn(),
       clearGeneratedLink: vi.fn(),
     } as any);
+  });
 
+  const renderComponent = () => render(
+    <MemoryRouter>
+      <TelegramConfigPage />
+    </MemoryRouter>
+  );
+
+  it('renderiza configuracao de Telegram com workspace destino e sem seletor de conta bancaria', () => {
     renderComponent();
 
     expect(screen.getByText('Telegram')).toBeInTheDocument();
-    expect(screen.getByText('WSP Finance Demo')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Gerar Codigo|Gerar Código/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Workspace de destino/i)).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Empresa - Empresa WSP' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Pessoal - Joao' })).toBeInTheDocument();
+    expect(screen.queryByText(/Conta Bancaria|Conta Bancária/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/workspace, conta e categoria/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/workspace e pela categoria/i)).toBeInTheDocument();
   });
 
-  it('exibe form de geracao para OWNER/EDITOR', () => {
-    vi.mocked(useWorkspaceStore).mockReturnValue({
-      activeMembership: { role: 'EDITOR' },
-    } as any);
+  it('gera codigo enviando workspace de destino sem accountId', () => {
+    renderComponent();
 
+    fireEvent.click(screen.getByRole('button', { name: /Gerar Codigo|Gerar Código/i }));
+
+    expect(createLink).toHaveBeenCalledWith({ defaultWorkspaceId: 10 });
+    expect(createLink.mock.calls[0][0]).not.toHaveProperty('accountId');
+    expect(createLink.mock.calls[0][0]).not.toHaveProperty('defaultAccountId');
+  });
+
+  it('permite trocar o workspace de destino antes de gerar codigo', () => {
+    renderComponent();
+
+    fireEvent.change(screen.getByLabelText(/Workspace de destino/i), { target: { value: '11' } });
+    fireEvent.click(screen.getByRole('button', { name: /Gerar Codigo|Gerar Código/i }));
+
+    expect(createLink).toHaveBeenCalledWith({ defaultWorkspaceId: 11 });
+  });
+
+  it('mostra vinculo ativo como conta Telegram, sem expor conta bancaria', () => {
     vi.mocked(useTelegramConfig).mockReturnValue({
-      links: [],
+      link: {
+        id: 'link123',
+        telegramUsername: 'user1',
+        status: 'ACTIVE',
+        accountId: 1,
+        defaultExpenseCategoryId: 2,
+        defaultIncomeCategoryId: null,
+        createdAt: '2026-05-31T00:00:00.000Z',
+        updatedAt: '2026-05-31T00:00:00.000Z',
+        userId: 1,
+        workspaceId: 10,
+        revokedAt: null,
+      },
       generatedLink: null,
       isLoading: false,
       error: null,
       successMsg: null,
-      loadLinks: vi.fn(),
-      createLink: vi.fn(),
+      setSuccessMsg: vi.fn(),
+      loadStatus: vi.fn(),
+      createLink,
       revokeLink: vi.fn(),
       clearMessages: vi.fn(),
       clearGeneratedLink: vi.fn(),
@@ -84,94 +114,8 @@ describe('TelegramConfigPage', () => {
 
     renderComponent();
 
-    expect(screen.getByText('Gerar Novo Link de Pareamento')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Gerar Link/i })).toBeInTheDocument();
-  });
-
-  it('esconde form de geracao para VIEWER/ACCOUNTANT', () => {
-    vi.mocked(useWorkspaceStore).mockReturnValue({
-      activeMembership: { role: 'VIEWER' },
-    } as any);
-
-    vi.mocked(useTelegramConfig).mockReturnValue({
-      links: [],
-      generatedLink: null,
-      isLoading: false,
-      error: null,
-      successMsg: null,
-      loadLinks: vi.fn(),
-      createLink: vi.fn(),
-      revokeLink: vi.fn(),
-      clearMessages: vi.fn(),
-      clearGeneratedLink: vi.fn(),
-    } as any);
-
-    renderComponent();
-
-    expect(screen.queryByText('Gerar Novo Link de Pareamento')).not.toBeInTheDocument();
-  });
-
-  it('exibe mensagens de sucesso e erro', () => {
-    vi.mocked(useWorkspaceStore).mockReturnValue({
-      activeMembership: { role: 'OWNER' },
-    } as any);
-
-    vi.mocked(useTelegramConfig).mockReturnValue({
-      links: [],
-      generatedLink: null,
-      isLoading: false,
-      error: 'Falha de teste',
-      successMsg: 'Sucesso de teste',
-      loadLinks: vi.fn(),
-      createLink: vi.fn(),
-      revokeLink: vi.fn(),
-      clearMessages: vi.fn(),
-      clearGeneratedLink: vi.fn(),
-    } as any);
-
-    renderComponent();
-
-    expect(screen.getByText('Falha de teste')).toBeInTheDocument();
-    expect(screen.getByText('Sucesso de teste')).toBeInTheDocument();
-  });
-
-  it('exibe vinculo ativo e bloqueia geracao extra', () => {
-    vi.mocked(useWorkspaceStore).mockReturnValue({
-      activeMembership: { role: 'OWNER' },
-    } as any);
-
-    vi.mocked(useTelegramConfig).mockReturnValue({
-      links: [
-        {
-          id: 'link123',
-          telegramUsername: 'user1',
-          status: 'ACTIVE',
-          accountId: 1,
-          defaultExpenseCategoryId: 2,
-          defaultIncomeCategoryId: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          userId: 1,
-          workspaceId: 10,
-          revokedAt: null
-        }
-      ],
-      generatedLink: null,
-      isLoading: false,
-      error: null,
-      successMsg: null,
-      loadLinks: vi.fn(),
-      createLink: vi.fn(),
-      revokeLink: vi.fn(),
-      clearMessages: vi.fn(),
-      clearGeneratedLink: vi.fn(),
-    } as any);
-
-    renderComponent();
-
-    expect(screen.getByText('Vínculo Ativo')).toBeInTheDocument();
+    expect(screen.getByText('Conta Associada')).toBeInTheDocument();
     expect(screen.getByText('user1')).toBeInTheDocument();
-    // Botão revogar disponivel para OWNER
-    expect(screen.getByText('Revogar Vínculo')).toBeInTheDocument();
+    expect(screen.queryByText(/Conta Bancaria|Conta Bancária/i)).not.toBeInTheDocument();
   });
 });
