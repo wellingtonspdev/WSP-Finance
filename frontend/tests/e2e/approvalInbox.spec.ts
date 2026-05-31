@@ -6,6 +6,15 @@ test.describe('E2E: Inbox de Aprovação (Hub do Contador) com Fixtures Isoladas
     accountantSession,
     page,
   }) => {
+    // Log page errors to debug why it is failing to render the header
+    page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+    page.on('pageerror', error => console.log('PAGE ERROR:', error.message));
+    page.on('response', res => {
+      if (res.status() === 401) {
+        console.log('401 REQ:', res.request().url());
+      }
+    });
+
     // 1. Mocking do Endpoint de Lista de Movimentos (PENDING)
     await page.route('**/bank-movements?*', async (route) => {
       const json = {
@@ -52,7 +61,7 @@ test.describe('E2E: Inbox de Aprovação (Hub do Contador) com Fixtures Isoladas
     });
 
     // Ir para a tela de Inbox de Aprovação
-    await page.goto(`http://localhost:5173/accountant/inbox/${accountantSession.workspaceId}`);
+    await page.goto(`/accountant/inbox/${accountantSession.workspaceId}`);
 
     // Verificar header
     await expect(page.getByRole('heading', { name: 'Inbox de Aprovação' })).toBeVisible();
