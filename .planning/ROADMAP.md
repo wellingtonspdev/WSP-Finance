@@ -2,13 +2,14 @@
 
 ## Current Milestone: Manual Transaction MVP Stabilization
 
-Focus: preserve Phase 1/2 hardening, keep Telegram/OCR baseline intact, and plan Phase 3 for bridge transfers without explicit account selection.
+Focus: preserve Phase 1/2 hardening, keep Telegram/OCR baseline intact, use simplified bridge transfers, and plan recurring pro-labore as a pending-confirmation workflow.
 
 ## Phases
 
 - [x] **Phase 1: Core Hardening** - Security hardening verified with score 5/5.
 - [x] **Phase 2: Manual Transactions without accountId + Taxes Off** - Manual transaction creation accepts omitted `accountId`, resolves default accounts, and disables automatic tax provisioning.
 - [ ] **Phase 3: Bridge / Manual Pro-Labore without Explicit Accounts** - Plan bridge transfer contract simplification so the client sends workspaces only and backend resolves default accounts.
+- [ ] **Phase 4: Pro-Labore Recorrente com Pendencia** - Create monthly recurring pro-labore schedules that generate pending confirmations; transfers remain manual via BridgeService.
 - [ ] **Phase 6: Frontend Simplificado Existente** - Align existing frontend flows with simplified backend contracts, hiding account and tax complexity from primary user paths.
 
 ## Phase Details
@@ -73,6 +74,34 @@ Plans:
 
 Plans:
 - [ ] 03-01-PLAN.md - TDD-first backend plan for bridge contract simplification using existing default-account repository helper.
+
+### Phase 4: Pro-Labore Recorrente com Pendencia
+
+**Goal:** Create monthly recurring pro-labore scheduling that generates pending confirmations. The cron must only create pending records; the actual transfer happens only after manual OWNER confirmation through the simplified BridgeService from Phase 3.
+
+**Depends on:** Phase 3, Phase 6
+
+**Status:** Planned
+
+**Success Criteria:**
+1. Users can create a monthly pro-labore schedule from a BUSINESS workspace to a PERSONAL workspace.
+2. Only OWNER users can create, deactivate, cancel, or confirm recurring pro-labore.
+3. Schedule persistence stores source business workspace, destination personal workspace, amount, day of month, description, active/inactive state, creator, and timestamps.
+4. Pending persistence stores schedule, normalized monthly competence, status, confirmation metadata, and last confirmation error/attempt metadata.
+5. Cron creates pending records only; it never executes transfers or changes balances.
+6. Cron processes due schedules up to the current day and uses the last day of the month when the configured day does not exist.
+7. No duplicate pending record can be created for the same schedule and monthly competence.
+8. Manual confirmation calls the simplified `BridgeService` and executes the transfer exactly once.
+9. Confirming the same pending record twice cannot create duplicate bridge transactions.
+10. Insufficient balance blocks confirmation, keeps the pending record open, and does not change balances.
+11. Deactivating a schedule preserves history and prevents future pending records.
+12. A dedicated frontend page lets the OWNER configure schedules, list schedules, view pending confirmations, confirm pending records, and see insufficient-balance errors clearly.
+13. No taxes, Telegram/OCR changes, account selectors, or automatic pro-labore transfers are introduced.
+
+Plans:
+- [ ] 04-01-PLAN.md - Pre-flight dependency gate, Reversa deliverables, validation mapping, and RED tests for recurring pro-labore.
+- [ ] 04-02-PLAN.md - Backend schema, service, API routes, cron generation, focused backend tests, and full backend suite boundary.
+- [ ] 04-03-PLAN.md - Dedicated frontend page, API hooks, navigation, focused frontend test, and final backend/frontend validation boundary.
 
 ### Phase 6: Frontend Simplificado Existente
 

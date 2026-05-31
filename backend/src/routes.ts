@@ -21,6 +21,7 @@ import { ExportController } from './controllers/ExportController';
 import { ExportDownloadController } from './controllers/ExportDownloadController';
 import { AiInsightController } from './controllers/AiInsightController';
 import { TelegramIntegrationController } from './controllers/TelegramIntegrationController';
+import { RecurringProLaboreController } from './controllers/RecurringProLaboreController';
 import { sysPrisma } from './lib/prisma';
 
 // Middlewares
@@ -76,6 +77,7 @@ const accountantCacheService = new AccountantCacheService();
 const adminController = new AdminController();
 const aiInsightController = new AiInsightController();
 const telegramIntegrationController = new TelegramIntegrationController();
+const recurringProLaboreController = new RecurringProLaboreController();
 
 // ==============================================================================
 // AUTENTICAÇÃO & IDENTIDADE
@@ -465,6 +467,31 @@ router.post('/bridge/transfer', AuthMiddleware, (req, res, next) => {
        #swagger.summary = 'Atravessamento Automático Pró-labore'
        #swagger.description = 'Puxa o dinheiro da conta bancária de seu Workspace PJ e remete limpando na declaração de contas da sua aba Pessoal com sincronismo de transações cruzadas!' */
     return bridgeController.transfer(req, res);
+});
+
+// --- RECURRING PRO-LABORE ---
+router.post('/recurring-pro-labore/schedules', AuthMiddleware, (req, res, next) => {
+    return recurringProLaboreController.createSchedule(req, res);
+});
+
+router.get('/recurring-pro-labore/schedules', AuthMiddleware, (req, res, next) => {
+    return recurringProLaboreController.listSchedules(req, res);
+});
+
+router.patch('/recurring-pro-labore/schedules/:id/deactivate', AuthMiddleware, (req, res, next) => {
+    return recurringProLaboreController.deactivateSchedule(req, res);
+});
+
+router.get('/recurring-pro-labore/pending', AuthMiddleware, (req, res, next) => {
+    return recurringProLaboreController.listPendings(req, res);
+});
+
+router.post('/recurring-pro-labore/pending/:id/confirm', AuthMiddleware, (req, res, next) => {
+    return recurringProLaboreController.confirmPending(req, res);
+});
+
+router.post('/recurring-pro-labore/pending/:id/cancel', AuthMiddleware, (req, res, next) => {
+    return recurringProLaboreController.cancelPending(req, res);
 });
 
 // --- IMPORTAÇÃO ---

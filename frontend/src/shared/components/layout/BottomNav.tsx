@@ -1,4 +1,4 @@
-import { Home, Receipt, Plus, BarChart2, User } from 'lucide-react';
+import { Home, Receipt, Plus, BarChart2, WalletCards } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useUI } from '../../context/useUI';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -15,14 +15,16 @@ export function BottomNav() {
     ? 'extract'
     : location.pathname.includes('/analises')
       ? 'analytics'
-      : 'home';
+      : location.pathname.includes('/pro-labore')
+        ? 'pro-labore'
+        : 'home';
 
   const navItems = [
     { id: 'home', icon: Home, label: 'Home', action: () => navigate(`/${activeMembership?.id || ''}/dashboard`) },
     { id: 'extract', icon: Receipt, label: 'Extrato', action: () => navigate(`/${activeMembership?.id || ''}/transactions`) },
     { id: 'add', icon: Plus, label: '', isFab: true, action: openTransactionModal },
     { id: 'analytics', icon: BarChart2, label: 'Análises', action: () => navigate(`/${activeMembership?.id || ''}/analises`) },
-    { id: 'profile', icon: User, label: 'Perfil', action: () => { } },
+    { id: 'pro-labore', icon: WalletCards, label: 'Pro', action: () => navigate(`/${activeMembership?.id || ''}/pro-labore`) },
   ];
 
   return (

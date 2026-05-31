@@ -155,6 +155,15 @@ Use:
 - `wsp-gsd-phase-orchestrator` para discutir, planejar, executar e verificar fases.
 - `wsp-gsd-git-finalizer` para finalização Git seletiva por fase.
 
+## Nomes de subagentes
+
+Sempre que criar subagentes neste projeto, usar e registrar os nomes operacionais:
+
+- Vini Jr
+- Hiro
+
+Se a plataforma gerar nicknames automáticos diferentes, ainda assim trate os subagentes no prompt, no relatório e no handoff como Vini Jr e Hiro.
+
 ## Validações mínimas por fase
 
 Antes de finalizar qualquer fase:
