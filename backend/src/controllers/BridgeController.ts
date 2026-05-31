@@ -13,8 +13,6 @@ export class BridgeController {
     const transferSchema = z.object({
       fromWorkspaceId: z.number().int().positive(),
       toWorkspaceId: z.number().int().positive(),
-      fromAccountId: z.number().int().positive(),
-      toAccountId: z.number().int().positive(),
       amount: z.number().positive('O valor deve ser positivo'),
       description: z.string().default('Transferência entre Workspaces'),
       date: z.coerce.date().default(() => new Date()),
@@ -36,6 +34,9 @@ export class BridgeController {
         details: result
       });
     } catch (err: any) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
       if (err.message.includes('Permissão negada')) {
         return res.status(403).json({ message: err.message });
       }

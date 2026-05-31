@@ -3172,8 +3172,6 @@
                 "required": [
                   "fromWorkspaceId",
                   "toWorkspaceId",
-                  "fromAccountId",
-                  "toAccountId",
                   "amount"
                 ],
                 "properties": {
@@ -3182,14 +3180,6 @@
                     "minimum": 1
                   },
                   "toWorkspaceId": {
-                    "type": "integer",
-                    "minimum": 1
-                  },
-                  "fromAccountId": {
-                    "type": "integer",
-                    "minimum": 1
-                  },
-                  "toAccountId": {
                     "type": "integer",
                     "minimum": 1
                   },

@@ -25,11 +25,11 @@ export const transactionFormSchema = z.object({
     attachmentSize: z.number().optional(),
 }).superRefine((data, ctx) => {
     if (data.type === 'BRIDGE') {
-        if (!data.toWorkspaceId || !data.toAccountId || !data.accountId) {
+        if (!data.toWorkspaceId) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: 'Preencha todas as contas do Pro-labore',
-                path: ['toAccountId']
+                message: 'Selecione o workspace de destino do Pro-labore',
+                path: ['toWorkspaceId']
             });
         }
     } else {

@@ -1,14 +1,14 @@
 ---
 milestone: Manual Transaction MVP Stabilization
 status: planning
-active_phase: 2
-current_phase: 2
-next_action: plan_phase
+active_phase: 3
+current_phase: 3
+next_action: review_phase_3_plan
 progress:
-  phases_total: 2
-  phases_complete: 1
-  plans_total: 0
-  plans_complete: 0
+  phases_total: 3
+  phases_complete: 2
+  plans_total: 3
+  plans_complete: 2
 ---
 
 # Session State
@@ -18,25 +18,27 @@ progress:
 See: `.planning/PROJECT.md`
 
 **Core value:** Manual and imported financial records must stay tenant-safe, auditable, and consistent with account balances.
-**Current focus:** Phase 2: Manual Transactions without accountId + Taxes Off
+**Current focus:** Phase 3: Bridge / Manual Pro-Labore without Explicit Accounts
 
 ## Current Position
 
-Phase: 2
-Plan: Not planned
-Status: Ready to research and plan
-Last activity: 2026-05-31 - GSD Phase 2 bootstrap created from local repo context.
+Phase: 3
+Plan: 03-01-PLAN.md
+Status: Plan created, awaiting review before execution
+Last activity: 2026-05-31 - Phase 3 research and TDD plan created with decision to use AccountRepository.findDefaultByWorkspace directly.
 
 ## Session Log
 
 - 2026-05-31: Phase 1 verification found at `.planning/phases/01-core-hardening/01-VERIFICATION.md`.
 - 2026-05-31: Phase 2 roadmap and requirements created for GSD plan-phase preflight.
+- 2026-05-31: Phase 2 finalized and pushed on branch `144-s5-012-poctelegram-ocr-ingestão-telegram-ocr-para-bankmovement-pending`.
+- 2026-05-31: Phase 3 discussed and planned. Decision: use existing `AccountRepository.findDefaultByWorkspace` instead of introducing `DefaultAccountService`.
 
 ## Blockers
 
-- Phase 2 execution must wait until `$gsd-plan-phase 2 --research` completes and user reviews the plan.
+- Phase 3 execution must wait until user reviews and approves `03-01-PLAN.md`.
 
 ## Notes
 
-- Preserve Telegram/OCR working tree baseline.
+- Preserve Telegram/OCR baseline.
 - Do not stage, commit, push, reset, or clean without explicit approval.

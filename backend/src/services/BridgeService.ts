@@ -7,8 +7,6 @@ import { AuditLogService } from './AuditLogService';
 interface BridgeTransferDTO {
   fromWorkspaceId: number;
   toWorkspaceId: number;
-  fromAccountId: number;
-  toAccountId: number;
   amount: number;
   description: string;
   date: Date;
@@ -64,10 +62,10 @@ export class BridgeService {
     validateClosedUntil(toMembership.workspace, toMembership.role, targetDate);
 
     // 2. Validação de Contas e Saldo
-    const fromAccount = await this.accountRepository.findByIdAndWorkspace(dto.fromAccountId, dto.fromWorkspaceId);
+    const fromAccount = await this.accountRepository.findDefaultByWorkspace(dto.fromWorkspaceId, fromMembership.workspace.type);
     if (!fromAccount) throw new AppError('Conta de origem inválida ou não pertence ao workspace.', 404);
 
-    const toAccount = await this.accountRepository.findByIdAndWorkspace(dto.toAccountId, dto.toWorkspaceId);
+    const toAccount = await this.accountRepository.findDefaultByWorkspace(dto.toWorkspaceId, toMembership.workspace.type);
     if (!toAccount) throw new AppError('Conta de destino inválida ou não pertence ao workspace.', 404);
 
     if (fromAccount.balance.toNumber() < dto.amount) {
@@ -95,7 +93,7 @@ export class BridgeService {
       const debitTx = await tx.transaction.create({
         data: {
           workspaceId: dto.fromWorkspaceId,
-          accountId: dto.fromAccountId,
+          accountId: fromAccount.id,
           categoryId: fromCategory.id,
           type: 'EXPENSE',
           amount: amountDecimal,
@@ -110,7 +108,7 @@ export class BridgeService {
       const creditTx = await tx.transaction.create({
         data: {
           workspaceId: dto.toWorkspaceId,
-          accountId: dto.toAccountId,
+          accountId: toAccount.id,
           categoryId: toCategory.id,
           type: 'INCOME',
           amount: amountDecimal,
@@ -123,12 +121,12 @@ export class BridgeService {
 
       // C. Atualização de Saldos
       const updatedFromAccount = await tx.account.update({
-        where: { id: dto.fromAccountId },
+        where: { id: fromAccount.id },
         data: { balance: { decrement: amountDecimal } }
       });
 
       const updatedToAccount = await tx.account.update({
-        where: { id: dto.toAccountId },
+        where: { id: toAccount.id },
         data: { balance: { increment: amountDecimal } }
       });
 
@@ -145,7 +143,7 @@ export class BridgeService {
         oldState: {
           bridgeId,
           leg: 'DEBIT',
-          accountId: dto.fromAccountId,
+          accountId: fromAccount.id,
           balance: fromBalanceBefore.toString(),
         },
         newState: {
@@ -158,8 +156,8 @@ export class BridgeService {
         balanceBefore: fromBalanceBefore,
         balanceAfter: updatedFromAccount.balance,
         delta: amountDecimal.negated(),
-        fromAccount: dto.fromAccountId,
-        toAccount: dto.toAccountId,
+        fromAccount: fromAccount.id,
+        toAccount: toAccount.id,
       }, tx);
 
       await AuditLogService.logSync({
@@ -171,7 +169,7 @@ export class BridgeService {
         oldState: {
           bridgeId,
           leg: 'CREDIT',
-          accountId: dto.toAccountId,
+          accountId: toAccount.id,
           balance: toBalanceBefore.toString(),
         },
         newState: {
@@ -184,8 +182,8 @@ export class BridgeService {
         balanceBefore: toBalanceBefore,
         balanceAfter: updatedToAccount.balance,
         delta: amountDecimal,
-        fromAccount: dto.fromAccountId,
-        toAccount: dto.toAccountId,
+        fromAccount: fromAccount.id,
+        toAccount: toAccount.id,
       }, tx);
 
       return { debitTx, creditTx };

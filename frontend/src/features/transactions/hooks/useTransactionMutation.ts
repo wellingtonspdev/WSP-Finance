@@ -37,7 +37,7 @@ export function useTransactionMutation(onSuccessCallback?: () => void) {
                 return;
             }
 
-            if (!data.toWorkspaceId || !data.accountId || !data.toAccountId) {
+            if (!data.toWorkspaceId) {
                 toastError('Preencha todas as contas para a transferência.');
                 return;
             }
@@ -45,8 +45,6 @@ export function useTransactionMutation(onSuccessCallback?: () => void) {
             const dto = {
                 fromWorkspaceId: activeWorkspace.id,
                 toWorkspaceId: data.toWorkspaceId,
-                fromAccountId: data.accountId,
-                toAccountId: data.toAccountId,
                 amount: data.amount,
                 description: data.description || 'Transferência Pró-labore',
                 date: new Date(data.date).toISOString()
