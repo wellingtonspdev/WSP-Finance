@@ -2,29 +2,25 @@ import { z } from 'zod';
 
 // Schema for generic transactions and bridge
 export const transactionFormSchema = z.object({
-    description: z.string().min(3, 'A descrição deve ter pelo menos 3 caracteres'),
-    amount: z.number().min(0.01, 'O valor não pode ser zero'),
-    date: z.string(), // ISO String or YYYY-MM-DD
-    type: z.enum(['INCOME', 'EXPENSE', 'BRIDGE']), // Adicionado BRIDGE mock local
+    description: z.string().min(3, 'A descricao deve ter pelo menos 3 caracteres'),
+    amount: z.number().min(0.01, 'O valor nao pode ser zero'),
+    date: z.string(),
+    type: z.enum(['INCOME', 'EXPENSE', 'BRIDGE']),
 
-    // Default Fields
     accountId: z.number().int().optional(),
     categoryId: z.number().int().optional(),
     isPaid: z.boolean(),
 
-    // Bridge specific fields
     toWorkspaceId: z.number().int().optional(),
     toAccountId: z.number().int().optional(),
 
-    // PACT Marketplace Fields (Optional)
     grossAmount: z.number().optional(),
     marketplaceFee: z.number().optional(),
     shippingCost: z.number().optional(),
     productCost: z.number().optional(),
     platformFeeRate: z.number().optional(),
 
-    // Cloudflare R2 Upload Hook
-    attachment: z.any().optional(), // File type avoid runtime crash on SSR or Zod File checks
+    attachment: z.any().optional(),
     attachmentUrl: z.string().optional(),
     attachmentSize: z.number().optional(),
 }).superRefine((data, ctx) => {
@@ -32,23 +28,16 @@ export const transactionFormSchema = z.object({
         if (!data.toWorkspaceId || !data.toAccountId || !data.accountId) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: "Preencha todas as contas do Pró-labore",
-                path: ["toAccountId"] // highlight some field
+                message: 'Preencha todas as contas do Pro-labore',
+                path: ['toAccountId']
             });
         }
     } else {
-        if (!data.accountId || data.accountId <= 0) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "Selecione uma Conta Bancária",
-                path: ["accountId"]
-            });
-        }
         if (!data.categoryId || data.categoryId <= 0) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: "Selecione uma Categoria",
-                path: ["categoryId"]
+                message: 'Selecione uma Categoria',
+                path: ['categoryId']
             });
         }
     }
@@ -57,8 +46,8 @@ export const transactionFormSchema = z.object({
 export type CreateTransactionDTO = z.infer<typeof transactionFormSchema>;
 
 export const transactionPayloadSchema = z.object({
-    description: z.string().min(3, 'A descrição deve ter pelo menos 3 caracteres'),
-    amount: z.number().min(0.01, 'O valor não pode ser zero'),
+    description: z.string().min(3, 'A descricao deve ter pelo menos 3 caracteres'),
+    amount: z.number().min(0.01, 'O valor nao pode ser zero'),
     date: z.string(),
     type: z.enum(['INCOME', 'EXPENSE', 'BRIDGE']),
     accountId: z.number().int().optional(),
@@ -77,7 +66,6 @@ export const transactionPayloadSchema = z.object({
 
 export type TransactionPayloadDTO = z.infer<typeof transactionPayloadSchema>;
 
-// API Response Type for Transaction
 export interface Transaction {
     id: string;
     description: string;
@@ -91,7 +79,6 @@ export interface Transaction {
     categoryId: number;
     workspaceId: number;
 
-    // Relacionamentos aninhados opcionais (recebidos via Prisma include)
     account?: {
         name: string;
     };
@@ -101,7 +88,6 @@ export interface Transaction {
         color: string;
     };
 
-    // PACT V3 properties
     grossAmount?: number;
     marketplaceFee?: number;
     shippingCost?: number;
@@ -111,17 +97,14 @@ export interface Transaction {
     feeAmount?: number;
     netValue?: number;
 
-    // V3.8 Cota e Vault
     attachmentUrl?: string;
 
     createdAt: string;
     updatedAt: string;
 
-    // AI Insights (S5-010)
     aiInsights?: AIInsightForTransaction[];
 }
 
-// AI Insight for Transaction List DTO (S5-010)
 export type AIInsightSeverity = 'INFO' | 'WARNING' | 'CRITICAL';
 
 export interface AIInsightForTransaction {
@@ -137,7 +120,6 @@ export interface AIInsightForTransaction {
     updatedAt?: string;
 }
 
-// Transaction List Filter Params
 export interface TransactionFilters {
     month?: number;
     year?: number;

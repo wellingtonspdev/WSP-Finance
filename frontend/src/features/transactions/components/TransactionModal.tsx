@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,13 +29,14 @@ interface TransactionModalProps {
 export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
     const [transCategory, setTransCategory] = useState<TransCategory>('INCOME_SIMPLE');
     const { error: toastError } = useToast();
+    const resetRef = useRef<(() => void) | null>(null);
 
     // Contexto Global
     const { activeWorkspace, workspaces } = useWorkspace();
 
     // Custom Hook Híbrido (Desacoplamento SoC)
     const { submitTransaction, isProcessing, isUploading, uploadProgress, abortUpload } = useTransactionMutation(() => {
-        reset();
+        resetRef.current?.();
         onClose();
     });
 
@@ -43,9 +44,9 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
     useEffect(() => {
         if (!isOpen) {
             abortUpload();
-            reset();
+            resetRef.current?.();
         }
-    }, [isOpen, abortUpload, reset]);
+    }, [isOpen, abortUpload]);
 
     // Data Fetchers
     const { data: categories, isLoading: isLoadingCategories } = useCategories();
@@ -65,6 +66,7 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
             date: new Date().toISOString().split('T')[0],
         }
     });
+    resetRef.current = reset;
 
     const watchToWorkspaceId = useWatch({ control, name: 'toWorkspaceId' });
 
@@ -189,12 +191,6 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
                                     <div>
                                         <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Descrição</label>
                                         <Input placeholder={transCategory === 'BRIDGE' ? 'Ex: Transferência L2 (Lucros)' : 'Ex: Fone Bluetooth XYZ'} {...register('description')} error={errors.description?.message} icon={<FileText className="w-4 h-4" />} />
-                                        <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Status</label>
-                                        <select {...register('isPaid', { setValueAs: (v: string) => v === 'true' })} className={`w-full bg-white/5 border rounded-xl text-white px-3 py-2.5 outline-none focus:ring-1 focus:ring-purple-500 ${errors.isPaid ? 'border-red-500' : 'border-white/10'}`}>
-                                            <option value="true" className="text-black">Pago / Recebido</option>
-                                            <option value="false" className="text-black">Pendente</option>
-                                        </select>
-                                        {errors.isPaid?.message && <p className="text-red-500 text-xs mt-1 ml-1">{errors.isPaid.message}</p>}
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">

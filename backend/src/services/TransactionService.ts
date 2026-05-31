@@ -2,7 +2,7 @@ import { prisma } from '../lib/prisma';
 import { TransactionRepository } from '../repositories/TransactionRepository';
 import { AccountRepository } from '../repositories/AccountRepository';
 import { CategoryRepository } from '../repositories/CategoryRepository';
-import { TransactionType } from '@prisma/client';
+import { Account, TransactionType, WorkspaceType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { UploadService } from './UploadService';
 import { AuditLogService } from './AuditLogService';
@@ -20,11 +20,10 @@ interface CreateTransactionDTO {
   amount: number;
   date: Date;
   type: TransactionType;
-  accountId: number;
+  accountId?: number;
   categoryId: number;
   isPaid: boolean;
   workspaceId: number;
-  // Campos Opcionais de Marketplace (PACT)
   grossAmount?: number;
   marketplaceFee?: number;
   shippingCost?: number;
@@ -47,6 +46,19 @@ export class TransactionService {
     this.outboxService = new OutboxService();
   }
 
+  private async resolveAccount(
+    accountId: number | undefined,
+    workspaceId: number,
+    workspaceType: WorkspaceType
+  ): Promise<Account> {
+    const account = accountId
+      ? await this.accountRepository.findByIdAndWorkspace(accountId, workspaceId)
+      : await this.accountRepository.findDefaultByWorkspace(workspaceId, workspaceType);
+
+    if (!account) throw new Error('Account not found or access denied');
+    return account;
+  }
+
   async create({
     userId,
     description,
@@ -65,43 +77,32 @@ export class TransactionService {
     attachmentUrl,
     attachmentSize
   }: CreateTransactionDTO) {
-    // 1. Validações de Pertencimento (Segurança)
-    const account = await this.accountRepository.findByIdAndWorkspace(accountId, workspaceId);
-    if (!account) throw new Error('Account not found or access denied');
-
     const category = await this.categoryRepository.findByIdAndWorkspace(categoryId, workspaceId);
     if (!category) throw new Error('Category not found or access denied');
 
     const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
     if (!workspace) throw new AppError('Workspace not found', 404);
 
-    // Guardião de Período Fiscal (closedUntil)
+    const resolvedAccount = await this.resolveAccount(accountId, workspaceId, workspace.type);
+
     if (workspace.closedUntil) {
       const store = tenantContext.getStore();
       const isAccountantBypass = store?.userRole === 'ACCOUNTANT' && workspace.type === 'BUSINESS';
       const isTargetDateClosed = dayjs(date).isSameOrBefore(dayjs(workspace.closedUntil), 'day');
-      
+
       if (isTargetDateClosed && !isAccountantBypass) {
-        throw new AppError('Acesso negado: A data da transação pertence a um período fiscal fechado.', 403);
+        throw new AppError('Acesso negado: A data da transacao pertence a um periodo fiscal fechado.', 403);
       }
     }
 
-    const taxRate = workspace.taxRate; // Prisma lida como Decimal
-
-    // 2. Motor de Cálculo Financeiro: Provisões Tributárias e Plataforma
     let finalAmount = new Decimal(amount);
-    let calculatedGross = grossAmount !== undefined && grossAmount !== null ? new Decimal(grossAmount) : null;
+    const calculatedGross = grossAmount !== undefined && grossAmount !== null ? new Decimal(grossAmount) : null;
     let calculatedFee = marketplaceFee !== undefined && marketplaceFee !== null ? new Decimal(marketplaceFee) : null;
-    let calculatedShipping = shippingCost !== undefined && shippingCost !== null ? new Decimal(shippingCost) : null;
-    let calculatedCost = productCost !== undefined && productCost !== null ? new Decimal(productCost) : null;
-    let calculatedPlatformFeeRate = platformFeeRate !== undefined && platformFeeRate !== null ? new Decimal(platformFeeRate) : null;
+    const calculatedShipping = shippingCost !== undefined && shippingCost !== null ? new Decimal(shippingCost) : null;
+    const calculatedCost = productCost !== undefined && productCost !== null ? new Decimal(productCost) : null;
+    const calculatedPlatformFeeRate = platformFeeRate !== undefined && platformFeeRate !== null ? new Decimal(platformFeeRate) : null;
 
-    let computedTaxAmount: Decimal | null = null;
-    let computedNetValue: Decimal | null = null;
-
-    // CENÁRIO A: É uma venda detalhada com Gross Amount (MercadoLivre / Shopee)
     if (calculatedGross !== null) {
-      // 1. Resolvemos a Fee da plataforma (Se vier Rate, calcula; senão, usa a fixa)
       let fee = new Decimal(0);
       if (calculatedPlatformFeeRate !== null) {
         fee = calculatedGross.mul(calculatedPlatformFeeRate.dividedBy(100));
@@ -111,30 +112,13 @@ export class TransactionService {
       }
 
       const shipping = calculatedShipping !== null ? calculatedShipping : new Decimal(0);
-
-      // 2. Calcula Imposto (DAS incide sobre Faturamento Bruto)
-      computedTaxAmount = calculatedGross.mul(taxRate.dividedBy(100));
-
-      // 3. Calcula o Valor Líquido Real (Recebido - Imposto Retido)
-      computedNetValue = calculatedGross.minus(fee).minus(computedTaxAmount);
-
-      // 4. Saldo Bancário Final (O que fisicamente entra na conta: Bruto - Taxas - Frete)
       finalAmount = calculatedGross.minus(fee).minus(shipping);
     }
-    // CENÁRIO B: Entrada manual simples sem Gross (Ex: Honorário direto)
-    else {
-      if (type === 'INCOME') {
-        computedTaxAmount = finalAmount.mul(taxRate.dividedBy(100));
-        computedNetValue = finalAmount.minus(computedTaxAmount);
-      }
-    }
 
-    // 3. Transação Atômica (Cria Transação + Atualiza Saldo)
     return await prisma.$transaction(async (tx: any) => {
-      // A. Criar o registro da transação
       const transaction = await this.transactionRepository.create({
         description,
-        amount: finalAmount, // Valor calculado ou original
+        amount: finalAmount,
         date,
         type,
         isPaid,
@@ -143,21 +127,20 @@ export class TransactionService {
         shippingCost: calculatedShipping,
         productCost: calculatedCost,
         platformFeeRate: calculatedPlatformFeeRate,
-        taxAmount: computedTaxAmount,
+        taxAmount: null,
         feeAmount: calculatedFee,
-        netValue: computedNetValue,
+        netValue: null,
         attachmentUrl,
         attachmentSize,
-        account: { connect: { id: accountId } },
+        account: { connect: { id: resolvedAccount.id } },
         category: { connect: { id: categoryId } },
         workspace: { connect: { id: workspaceId } }
       }, tx);
 
-      // B. Atualizar o saldo da conta (SE estiver pago)
       if (isPaid) {
-        const balanceBefore = new Decimal(account.balance.toString());
+        const balanceBefore = new Decimal(resolvedAccount.balance.toString());
         const balanceDelta = type === 'INCOME' ? finalAmount : finalAmount.negated();
-        const updatedAccount = await this.accountRepository.updateBalance(accountId, balanceDelta, tx);
+        const updatedAccount = await this.accountRepository.updateBalance(resolvedAccount.id, balanceDelta, tx);
 
         await AuditLogService.logSync({
           userId,
@@ -167,7 +150,7 @@ export class TransactionService {
           entityId: transaction.id,
           newState: {
             transactionId: transaction.id,
-            accountId,
+            accountId: resolvedAccount.id,
             amount: finalAmount.toString(),
             type,
             isPaid,
@@ -175,7 +158,7 @@ export class TransactionService {
           balanceBefore,
           balanceAfter: updatedAccount.balance,
           delta: balanceDelta,
-          fromAccount: accountId,
+          fromAccount: resolvedAccount.id,
         }, tx);
       }
 
@@ -220,25 +203,22 @@ export class TransactionService {
     if (!transaction) throw new AppError('Transaction not found or access denied', 404);
 
     const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: { closedUntil: true, type: true } });
-    
-    // Guardião de Período Fiscal (closedUntil)
+
     if (workspace?.closedUntil) {
       const store = tenantContext.getStore();
       const isAccountantBypass = store?.userRole === 'ACCOUNTANT' && workspace.type === 'BUSINESS';
       const isTargetDateClosed = dayjs(transaction.date).isSameOrBefore(dayjs(workspace.closedUntil), 'day');
-      
+
       if (isTargetDateClosed && !isAccountantBypass) {
-        throw new AppError('Acesso negado: A transação pertence a um período fiscal fechado e não pode ser deletada.', 403);
+        throw new AppError('Acesso negado: A transacao pertence a um periodo fiscal fechado e nao pode ser deletada.', 403);
       }
     }
 
-    // 1. Transação Atômica (Reembolsar Saldo + Apagar Registro)
     const account = await this.accountRepository.findByIdAndWorkspace(transaction.accountId, workspaceId);
     if (!account) throw new AppError('Account not found or access denied', 404);
 
     await prisma.$transaction(async (tx: any) => {
       if (transaction.isPaid && transaction.amount) {
-        // Reverter saldo (Se era ganho, o saldo decresce; se era gasto, retorna ao caixa)
         const balanceBefore = new Decimal(account.balance.toString());
         const amount = new Decimal(transaction.amount.toString());
         const balanceDelta = transaction.type === 'INCOME' ? amount.negated() : amount;
@@ -270,11 +250,10 @@ export class TransactionService {
       await this.transactionRepository.delete(id, tx);
     });
 
-    // 2. V3.8 Expurgo Zumbi S3 (Asynchronous e Fora da Trasaction DB para não bloqueio)
     if (transaction.attachmentUrl && transaction.attachmentUrl.length > 5) {
       const uploadService = new UploadService();
       uploadService.deleteRemoteFile(transaction.attachmentUrl).catch((err) => {
-        console.error('[R2 GC] Falha não-bloqueante ao apagar arquivo S3 Atrelado:', err);
+        console.error('[R2 GC] Falha nao-bloqueante ao apagar arquivo S3 Atrelado:', err);
       });
     }
   }

@@ -120,10 +120,11 @@ export function useTransactionMutation(onSuccessCallback?: () => void) {
             amount: Number(data.amount),
             date: data.date,
             type: data.type === 'BRIDGE' ? 'INCOME' : data.type, // Backend não conhece 'BRIDGE'
-            accountId: Number(data.accountId),
             categoryId: Number(data.categoryId),
             isPaid: data.isPaid === true || (data.isPaid as unknown as string) === 'true', // Coerção: <select> envia string
         };
+
+        if (data.accountId && Number(data.accountId) > 0) sanitizedPayload.accountId = Number(data.accountId);
 
         // Campos opcionais de Marketplace (somente se preenchidos e > 0)
         if (data.grossAmount && Number(data.grossAmount) > 0) sanitizedPayload.grossAmount = Number(data.grossAmount);
