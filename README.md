@@ -26,11 +26,24 @@ O **WSP Finance** é uma plataforma de gestão financeira híbrida (SaaS), proje
 Siga os passos abaixo para rodar o projeto completo localmente.
 
 ### Pré-requisitos
-*   Node.js (v18+)
-*   PNPM (Recomendado) ou NPM
-*   PostgreSQL rodando localmente (usualmente gerenciado via pgAdmin)
+*   **Node.js**: v22+ (v22.16.0 homologada)
+*   **PNPM**: v10+ (Recomendado, v10.27.0 homologada)
+*   **PostgreSQL**: v15+ rodando localmente (usualmente gerenciado via pgAdmin)
 
-### 1. Configurando o Backend
+### 1. Clonando o Repositório
+
+```bash
+git clone https://github.com/wellingtonspdev/WSP-Finance.git
+cd WSP-Finance
+```
+
+### 2. Preparando o Banco de Dados (pgAdmin)
+
+1. Abra o pgAdmin (ou sua ferramenta de banco local).
+2. Crie um novo banco de dados vazio (exemplo: `wsp_finance`).
+3. Verifique as credenciais do seu usuário `postgres` (serão necessárias no próximo passo).
+
+### 3. Configurando o Backend
 
 ```bash
 # 1. Entre na pasta do backend
@@ -40,30 +53,30 @@ cd backend
 pnpm install
 
 # 3. Configure as variáveis de ambiente
-# Copie o arquivo de exemplo e edite as chaves (necessário para JWT Refresh e Storage, etc)
+# Copie o arquivo de exemplo. Edite as credenciais do banco (DATABASE_URL) se necessário.
 cp .env.example .env
 
-# 4. Prepare o Banco de Dados
-npx prisma generate       # Gera a tipagem do Prisma
-npx prisma migrate dev    # Cria/Atualiza as tabelas de acordo com as migrations
-npx prisma db seed        # Popula com dados de teste 
+# 4. Prepare o Banco de Dados (Prisma ORM v6)
+pnpm prisma generate       # Gera a tipagem do Prisma
+pnpm prisma migrate dev    # Cria/Atualiza as tabelas de acordo com as migrations
+pnpm prisma db seed        # Popula com dados de teste 
 
 # 5. Inicie o Servidor
 pnpm dev
 ```
 *O Backend rodará em: `http://localhost:3333`*
 
-### 2. Configurando o Frontend
+### 4. Configurando o Frontend
 
 ```bash
-# 1. Abra um novo terminal e entre na pasta do frontend
+# 1. Abra um novo terminal a partir da raiz do projeto e entre no frontend
 cd frontend
 
 # 2. Instale as dependências
 pnpm install
 
 # 3. Configure a variável de ambiente
-# Copie o arquivo de exemplo caso exista ou crie para apontar a API
+# Copie o arquivo de exemplo que já possui o VITE_API_URL configurado
 cp .env.example .env
 
 # 4. Inicie a Aplicação
