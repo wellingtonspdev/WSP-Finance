@@ -10,10 +10,10 @@
     "test": "node --require ./scripts/vite-no-net-use.cjs ./node_modules/vitest/vitest.mjs run --config vitest.config.mjs --configLoader runner",
     "test:watch": "node --require ./scripts/vite-no-net-use.cjs ./node_modules/vitest/vitest.mjs --config vitest.config.mjs --configLoader runner",
     "swagger": "node swagger.js",
-    "postinstall": "prisma generate",
-    "prisma:validate": "prisma validate",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate:status": "prisma migrate status"
+    "postinstall": "pnpm exec prisma generate",
+    "prisma:validate": "pnpm exec prisma validate",
+    "prisma:generate": "pnpm exec prisma generate",
+    "prisma:migrate:status": "pnpm exec prisma migrate status"
   },
   "keywords": [],
   "author": "",

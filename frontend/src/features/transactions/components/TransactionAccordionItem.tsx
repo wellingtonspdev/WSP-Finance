@@ -100,7 +100,7 @@ export function TransactionAccordionItem({ transaction, onEdit, onDelete, onPrev
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation(); // Evita expandir o card ao clicar no clipe
-                                        onPreviewAttachment && onPreviewAttachment(transaction.id, e);
+                                        onPreviewAttachment?.(transaction.id, e);
                                     }}
                                     className="p-1 rounded bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
                                     title="Ver Comprovante"
