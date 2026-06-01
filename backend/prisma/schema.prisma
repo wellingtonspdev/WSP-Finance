@@ -123,6 +123,18 @@ enum RecurringProLaborePendingStatus {
   CANCELLED
 }
 
+enum TaxGuideType {
+  DAS
+  DAS_MEI
+}
+
+enum TaxGuideStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
 // --- MODELOS ---
 
 // Usuário
@@ -160,6 +172,7 @@ model User {
   recurringProLaborePendingsProcessing RecurringProLaborePending[] @relation("RecurringProLaborePendingProcessingBy")
   recurringProLaborePendingsConfirmed RecurringProLaborePending[] @relation("RecurringProLaborePendingConfirmedBy")
   recurringProLaborePendingsCancelled RecurringProLaborePending[] @relation("RecurringProLaborePendingCancelledBy")
+  taxGuidesCreated TaxGuide[] @relation("TaxGuideCreatedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -221,6 +234,7 @@ model Workspace {
   exportArchives ExportArchive[]
   outboxEvents OutboxEvent[]
   aiInsights   AiInsight[]
+  taxGuides    TaxGuide[]
   proLaboreSchedulesFrom RecurringProLaboreSchedule[] @relation("RecurringProLaboreScheduleSourceWorkspace")
   proLaboreSchedulesTo   RecurringProLaboreSchedule[] @relation("RecurringProLaboreScheduleDestinationWorkspace")
 
@@ -374,6 +388,7 @@ model Transaction {
   deletedAt DateTime? // Soft Delete (Auditoria)
 
   aiInsights  AiInsight[]
+  taxGuidesPaid TaxGuide[] @relation("TaxGuidePaidTransaction")
 
   @@unique([workspaceId, fitid]) // Garante unicidade do FITID dentro do workspace
   @@unique([workspaceId, hashDeduplication])
@@ -384,6 +399,33 @@ model Transaction {
 }
 
 // Auditoria (Governança)
+model TaxGuide {
+  id                    String         @id @default(uuid())
+  workspaceId           Int
+  workspace             Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type                  TaxGuideType
+  competenceMonth       Int
+  competenceYear        Int
+  dueDate               DateTime
+  amount                Decimal        @db.Decimal(19, 4)
+  status                TaxGuideStatus @default(PENDING)
+  guideFileObjectKey    String?
+  paymentProofObjectKey String?
+  paidTransactionId     String?
+  paidTransaction       Transaction?   @relation("TaxGuidePaidTransaction", fields: [paidTransactionId], references: [id], onDelete: SetNull)
+  createdByUserId       Int
+  createdByUser         User           @relation("TaxGuideCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  @@unique([workspaceId, type, competenceMonth, competenceYear])
+  @@index([workspaceId, status])
+  @@index([workspaceId, competenceYear, competenceMonth])
+  @@index([dueDate])
+  @@index([paidTransactionId])
+  @@index([createdByUserId])
+}
+
 model AuditLog {
   id             String      @id @default(uuid())
   userId         Int

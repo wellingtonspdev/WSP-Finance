@@ -19,7 +19,9 @@
     "mvp_mode": false,
     "auto_advance": false,
     "text_mode": false,
-    "plan_review_convergence": true
+    "plan_review_convergence": true,
+    "_auto_chain_active": false,
+    "use_worktrees": false
   },
   "parallelization": true,
   "brave_search": false
