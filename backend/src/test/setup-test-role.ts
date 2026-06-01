@@ -7,6 +7,7 @@ import {
   buildRestrictedDatabaseUrl,
 } from './test-role-config';
 
+dotenv.config({ path: path.resolve(process.cwd(), '.env.test') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 /**
@@ -15,6 +16,12 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
  * - validates that the role does not have SUPERUSER or BYPASSRLS
  */
 export async function setup() {
+  if (!process.env.DIRECT_URL) {
+    throw new Error(
+      'DIRECT_URL is required for backend tests. Copy backend/.env.test.example to backend/.env.test or set DIRECT_URL in backend/.env.'
+    );
+  }
+
   const adminClient = new PrismaClient({
     datasources: { db: { url: process.env.DIRECT_URL } },
   });

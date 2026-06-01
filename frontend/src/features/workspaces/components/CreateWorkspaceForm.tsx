@@ -50,7 +50,7 @@ export function CreateWorkspaceForm({ onSuccess }: { onSuccess?: () => void }) {
                     }
                     success('Dados da empresa importados com sucesso!');
                 }
-            } catch (err) {
+            } catch {
                 error('Não foi possível buscar os dados do CNPJ.');
             }
         }
@@ -69,7 +69,7 @@ export function CreateWorkspaceForm({ onSuccess }: { onSuccess?: () => void }) {
                     setValue('address.state', data.state, { shouldValidate: true });
                     success('Endereço completado via ViaCEP!');
                 }
-            } catch (err) {
+            } catch {
                 error('CEP não encontrado ou indisponível.');
             }
         }

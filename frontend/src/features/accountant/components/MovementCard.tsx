@@ -132,7 +132,7 @@ export function MovementCard({ movement, duplicates = [], onApprove, onReject, o
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {Object.entries(movement.rawPayload)
-                      .filter(([_, value]) => value !== null && value !== '')
+                      .filter(([, value]) => value !== null && value !== '')
                       .map(([key, value]) => (
                         <div key={key} className="flex flex-col gap-0.5 bg-black/20 p-2 rounded-lg border border-white/5">
                           <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider truncate">
