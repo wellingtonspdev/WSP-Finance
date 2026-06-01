@@ -29,6 +29,7 @@ import { AuthMiddleware } from './middlewares/AuthMiddleware';
 import { WorkspaceMiddleware } from './middlewares/WorkspaceMiddleware';
 import { WorkspaceRouteParamGuard } from './middlewares/WorkspaceRouteParamGuard';
 import { RbacMiddleware } from './middlewares/RbacMiddleware';
+import { FinancialMutationRbacMiddleware } from './middlewares/FinancialMutationRbacMiddleware';
 import { AdminMiddleware } from './middlewares/AdminMiddleware';
 import rateLimit from 'express-rate-limit';
 import multer from 'multer';
@@ -417,14 +418,14 @@ router.get('/transactions/:id', AuthMiddleware, WorkspaceMiddleware, (req, res, 
     return transactionController.getById(req, res);
 });
 
-router.post('/transactions', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+router.post('/transactions', AuthMiddleware, WorkspaceMiddleware, FinancialMutationRbacMiddleware(), (req, res, next) => {
     /* #swagger.tags = ['Transações']
        #swagger.summary = 'Criar Movimentação Financeira'
        #swagger.description = 'Faz a inserção formal de Receitas/Despesas operacionais impactando de forma viva a contabilidade central.' */
     return transactionController.create(req, res);
 });
 
-router.delete('/transactions/:id', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+router.delete('/transactions/:id', AuthMiddleware, WorkspaceMiddleware, FinancialMutationRbacMiddleware(), (req, res, next) => {
     /* #swagger.tags = ['Transações']
        #swagger.summary = 'Deletar Lançamento e Limpar Cota R2'
        #swagger.description = 'Realiza o Rollback do Saldo Bancário, extingue o registro fiscal e dispara a Faxina do Cloudflare para recuperar a cota.' */
@@ -495,7 +496,7 @@ router.post('/recurring-pro-labore/pending/:id/cancel', AuthMiddleware, (req, re
 });
 
 // --- IMPORTAÇÃO ---
-router.post('/transactions/import', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+router.post('/transactions/import', AuthMiddleware, WorkspaceMiddleware, FinancialMutationRbacMiddleware(), (req, res, next) => {
     /* #swagger.tags = ['Importação']
        #swagger.summary = 'Decodificar OFX Bancário'
        #swagger.description = 'Lê e traduz blocos de dados transacionais gerados por sistemas bancários antigos e transforma instantaneamente em Json compatível PACT.' */
@@ -543,21 +544,21 @@ router.get('/bank-movements', AuthMiddleware, WorkspaceMiddleware, (req, res, ne
     return bankMovementController.listPending(req, res);
 });
 
-router.post('/bank-movements/:id/merge', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+router.post('/bank-movements/:id/merge', AuthMiddleware, WorkspaceMiddleware, FinancialMutationRbacMiddleware(), (req, res, next) => {
     /* #swagger.tags = ['Inbox Aprovação']
        #swagger.summary = 'Mesclar Movimentos Duplicados'
        #swagger.description = 'Combina rawPayload de 2+ movimentos no keepId e deleta os discardIds. Operação atômica via prisma.$transaction.' */
     return bankMovementController.merge(req, res);
 });
 
-router.post('/bank-movements/:id/approve', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+router.post('/bank-movements/:id/approve', AuthMiddleware, WorkspaceMiddleware, FinancialMutationRbacMiddleware(), (req, res, next) => {
     /* #swagger.tags = ['Inbox Aprovação']
        #swagger.summary = 'Aprovar Movimento → Transaction'
        #swagger.description = 'Converte um BankMovement PENDING em Transaction real, atualizando saldo da conta e marcando o movimento como APPROVED.' */
     return bankMovementController.approve(req, res);
 });
 
-router.post('/bank-movements/:id/reject', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
+router.post('/bank-movements/:id/reject', AuthMiddleware, WorkspaceMiddleware, FinancialMutationRbacMiddleware(), (req, res, next) => {
     /* #swagger.tags = ['Inbox Aprovação']
        #swagger.summary = 'Rejeitar Movimento'
        #swagger.description = 'Marca o movimento como REJECTED sem criar Transaction.' */

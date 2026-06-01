@@ -57,7 +57,7 @@ export class BridgeService {
       where: {
         userId,
         workspaceId: { in: [dto.fromWorkspaceId, dto.toWorkspaceId] },
-        role: { in: ['OWNER', 'ACCOUNTANT'] },
+        role: 'OWNER',
       },
       include: { workspace: true },
     });
@@ -66,15 +66,14 @@ export class BridgeService {
     const toMembership = memberships.find((m) => m.workspaceId === dto.toWorkspaceId);
 
     if (!fromMembership || !toMembership) {
-      throw new AppError('Permissao negada: voce deve ter nivel OWNER ou ACCOUNTANT em ambos os workspaces para transferir.', 403);
+      throw new AppError('Permissao negada: voce deve ser OWNER em ambos os workspaces para transferir.', 403);
     }
 
     const validateClosedUntil = (workspace: any, role: string, transferDate: Date) => {
       if (workspace.closedUntil) {
-        const isAccountantBypass = role === 'ACCOUNTANT' && workspace.type === 'BUSINESS';
         const isTargetDateClosed = dayjs(transferDate).isSameOrBefore(dayjs(workspace.closedUntil), 'day');
 
-        if (isTargetDateClosed && !isAccountantBypass) {
+        if (isTargetDateClosed) {
           throw new AppError(`Acesso negado: transferencia afeta um periodo fiscal ja fechado no Workspace ID ${workspace.id}.`, 403);
         }
       }
