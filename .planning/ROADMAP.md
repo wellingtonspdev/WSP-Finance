@@ -183,3 +183,69 @@ Plans:
 
 - [x] S5-014-01-PLAN.md - TDD backend plan for tenant-safe export history listing API over existing ExportArchive records.
 - [x] S5-014-02-PLAN.md - TDD frontend plan for inline collapsed export history cards inside the Extract screen.
+
+### Phase S5-015A: [FISCAL/MVP][FEATURE] Criar TaxGuide para DAS/DAS-MEI como obrigação financeira
+
+**Goal:** Criar `TaxGuide` para registrar guias DAS/DAS-MEI como obrigacao financeira do workspace empresarial, com arquivos anexos e vinculo opcional a `Transaction`, sem calculo automatico nem transmissao oficial.
+
+**Depends on:** S5-013, S5-014
+
+**Status:** Planned
+
+**Scope:**
+
+1. Criar entidade `TaxGuide` com `workspaceId`, `type`, competencia, vencimento, valor, status, chaves de arquivo, `paidTransactionId`, `createdByUserId`, `createdAt` e `updatedAt`.
+2. Suportar tipos `DAS` e `DAS_MEI`.
+3. Suportar status `PENDING`, `PAID`, `OVERDUE` e `CANCELLED`.
+4. Criar `TaxGuideService`, `TaxGuideController` e rotas REST.
+5. Criar endpoint de upload do PDF da guia.
+6. Criar endpoint de upload do comprovante de pagamento.
+7. Permitir vinculo opcional com `Transaction` sem alterar a entidade `Transaction`.
+8. Listar guias por workspace com filtros de status e competencia.
+9. Calcular ou atualizar status `OVERDUE` quando `dueDate` passar.
+10. Registrar `AuditLog` seguro, sem PDF bruto, raw payload sensivel ou PII.
+11. Aplicar RBAC: `OWNER` cria/anexa/marca como paga; `ACCOUNTANT` cria/anexa; `VIEWER` nao altera.
+
+**Out of Scope:**
+
+1. Transmitir PGDAS-D.
+2. Calcular Simples Nacional.
+3. Gerar DAS automaticamente.
+4. Fator R ou PGMEI automatico.
+5. NFS-e ou NF-e.
+6. Baixa automatica por conciliacao.
+7. Juros, multa ou retificacao de guia.
+8. Criar `Transaction` diretamente dentro do fluxo `TaxGuide`.
+
+**Likely Files:**
+
+1. `backend/prisma/schema.prisma`
+2. `backend/src/services/TaxGuideService.ts`
+3. `backend/src/controllers/TaxGuideController.ts`
+4. `backend/src/routes.ts`
+5. `backend/src/middlewares/`
+6. `backend/src/services/*Storage*` or existing upload/storage helpers
+7. `backend/tests/taxguide/`
+
+**Success Criteria:**
+
+1. Criar guia do tipo `DAS` retorna sucesso.
+2. Criar guia do tipo `DAS_MEI` retorna sucesso.
+3. Criar guia em workspace `PERSONAL` retorna `403 Forbidden`.
+4. Requisicao cross-tenant retorna `403 Forbidden`.
+5. `ACCOUNTANT` cria guia com `201 Created` sem alterar `Transaction`.
+6. `ACCOUNTANT` tentando marcar guia como paga com `Transaction` recebe `403 Forbidden`.
+7. Upload de PDF da guia armazena somente arquivo permitido e salva apenas object key.
+8. Upload de comprovante armazena somente arquivo permitido e salva apenas object key.
+9. Status `OVERDUE` fica correto apos `dueDate` passar.
+10. Vinculo com `Transaction` respeita workspace e nega cross-workspace.
+11. `AuditLog` nao salva PDF bruto, raw payload sensivel ou PII.
+
+**Plans:** 5 plans
+
+Plans:
+- [ ] S5-015A-01-PLAN.md - TDD backend plan for TaxGuide schema, migration, uniqueness, and RLS proof.
+- [ ] S5-015A-02-PLAN.md - TDD backend plan for TaxGuide service rules, BUSINESS-only constraints, status projection, and transaction-link validation.
+- [ ] S5-015A-03-PLAN.md - TDD backend plan for TaxGuide REST controller, route validation, workspace scoping, and RBAC gates.
+- [ ] S5-015A-04-PLAN.md - TDD backend plan for PDF-only guide/proof uploads through the existing storage provider abstraction.
+- [ ] S5-015A-05-PLAN.md - TDD backend plan for AuditLog safety and focused backend acceptance sweep.
