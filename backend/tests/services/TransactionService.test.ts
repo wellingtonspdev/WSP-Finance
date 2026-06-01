@@ -9,6 +9,10 @@ dayjs.extend(isSameOrBefore);
 const mocks = vi.hoisted(() => ({
   mockAuditLogSync: vi.fn(),
   mockEnqueueInTransaction: vi.fn(),
+  mockFindAccountByIdAndWorkspace: vi.fn(),
+  mockFindDefaultAccountByWorkspace: vi.fn(),
+  mockUpdateBalance: vi.fn(),
+  mockCreateTransaction: vi.fn(),
 }));
 
 // Mocks
@@ -28,8 +32,9 @@ vi.mock('../../src/lib/prisma', () => {
 vi.mock('../../src/repositories/AccountRepository', () => {
   return {
     AccountRepository: class {
-      findByIdAndWorkspace = vi.fn().mockResolvedValue({ id: 1, balance: 1000 });
-      updateBalance = vi.fn().mockResolvedValue({ id: 1, balance: 1100 });
+      findByIdAndWorkspace = mocks.mockFindAccountByIdAndWorkspace;
+      findDefaultByWorkspace = mocks.mockFindDefaultAccountByWorkspace;
+      updateBalance = mocks.mockUpdateBalance;
     }
   };
 });
@@ -45,7 +50,7 @@ vi.mock('../../src/repositories/CategoryRepository', () => {
 vi.mock('../../src/repositories/TransactionRepository', () => {
   return {
     TransactionRepository: class {
-      create = vi.fn().mockResolvedValue({ id: 'fake-transaction', amount: 100 });
+      create = mocks.mockCreateTransaction;
       findByIdAndWorkspace = vi.fn().mockResolvedValue({ id: 'fake-transaction', amount: 100, isPaid: true, type: 'EXPENSE', accountId: 1, date: new Date('2026-01-15T12:00:00Z') });
       findDetailByIdAndWorkspace = vi.fn().mockResolvedValue({ id: 'fake-transaction', amount: 100, isPaid: true, type: 'EXPENSE', accountId: 1, date: new Date('2026-01-15T12:00:00Z'), category: {} });
       delete = vi.fn().mockResolvedValue(true);
@@ -88,6 +93,10 @@ describe('TransactionService - Guardião de Período Fiscal (closedUntil)', () =
       eventType: 'TRANSACTION_EXPENSE_CREATED',
       payload: { transactionId: 'fake-transaction' },
     });
+    mocks.mockFindAccountByIdAndWorkspace.mockResolvedValue({ id: 1, balance: 1000 });
+    mocks.mockFindDefaultAccountByWorkspace.mockResolvedValue({ id: 10, balance: 500, name: 'Conta PF Principal' });
+    mocks.mockUpdateBalance.mockResolvedValue({ id: 10, balance: 600 });
+    mocks.mockCreateTransaction.mockResolvedValue({ id: 'fake-transaction', amount: 100 });
     transactionService = new TransactionService();
   });
 
@@ -294,6 +303,235 @@ describe('TransactionService - Guardião de Período Fiscal (closedUntil)', () =
         workspaceId: 1
       });
 
+    });
+  });
+
+  describe('Phase 2 - transacoes manuais sem accountId e impostos off', () => {
+    it('cria transacao sem accountId em workspace pessoal usando Conta PF Principal', async () => {
+      const { prisma } = await import('../../src/lib/prisma');
+
+      (prisma.workspace.findUnique as any).mockResolvedValue({
+        id: 1,
+        type: 'PERSONAL',
+        taxRate: { dividedBy: vi.fn().mockReturnValue(0.06) },
+        closedUntil: null
+      });
+      mocks.mockFindDefaultAccountByWorkspace.mockResolvedValueOnce({ id: 10, balance: 500, name: 'Conta PF Principal' });
+
+      await transactionService.create({
+        userId: 99,
+        description: 'Receita sem conta',
+        amount: 100,
+        date: new Date('2026-02-01T10:00:00Z'),
+        type: 'INCOME',
+        categoryId: 1,
+        isPaid: false,
+        workspaceId: 1
+      });
+
+      expect(mocks.mockFindDefaultAccountByWorkspace).toHaveBeenCalledWith(1, 'PERSONAL');
+      expect(mocks.mockFindAccountByIdAndWorkspace).not.toHaveBeenCalled();
+      expect(mocks.mockCreateTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          account: { connect: { id: 10 } },
+          taxAmount: null,
+          netValue: null,
+        }),
+        expect.anything()
+      );
+    });
+
+    it('cria transacao sem accountId em workspace empresa usando Conta PJ Principal', async () => {
+      const { prisma } = await import('../../src/lib/prisma');
+
+      (prisma.workspace.findUnique as any).mockResolvedValue({
+        id: 2,
+        type: 'BUSINESS',
+        taxRate: { dividedBy: vi.fn().mockReturnValue(0.06) },
+        closedUntil: null
+      });
+      mocks.mockFindDefaultAccountByWorkspace.mockResolvedValueOnce({ id: 20, balance: 800, name: 'Conta PJ Principal' });
+
+      await transactionService.create({
+        userId: 99,
+        description: 'Receita empresa sem conta',
+        amount: 200,
+        date: new Date('2026-02-01T10:00:00Z'),
+        type: 'INCOME',
+        categoryId: 1,
+        isPaid: false,
+        workspaceId: 2
+      });
+
+      expect(mocks.mockFindDefaultAccountByWorkspace).toHaveBeenCalledWith(2, 'BUSINESS');
+      expect(mocks.mockCreateTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          account: { connect: { id: 20 } },
+          taxAmount: null,
+          netValue: null,
+        }),
+        expect.anything()
+      );
+    });
+
+    it('mantem accountId explicito bloqueado quando nao pertence ao workspace', async () => {
+      const { prisma } = await import('../../src/lib/prisma');
+
+      (prisma.workspace.findUnique as any).mockResolvedValue({
+        id: 1,
+        type: 'PERSONAL',
+        taxRate: { dividedBy: vi.fn().mockReturnValue(0.06) },
+        closedUntil: null
+      });
+      mocks.mockFindAccountByIdAndWorkspace.mockResolvedValueOnce(null);
+
+      await expect(transactionService.create({
+        userId: 99,
+        description: 'Conta invalida',
+        amount: 100,
+        date: new Date('2026-02-01T10:00:00Z'),
+        type: 'INCOME',
+        accountId: 999,
+        categoryId: 1,
+        isPaid: false,
+        workspaceId: 1
+      })).rejects.toThrow('Account not found or access denied');
+
+      expect(mocks.mockFindAccountByIdAndWorkspace).toHaveBeenCalledWith(999, 1);
+      expect(mocks.mockFindDefaultAccountByWorkspace).not.toHaveBeenCalled();
+    });
+
+    it('falha claramente quando workspace nao tem conta padrao nem fallback', async () => {
+      const { prisma } = await import('../../src/lib/prisma');
+
+      (prisma.workspace.findUnique as any).mockResolvedValue({
+        id: 1,
+        type: 'PERSONAL',
+        taxRate: { dividedBy: vi.fn().mockReturnValue(0.06) },
+        closedUntil: null
+      });
+      mocks.mockFindDefaultAccountByWorkspace.mockResolvedValueOnce(null);
+
+      await expect(transactionService.create({
+        userId: 99,
+        description: 'Sem conta',
+        amount: 100,
+        date: new Date('2026-02-01T10:00:00Z'),
+        type: 'INCOME',
+        categoryId: 1,
+        isPaid: false,
+        workspaceId: 1
+      })).rejects.toThrow('Account not found or access denied');
+    });
+
+    it('transacao paga sem accountId atualiza saldo e auditoria com conta resolvida', async () => {
+      const { prisma } = await import('../../src/lib/prisma');
+
+      (prisma.workspace.findUnique as any).mockResolvedValue({
+        id: 1,
+        type: 'PERSONAL',
+        taxRate: { dividedBy: vi.fn().mockReturnValue(0.06) },
+        closedUntil: null
+      });
+      mocks.mockFindDefaultAccountByWorkspace.mockResolvedValueOnce({ id: 10, balance: 500, name: 'Conta PF Principal' });
+      mocks.mockUpdateBalance.mockResolvedValueOnce({ id: 10, balance: 600 });
+
+      await transactionService.create({
+        userId: 99,
+        description: 'Receita paga sem conta',
+        amount: 100,
+        date: new Date('2026-02-01T10:00:00Z'),
+        type: 'INCOME',
+        categoryId: 1,
+        isPaid: true,
+        workspaceId: 1
+      });
+
+      expect(mocks.mockUpdateBalance).toHaveBeenCalledWith(10, expect.anything(), expect.anything());
+      expect(mocks.mockAuditLogSync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          newState: expect.objectContaining({ accountId: 10 }),
+          fromAccount: 10,
+        }),
+        expect.anything()
+      );
+    });
+
+    it('nao calcula taxAmount nem netValue com taxRate positivo e preserva marketplace', async () => {
+      const { prisma } = await import('../../src/lib/prisma');
+
+      (prisma.workspace.findUnique as any).mockResolvedValue({
+        id: 1,
+        type: 'BUSINESS',
+        taxRate: { dividedBy: vi.fn().mockReturnValue(0.06) },
+        closedUntil: null
+      });
+      mocks.mockFindDefaultAccountByWorkspace.mockResolvedValueOnce({ id: 20, balance: 800, name: 'Conta PJ Principal' });
+
+      await transactionService.create({
+        userId: 99,
+        description: 'Venda marketplace',
+        amount: 100,
+        date: new Date('2026-02-01T10:00:00Z'),
+        type: 'INCOME',
+        categoryId: 1,
+        isPaid: false,
+        workspaceId: 1,
+        grossAmount: 1000,
+        marketplaceFee: 80,
+        shippingCost: 20,
+        productCost: 300,
+      });
+
+      expect(mocks.mockCreateTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount: expect.objectContaining({ toString: expect.any(Function) }),
+          grossAmount: expect.objectContaining({ toString: expect.any(Function) }),
+          marketplaceFee: expect.objectContaining({ toString: expect.any(Function) }),
+          shippingCost: expect.objectContaining({ toString: expect.any(Function) }),
+          productCost: expect.objectContaining({ toString: expect.any(Function) }),
+          taxAmount: null,
+          netValue: null,
+        }),
+        expect.anything()
+      );
+      const createData = mocks.mockCreateTransaction.mock.calls.at(-1)?.[0];
+      expect(createData.amount.toString()).toBe('900');
+      expect(createData.grossAmount.toString()).toBe('1000');
+      expect(createData.marketplaceFee.toString()).toBe('80');
+      expect(createData.shippingCost.toString()).toBe('20');
+      expect(createData.productCost.toString()).toBe('300');
+    });
+
+    it('mantem Transaction.id como string e Account/Workspace ids numericos no contrato testado', async () => {
+      const { prisma } = await import('../../src/lib/prisma');
+
+      (prisma.workspace.findUnique as any).mockResolvedValue({
+        id: 1,
+        type: 'PERSONAL',
+        taxRate: { dividedBy: vi.fn().mockReturnValue(0.06) },
+        closedUntil: null
+      });
+      mocks.mockCreateTransaction.mockResolvedValueOnce({
+        id: '00000000-0000-4000-8000-000000000001',
+        accountId: 10,
+        workspaceId: 1,
+      });
+
+      const result = await transactionService.create({
+        userId: 99,
+        description: 'Contrato de IDs',
+        amount: 100,
+        date: new Date('2026-02-01T10:00:00Z'),
+        type: 'INCOME',
+        categoryId: 1,
+        isPaid: false,
+        workspaceId: 1
+      });
+
+      expect(typeof result.id).toBe('string');
+      expect(typeof result.accountId).toBe('number');
+      expect(typeof result.workspaceId).toBe('number');
     });
   });
 

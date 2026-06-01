@@ -4,16 +4,20 @@ import { NotificationRepository } from '../repositories/NotificationRepository';
 import { addDays, startOfDay, endOfDay } from 'date-fns';
 import { AccountantCacheService, RefreshCacheResult } from './AccountantCacheService';
 import { sysPrisma } from '../lib/prisma';
+import { RecurringProLaboreService } from './RecurringProLaboreService';
 
 export class CronService {
   private notificationRepository: NotificationRepository;
   private accountantCacheService: AccountantCacheService;
+  private recurringProLaboreService: RecurringProLaboreService;
   private isCacheRefreshRunning = false;
+  private isRecurringProLaboreRunning = false;
   private isStarted = false;
 
-  constructor(accountantCacheService?: AccountantCacheService) {
+  constructor(accountantCacheService?: AccountantCacheService, recurringProLaboreService?: RecurringProLaboreService) {
     this.notificationRepository = new NotificationRepository();
     this.accountantCacheService = accountantCacheService || new AccountantCacheService();
+    this.recurringProLaboreService = recurringProLaboreService || new RecurringProLaboreService();
   }
 
   // Inicia os agendamentos
@@ -33,6 +37,11 @@ export class CronService {
     });
 
     // Atualização de cache a cada 30 minutos
+    cron.schedule('15 8 * * *', async () => {
+      console.log('[RecurringProLabore] Generating due pending confirmations...');
+      await this.generateRecurringProLaborePendings();
+    });
+
     cron.schedule('*/30 * * * *', async () => {
       console.log('[CronCache] Running Accountant Cache Refresh...');
       await this.refreshAccountantCaches();
@@ -115,6 +124,23 @@ export class CronService {
   }
 
   // Lógica de Verificação
+  async generateRecurringProLaborePendings() {
+    if (this.isRecurringProLaboreRunning) {
+      console.warn('[RecurringProLabore] Generation already running, skipping this round.');
+      return;
+    }
+
+    this.isRecurringProLaboreRunning = true;
+    try {
+      const result = await this.recurringProLaboreService.generateDuePendings(new Date());
+      console.log(`[RecurringProLabore] Checked ${result.checked} schedule(s), created ${result.created} pending(s).`);
+    } catch (err: any) {
+      console.error(`[RecurringProLabore] Generation failed: ${err?.message}`);
+    } finally {
+      this.isRecurringProLaboreRunning = false;
+    }
+  }
+
   async checkFinancialHealth() {
     // 1. Buscar membros OWNER e seus respectivos Workspaces
     // O sistema agora segue o modelo multi-tenant via WorkspaceMember

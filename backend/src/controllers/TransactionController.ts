@@ -16,7 +16,7 @@ export class TransactionController {
       amount: z.number().positive(),
       date: z.coerce.date(),
       type: z.nativeEnum(TransactionType),
-      accountId: z.number().int().positive(),
+      accountId: z.number().int().positive().optional(),
       categoryId: z.number().int().positive(),
       isPaid: z.coerce.boolean().default(true),
       // Campos Opcionais de Marketplace

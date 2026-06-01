@@ -77,6 +77,7 @@ export function TransactionAccordionItem({ transaction, onEdit, onDelete, onPrev
 
     // PACT validation format
     const isPact = transaction.grossAmount != null && transaction.grossAmount > 0;
+    const hasNetValue = transaction.netValue != null;
 
     const IconComponent = transaction.category?.icon ? (ICON_MAP[transaction.category.icon] || Tag) : Tag;
 
@@ -108,7 +109,7 @@ export function TransactionAccordionItem({ transaction, onEdit, onDelete, onPrev
                                 </button>
                             )}
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5 break-words">Conta: {transaction.account?.name || transaction.accountId} • Categoria: {transaction.category?.name || transaction.categoryId}</p>
+                        <p className="text-xs text-slate-400 mt-0.5 break-words">Categoria: {transaction.category?.name || transaction.categoryId}</p>
                     </div>
                 </div>
                 <div className="text-right shrink-0 ml-3 whitespace-nowrap">
@@ -172,7 +173,7 @@ export function TransactionAccordionItem({ transaction, onEdit, onDelete, onPrev
                                 <div className="h-px bg-white/5 my-2"></div>
 
                                 <div className="flex justify-between items-center mt-2">
-                                    <span className="text-sm font-medium text-slate-300">Total Líquido</span>
+                                    <span className="text-sm font-medium text-slate-300">{hasNetValue ? 'Total Líquido' : 'Total'}</span>
                                     <div className={`px-3 py-1 rounded-lg border ${amountColor === 'text-green-400' ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
                                         <span className={`text-base font-bold ${amountColor}`}>{finalAmountString}</span>
                                     </div>

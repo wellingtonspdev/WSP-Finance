@@ -37,6 +37,7 @@ enum MovementSource {
   OPEN_FINANCE
   OCR
   MANUAL
+  TELEGRAM_OCR
 }
 
 enum MovementStatus {
@@ -90,6 +91,11 @@ enum AuditAction {
   ATTACHMENT_VIEW // Fase C: Auditoria de visualização de anexo
   CATEGORY_UPDATE // Fase C: Auditoria de alteração de categoria
   EXPORT
+  OCR_INGESTION
+  OCR_CONFIRMATION
+  OCR_CANCELLATION
+  TELEGRAM_LINK_CREATED
+  TELEGRAM_LINK_REVOKED
 }
 
 enum OutboxStatus {
@@ -109,6 +115,12 @@ enum AiInsightCode {
   MISTURA_PATRIMONIAL
   RISCO_MALHA_FINA
   DESPESA_PESSOAL_POTENCIAL
+}
+
+enum RecurringProLaborePendingStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
 }
 
 // --- MODELOS ---
@@ -144,6 +156,10 @@ model User {
   invitesSent   WorkspaceInvite[]          @relation("InvitesSent")
   dashboardCaches AccountantDashboardCache[]
   exportArchivesCreated ExportArchive[] @relation("ExportArchiveCreatedBy")
+  recurringProLaboreSchedulesCreated RecurringProLaboreSchedule[] @relation("RecurringProLaboreScheduleCreatedBy")
+  recurringProLaborePendingsProcessing RecurringProLaborePending[] @relation("RecurringProLaborePendingProcessingBy")
+  recurringProLaborePendingsConfirmed RecurringProLaborePending[] @relation("RecurringProLaborePendingConfirmedBy")
+  recurringProLaborePendingsCancelled RecurringProLaborePending[] @relation("RecurringProLaborePendingCancelledBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -205,9 +221,63 @@ model Workspace {
   exportArchives ExportArchive[]
   outboxEvents OutboxEvent[]
   aiInsights   AiInsight[]
+  proLaboreSchedulesFrom RecurringProLaboreSchedule[] @relation("RecurringProLaboreScheduleSourceWorkspace")
+  proLaboreSchedulesTo   RecurringProLaboreSchedule[] @relation("RecurringProLaboreScheduleDestinationWorkspace")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model RecurringProLaboreSchedule {
+  id                     String    @id @default(uuid())
+  sourceWorkspaceId      Int
+  sourceWorkspace        Workspace @relation("RecurringProLaboreScheduleSourceWorkspace", fields: [sourceWorkspaceId], references: [id], onDelete: Restrict)
+  destinationWorkspaceId Int
+  destinationWorkspace   Workspace @relation("RecurringProLaboreScheduleDestinationWorkspace", fields: [destinationWorkspaceId], references: [id], onDelete: Restrict)
+  amount                 Decimal   @db.Decimal(19, 4)
+  dayOfMonth             Int
+  description            String
+  isActive               Boolean   @default(true)
+  createdByUserId        Int
+  createdByUser          User      @relation("RecurringProLaboreScheduleCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  deactivatedAt          DateTime?
+  deactivatedByUserId    Int?
+  pendings               RecurringProLaborePending[]
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([sourceWorkspaceId])
+  @@index([destinationWorkspaceId])
+  @@index([isActive, dayOfMonth])
+  @@index([createdByUserId])
+}
+
+model RecurringProLaborePending {
+  id                 String                          @id @default(uuid())
+  scheduleId         String
+  schedule           RecurringProLaboreSchedule      @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
+  competence         DateTime
+  status             RecurringProLaborePendingStatus @default(PENDING)
+  bridgeId           String?                         @unique
+  processingStartedAt DateTime?
+  processingByUserId Int?
+  processingByUser   User?                           @relation("RecurringProLaborePendingProcessingBy", fields: [processingByUserId], references: [id], onDelete: SetNull)
+  confirmedByUserId  Int?
+  confirmedByUser    User?                           @relation("RecurringProLaborePendingConfirmedBy", fields: [confirmedByUserId], references: [id], onDelete: SetNull)
+  confirmedAt        DateTime?
+  cancelledByUserId  Int?
+  cancelledByUser    User?                           @relation("RecurringProLaborePendingCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: SetNull)
+  cancelledAt        DateTime?
+  lastAttemptAt      DateTime?
+  lastError          String?                         @db.VarChar(1000)
+  createdAt          DateTime                        @default(now())
+  updatedAt          DateTime                        @updatedAt
+
+  @@unique([scheduleId, competence])
+  @@index([status, competence])
+  @@index([processingByUserId])
+  @@index([confirmedByUserId])
+  @@index([cancelledByUserId])
 }
 
 // Macro Categoria (Catálogo WSP)
@@ -579,4 +649,100 @@ model AiInsight {
   @@index([transactionId])
   @@index([workspaceId, dismissed])
   @@index([workspaceId, createdAt])
+}
+
+// Vínculo Persistente Telegram ↔ Usuário
+model TelegramUserLink {
+  id                 String   @id @default(uuid())
+  telegramChatIdHash String
+  telegramUserIdHash String?
+  telegramUsername   String?
+  userId             Int
+  activeDestinationId String?
+  status             String   @default("ACTIVE")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  revokedAt          DateTime?
+
+  destinations       TelegramDestination[]
+
+  @@index([telegramChatIdHash])
+  @@index([telegramUserIdHash])
+  @@index([userId])
+  @@index([status])
+}
+
+// Destino Configurado pelo Usuário (Empresa/Pessoal)
+model TelegramDestination {
+  id                       String   @id @default(uuid())
+  telegramUserLinkId       String
+  userId                   Int
+  workspaceId              Int
+  accountId                Int
+  defaultExpenseCategoryId Int?
+  defaultIncomeCategoryId  Int?
+  label                    String?
+  isDefault                Boolean  @default(false)
+  status                   String   @default("ACTIVE")
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  revokedAt                DateTime?
+
+  telegramUserLink         TelegramUserLink @relation(fields: [telegramUserLinkId], references: [id], onDelete: Cascade)
+
+  @@index([telegramUserLinkId])
+  @@index([userId])
+  @@index([workspaceId])
+  @@index([status])
+}
+
+// Token Assinado para Conexão
+model TelegramLinkToken {
+  id                       String   @id @default(uuid())
+  codeHash                 String   @unique
+  attempts                 Int      @default(0)
+  maxAttempts              Int      @default(3)
+  userId                   Int
+
+  // Opcionais se criados no momento do vínculo
+  defaultWorkspaceId       Int?
+  defaultAccountId         Int?
+  defaultExpenseCategoryId Int?
+  defaultIncomeCategoryId  Int?
+
+  expiresAt                DateTime
+  usedAt                   DateTime?
+  createdAt                DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Rascunho temporário de OCR via Telegram
+model TelegramOcrDraft {
+  id                 String   @id @default(uuid())
+  telegramChatIdHash String
+  telegramUserIdHash String?
+  userId             Int
+
+  // OCR Data
+  extractedData      Json
+  fileId             String?
+
+  // Dados de Destino (selecionados no fluxo)
+  workspaceId        Int?
+  accountId          Int?
+  categoryId         Int?
+
+  // Controle de estado
+  step               String   @default("AWAITING_WORKSPACE")
+  status             String   @default("PENDING")
+
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([telegramChatIdHash])
+  @@index([userId])
+  @@index([status])
 }

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { UserRepository } from '../repositories/UserRepository';
 import { EtherealMailProvider } from '../providers/EtherealMailProvider';
 import { IMailProvider } from '../providers/IMailProvider';
@@ -13,8 +14,8 @@ export class VerificationService {
 
   // Envia o código de verificação (usado no registro e no reenvio)
   async sendVerificationCode(userId: number, email: string, name: string): Promise<void> { // MUDANÇA: number
-    // Gerar código de 6 dígitos
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    // Gerar código de 6 dígitos via CSPRNG
+    const code = crypto.randomInt(100000, 999999).toString();
 
     // Expira em 24 horas (tempo maior para ativação de conta)
     const expiresAt = new Date();

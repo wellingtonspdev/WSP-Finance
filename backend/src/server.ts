@@ -151,6 +151,35 @@ const startServer = async () => {
     const cronService = new CronService();
     cronService.start();
 
+    // Inicializar Telegram Bot (Se ativado)
+    if (process.env.TELEGRAM_BOT_ENABLED === 'true' && process.env.TELEGRAM_BOT_TOKEN) {
+      try {
+        // Necessário rodar: npm install node-telegram-bot-api
+        const TelegramBot = require('node-telegram-bot-api');
+        const botClient = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: false });
+
+        const { TelegramBotService } = require('./services/TelegramBotService');
+        const { TelegramContextResolver } = require('./services/TelegramContextResolver');
+        const { TelegramLinkService } = require('./services/TelegramLinkService');
+        const { TelegramLinkTokenService } = require('./services/TelegramLinkTokenService');
+
+        const telegramLinkTokenService = new TelegramLinkTokenService();
+        const telegramLinkService = new TelegramLinkService(telegramLinkTokenService);
+        const contextResolver = new TelegramContextResolver();
+
+        const telegramBotService = new TelegramBotService(
+          botClient,
+          contextResolver,
+          telegramLinkService
+        );
+
+        telegramBotService.startPolling();
+        console.log('🤖 Telegram Bot Service initialized via polling.');
+      } catch (botErr: any) {
+        console.error('🚨 Failed to start Telegram Bot:', botErr.message || botErr);
+      }
+    }
+
     const PORT = process.env.PORT || 3333;
 
     app.listen(PORT, () => {

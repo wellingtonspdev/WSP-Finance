@@ -660,12 +660,18 @@
         ],
         "summary": "Receber movimentos do Open Finance",
         "description": "Recebe lotes de movimentos bancarios vindos de uma integracao externa autenticada por token compartilhado. Esta rota existe para alimentar a fila de conciliacao sem depender de importacao manual.",
-        "security": [
+        "security": [],
+        "parameters": [
           {
-            "WebhookAuthorization": []
+            "in": "header",
+            "name": "authorization",
+            "required": true,
+            "description": "Token compartilhado com o provedor Open Finance para autenticar o webhook.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
-        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -1303,6 +1309,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1364,8 +1379,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ],
         "requestBody": {
@@ -1413,6 +1427,15 @@
               "type": "string"
             },
             "description": "ID do workspace"
+          },
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1432,8 +1455,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ]
       }
@@ -1458,6 +1480,15 @@
             "name": "inviteId",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
             "schema": {
               "type": "string"
             }
@@ -1499,8 +1530,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ]
       }
@@ -1734,6 +1764,15 @@
               "type": "string"
             },
             "description": "ID do workspace"
+          },
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1753,8 +1792,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ]
       }
@@ -1784,6 +1822,15 @@
               "type": "string"
             },
             "description": "ID do utilizador a ser removido"
+          },
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1832,8 +1879,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ]
       }
@@ -1845,7 +1891,17 @@
         ],
         "summary": "Listar categorias financeiras",
         "description": "Retorna as categorias disponiveis no workspace ativo. Esta rota existe para classificar entradas e saidas com consistencia.",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Categorias retornadas com sucesso.",
@@ -1863,8 +1919,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ]
       },
@@ -1874,7 +1929,17 @@
         ],
         "summary": "Criar categoria personalizada",
         "description": "Cria uma nova categoria do workspace. Esta rota existe para adaptar a classificacao financeira ao jeito real de operar do cliente.",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "201": {
             "description": "Categoria criada com sucesso.",
@@ -1905,8 +1970,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ],
         "requestBody": {
@@ -1953,6 +2017,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1978,8 +2051,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ]
       }
@@ -1991,7 +2063,17 @@
         ],
         "summary": "Listar contas e carteiras",
         "description": "Retorna as contas financeiras do workspace ativo. Esta rota existe para compor saldos, filtros e lancamentos vinculados a origem do dinheiro.",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Contas retornadas com sucesso.",
@@ -2009,8 +2091,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ]
       },
@@ -2020,7 +2101,17 @@
         ],
         "summary": "Cadastrar nova conta financeira",
         "description": "Cria uma conta bancara, caixa ou carteira com saldo inicial. Esta rota existe para iniciar o controle financeiro por origem de recurso.",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "201": {
             "description": "Conta criada com sucesso.",
@@ -2051,8 +2142,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ],
         "requestBody": {
@@ -2111,6 +2201,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2159,8 +2258,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ],
         "requestBody": {
@@ -2207,6 +2305,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2255,8 +2362,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ],
         "requestBody": {
@@ -2303,6 +2409,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2328,8 +2443,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ]
       }
@@ -2445,6 +2559,15 @@
               "maximum": 100,
               "default": 20
             }
+          },
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2461,8 +2584,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ]
       },
@@ -2472,7 +2594,17 @@
         ],
         "summary": "Criar transacao manual",
         "description": "Cria um lancamento financeiro e ajusta os efeitos necessarios no saldo associado. Esta rota existe para registrar receitas, despesas e eventos financeiros nao importados automaticamente.",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "201": {
             "description": "Transacao criada com sucesso.",
@@ -2503,8 +2635,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ],
         "requestBody": {
@@ -2603,6 +2734,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2628,8 +2768,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ]
       }
@@ -2646,6 +2785,15 @@
             "name": "id",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
             "schema": {
               "type": "string"
             }
@@ -2691,8 +2839,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ]
       }
@@ -2726,6 +2873,15 @@
               "minimum": 2000,
               "maximum": 2100
             }
+          },
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2758,8 +2914,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ]
       }
@@ -2771,7 +2926,17 @@
         ],
         "summary": "Reservar upload de arquivo",
         "description": "Valida metadados do arquivo e devolve a instrucao de upload. Esta rota existe para controlar tamanho, destino e custo antes da transferencia do binario.",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Instrucao de upload gerada com sucesso.",
@@ -2818,8 +2983,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ],
         "requestBody": {
@@ -3008,8 +3172,6 @@
                 "required": [
                   "fromWorkspaceId",
                   "toWorkspaceId",
-                  "fromAccountId",
-                  "toAccountId",
                   "amount"
                 ],
                 "properties": {
@@ -3018,14 +3180,6 @@
                     "minimum": 1
                   },
                   "toWorkspaceId": {
-                    "type": "integer",
-                    "minimum": 1
-                  },
-                  "fromAccountId": {
-                    "type": "integer",
-                    "minimum": 1
-                  },
-                  "toAccountId": {
                     "type": "integer",
                     "minimum": 1
                   },
@@ -3055,7 +3209,17 @@
         ],
         "summary": "Importar extrato OFX",
         "description": "Processa um arquivo OFX previamente enviado e converte seus movimentos. Esta rota existe para acelerar a entrada de dados bancarios historicos sem digitacao manual.",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Arquivo OFX importado com sucesso.",
@@ -3111,8 +3275,7 @@
         },
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ],
         "requestBody": {
@@ -3270,11 +3433,19 @@
         "description": "Retorna movimentos ainda nao aprovados no workspace ativo. Esta rota existe para a triagem antes da conversao em transacoes definitivas.",
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ],
         "parameters": [
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "in": "query",
             "name": "cursor",
@@ -3321,11 +3492,19 @@
         "description": "Consolida varios movimentos em um registro principal. Esta rota existe para tratar duplicidades antes da aprovacao contabil.",
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ],
         "parameters": [
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "id",
@@ -3404,11 +3583,19 @@
         "description": "Transforma um movimento pendente em transacao oficial. Esta rota existe para fechar a conciliacao entre ingestao bancaria e lancamento financeiro confiavel.",
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ],
         "parameters": [
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "id",
@@ -3472,11 +3659,19 @@
         "description": "Marca um movimento como rejeitado sem gerar transacao. Esta rota existe para descartar ruido, duplicidade ou entrada indevida na fila de aprovacao.",
         "security": [
           {
-            "bearerAuth": [],
-            "WorkspaceHeader": []
+            "bearerAuth": []
           }
         ],
         "parameters": [
+          {
+            "in": "header",
+            "name": "x-workspace-id",
+            "required": true,
+            "description": "ID do workspace ativo no qual a operacao sera executada.",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "id",
@@ -3509,18 +3704,6 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT"
-      },
-      "WorkspaceHeader": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "x-workspace-id",
-        "description": "ID do workspace ativo no qual a operacao sera executada."
-      },
-      "WebhookAuthorization": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "authorization",
-        "description": "Token compartilhado com o provedor Open Finance para autenticar o webhook."
       }
     },
     "schemas": {
