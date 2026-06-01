@@ -1,5 +1,10 @@
 import { api } from '../../../shared/lib/axios';
-import type { ExportValidatePayload, ExportValidateResponse } from '../types/export';
+import type {
+    ExportDownloadResponse,
+    ExportHistoryResponse,
+    ExportValidatePayload,
+    ExportValidateResponse
+} from '../types/export';
 
 export const validateDominioExport = async (
     payload: ExportValidatePayload,
@@ -33,4 +38,21 @@ export const generateDominioExport = async (
         blob: response.data,
         fileName,
     };
+};
+
+export const listExportHistory = async (
+    workspaceId: string | number,
+    signal?: AbortSignal
+): Promise<ExportHistoryResponse> => {
+    const response = await api.get(`/workspaces/${workspaceId}/exports`, { signal });
+    return response.data;
+};
+
+export const getExportDownloadUrl = async (
+    workspaceId: string | number,
+    archiveId: string,
+    signal?: AbortSignal
+): Promise<ExportDownloadResponse> => {
+    const response = await api.get(`/workspaces/${workspaceId}/exports/${archiveId}/download`, { signal });
+    return response.data;
 };
