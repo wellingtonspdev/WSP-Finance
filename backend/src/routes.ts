@@ -23,6 +23,7 @@ import { ExportHistoryController } from './controllers/ExportHistoryController';
 import { AiInsightController } from './controllers/AiInsightController';
 import { TelegramIntegrationController } from './controllers/TelegramIntegrationController';
 import { RecurringProLaboreController } from './controllers/RecurringProLaboreController';
+import { TaxGuideController } from './controllers/TaxGuideController';
 import { sysPrisma } from './lib/prisma';
 
 // Middlewares
@@ -47,6 +48,11 @@ const certUpload = multer({
             cb(new Error('Extensão inválida. Apenas arquivos .p12 e .pfx são aceitos.'));
         }
     }
+});
+
+const taxGuideUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 const router = Router();
@@ -80,6 +86,7 @@ const adminController = new AdminController();
 const aiInsightController = new AiInsightController();
 const telegramIntegrationController = new TelegramIntegrationController();
 const recurringProLaboreController = new RecurringProLaboreController();
+const taxGuideController = new TaxGuideController();
 
 // ==============================================================================
 // AUTENTICAÇÃO & IDENTIDADE
@@ -438,6 +445,35 @@ router.get('/transactions/:id/attachment', AuthMiddleware, WorkspaceMiddleware, 
        #swagger.summary = 'Visualizar Anexo (Assinatura de 5 min)'
        #swagger.description = 'Retorna a URL pré-assinada (S3 V4) efêmera para visualização temporária do comprovante, com as chaves SSE-C necessárias caso seja vault.' */
     return uploadController.getAttachmentUrl(req, res);
+});
+
+// --- TAX GUIDES ---
+router.get('/tax-guides', AuthMiddleware, WorkspaceMiddleware, (req, res) => {
+    return taxGuideController.list(req, res);
+});
+
+router.post('/tax-guides', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('ACCOUNTANT'), (req, res) => {
+    return taxGuideController.create(req, res);
+});
+
+router.get('/tax-guides/:id', AuthMiddleware, WorkspaceMiddleware, (req, res) => {
+    return taxGuideController.getById(req, res);
+});
+
+router.patch('/tax-guides/:id/paid', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('OWNER'), (req, res) => {
+    return taxGuideController.markPaid(req, res);
+});
+
+router.patch('/tax-guides/:id/cancel', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('OWNER'), (req, res) => {
+    return taxGuideController.cancel(req, res);
+});
+
+router.post('/tax-guides/:id/guide-pdf', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('ACCOUNTANT'), taxGuideUpload.single('file'), (req, res) => {
+    return taxGuideController.uploadGuidePdf(req, res);
+});
+
+router.post('/tax-guides/:id/payment-proof', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('OWNER'), taxGuideUpload.single('file'), (req, res) => {
+    return taxGuideController.uploadPaymentProof(req, res);
 });
 
 // --- DASHBOARD ---
