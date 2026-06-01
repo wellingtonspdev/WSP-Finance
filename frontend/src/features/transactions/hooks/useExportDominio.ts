@@ -127,7 +127,7 @@ export function useExportDominio() {
                             setModalState('error');
                             setErrorMessage('Não foi possível concluir a exportação agora. Tente novamente em instantes.');
                         }
-                    } catch (parseError) {
+                    } catch {
                         setModalState('error');
                         setErrorMessage('Não foi possível gerar o arquivo porque existem pendências obrigatórias.');
                     }
