@@ -15,9 +15,6 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate:status": "prisma migrate status"
   },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
-  },
   "keywords": [],
   "author": "",
   "license": "ISC",
