@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import { app } from '../../src/server';
@@ -11,9 +11,8 @@ type RouteContext = {
   personalWorkspaceId: number;
   businessWorkspaceId: number;
   readableTransactionId: string;
+  routeFixturePrefix: string;
 };
-
-const DEMO_HASH_PREFIX = 'DEMO_PERSONAL_JOAO_';
 
 function makeToken(userId: number) {
   return jwt.sign({ sub: String(userId) }, getJwtSecret());
@@ -40,17 +39,61 @@ async function resolveRouteContext(): Promise<RouteContext> {
     throw new Error('[Transaction.route.test] Joao must have both PERSONAL and BUSINESS memberships.');
   }
 
-  const readableTransaction = await sysPrisma.transaction.findFirst({
-    where: {
-      workspaceId: personalMembership.workspaceId,
-      hashDeduplication: { startsWith: DEMO_HASH_PREFIX },
-    },
-    orderBy: { date: 'desc' },
+  const account = await sysPrisma.account.findFirst({
+    where: { workspaceId: personalMembership.workspaceId },
     select: { id: true },
   });
 
-  if (!readableTransaction) {
-    throw new Error('[Transaction.route.test] No personal demo transaction found for Joao.');
+  if (!account) {
+    throw new Error('[Transaction.route.test] Joao PERSONAL workspace must have at least one account.');
+  }
+
+  const category = await sysPrisma.category.findFirst({
+    where: {
+      OR: [
+        { workspaceId: personalMembership.workspaceId },
+        { workspaceId: null },
+      ],
+    },
+    orderBy: { id: 'asc' },
+    select: { id: true },
+  });
+
+  if (!category) {
+    throw new Error('[Transaction.route.test] A global or Joao PERSONAL category is required.');
+  }
+
+  const routeFixturePrefix = `TEST_ROUTE_PERSONAL_${Date.now()}_${Math.random().toString(36).slice(2, 8)}_`;
+  const newestExisting = await sysPrisma.transaction.findFirst({
+    where: { workspaceId: personalMembership.workspaceId },
+    orderBy: { date: 'desc' },
+    select: { date: true },
+  });
+  const baseDateMs = Math.max(newestExisting?.date.getTime() ?? 0, Date.now());
+
+  const createdTransactions = await Promise.all(
+    Array.from({ length: 6 }, (_, index) => {
+      const fixtureNumber = index + 1;
+      return sysPrisma.transaction.create({
+        data: {
+          description: `Route fixture transaction ${fixtureNumber}`,
+          amount: String(10 + fixtureNumber),
+          date: new Date(baseDateMs + fixtureNumber * 60_000),
+          type: 'EXPENSE',
+          status: 'COMPLETED',
+          isPaid: true,
+          accountId: account.id,
+          categoryId: category.id,
+          workspaceId: personalMembership.workspaceId,
+          hashDeduplication: `${routeFixturePrefix}${fixtureNumber}`,
+        },
+        select: { id: true },
+      });
+    })
+  );
+
+  if (createdTransactions.length === 0) {
+    throw new Error('[Transaction.route.test] Failed to create route fixture transactions.');
   }
 
   return {
@@ -58,8 +101,20 @@ async function resolveRouteContext(): Promise<RouteContext> {
     token: makeToken(joao.id),
     personalWorkspaceId: personalMembership.workspaceId,
     businessWorkspaceId: businessMembership.workspaceId,
-    readableTransactionId: readableTransaction.id,
+    readableTransactionId: createdTransactions[0].id,
+    routeFixturePrefix,
   };
+}
+
+async function cleanupRouteFixture(ctx: RouteContext | undefined) {
+  if (!ctx?.routeFixturePrefix) return;
+
+  await sysPrisma.transaction.deleteMany({
+    where: {
+      workspaceId: ctx.personalWorkspaceId,
+      hashDeduplication: { startsWith: ctx.routeFixturePrefix },
+    },
+  });
 }
 
 describe('GET /transactions/:id - DB-backed route integration', () => {
@@ -67,6 +122,10 @@ describe('GET /transactions/:id - DB-backed route integration', () => {
 
   beforeAll(async () => {
     ctx = await resolveRouteContext();
+  });
+
+  afterAll(async () => {
+    await cleanupRouteFixture(ctx);
   });
 
   it('returns 401 without auth', async () => {
@@ -133,7 +192,11 @@ describe('GET /transactions?limit=5 - DB-backed recent activity proof', () => {
     ctx = await resolveRouteContext();
   });
 
-  it('returns recent PERSONAL demo transactions through the real route stack', async () => {
+  afterAll(async () => {
+    await cleanupRouteFixture(ctx);
+  });
+
+  it('returns recent PERSONAL transactions through the real route stack', async () => {
     const res = await request(app)
       .get('/transactions?limit=5')
       .set('Authorization', `Bearer ${ctx.token}`)
@@ -147,10 +210,10 @@ describe('GET /transactions?limit=5 - DB-backed recent activity proof', () => {
     });
     expect(res.body.data).toHaveLength(5);
     expect(res.body.data.every((tx: any) => tx.workspaceId === ctx.personalWorkspaceId)).toBe(true);
-    expect(res.body.data.every((tx: any) => String(tx.hashDeduplication).startsWith(DEMO_HASH_PREFIX))).toBe(true);
+    expect(res.body.data.every((tx: any) => String(tx.hashDeduplication).startsWith(ctx.routeFixturePrefix))).toBe(true);
   });
 
-  it('keeps PERSONAL demo transactions out of the BUSINESS listing', async () => {
+  it('keeps PERSONAL transactions out of the BUSINESS listing', async () => {
     const res = await request(app)
       .get('/transactions?limit=5')
       .set('Authorization', `Bearer ${ctx.token}`)
@@ -160,7 +223,7 @@ describe('GET /transactions?limit=5 - DB-backed recent activity proof', () => {
     expect(res.body).toHaveProperty('data');
     expect(Array.isArray(res.body.data)).toBe(true);
     expect(res.body.data.every((tx: any) => tx.workspaceId === ctx.businessWorkspaceId)).toBe(true);
-    expect(res.body.data.some((tx: any) => String(tx.hashDeduplication).startsWith(DEMO_HASH_PREFIX))).toBe(false);
+    expect(res.body.data.some((tx: any) => String(tx.hashDeduplication).startsWith(ctx.routeFixturePrefix))).toBe(false);
   });
 
   it('preserves date desc ordering and the pagination contract', async () => {

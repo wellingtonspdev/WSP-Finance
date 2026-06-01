@@ -48,7 +48,7 @@ export class BankMovementRepository {
 
     // 1. Achar a quais workspaces o accountant tem acesso
     const memberships = await sysPrisma.workspaceMember.findMany({
-      where: { userId, role: 'ACCOUNTANT' },
+      where: { userId, role: 'ACCOUNTANT', workspace: { type: 'BUSINESS' } },
       select: { workspaceId: true }
     });
 
