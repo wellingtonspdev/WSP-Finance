@@ -28,7 +28,7 @@ Siga os passos abaixo para rodar o projeto completo localmente.
 ### Pré-requisitos
 *   Node.js (v18+)
 *   PNPM (Recomendado) ou NPM
-*   PostgreSQL (Rodando localmente ou Docker)
+*   PostgreSQL rodando localmente (usualmente gerenciado via pgAdmin)
 
 ### 1. Configurando o Backend
 
@@ -44,9 +44,9 @@ pnpm install
 cp .env.example .env
 
 # 4. Prepare o Banco de Dados
-npx prisma generate                 # Gera a tipagem do Prisma
-npx prisma migrate dev --name init  # Cria as tabelas
-npx prisma db seed                  # Popula com dados de teste (Ana Silva)
+npx prisma generate       # Gera a tipagem do Prisma
+npx prisma migrate dev    # Cria/Atualiza as tabelas de acordo com as migrations
+npx prisma db seed        # Popula com dados de teste 
 
 # 5. Inicie o Servidor
 pnpm dev
@@ -75,10 +75,18 @@ pnpm dev
 
 ## 🧪 Credenciais de Teste (Seed)
 
-O script de seed cria um cenário completo com transações, contas e dois workspaces.
+O script de seed cria um cenário completo com transações, contas, workspaces e isolamento RLS.
+Após executar o seed, as principais credenciais de acesso disponíveis são:
 
-*   **E-mail:** `ana@wspfinance.com`
-*   **Senha:** `senha123`
+*   **Contador Sênior (Torre de Controle - 10 Clientes):**
+    *   **E-mail:** `auditoria@wsp.finance`
+    *   **Senha:** `password123`
+*   **Cliente Demo PF/PJ (João):**
+    *   **E-mail:** `joao@wsp.finance`
+    *   **Senha:** `password123`
+*   **Cliente Demo (Ana):**
+    *   **E-mail:** `ana@wsp.finance`
+    *   **Senha:** `password123`
 
 ---
 
