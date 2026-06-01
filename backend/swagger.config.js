@@ -6,7 +6,7 @@ const outputFile = './src/swagger-output.json';
 const routes = ['./src/routes.ts'];
 
 const bearerSecurity = [{ bearerAuth: [] }];
-const bearerWorkspaceSecurity = [{ bearerAuth: [], WorkspaceHeader: [] }];
+const bearerWorkspaceSecurity = [{ bearerAuth: [] }];
 const uuidSchema = { type: 'string', format: 'uuid' };
 
 const jsonBody = (schema) => ({
@@ -85,12 +85,6 @@ const doc = {
                 type: 'http',
                 scheme: 'bearer',
                 bearerFormat: 'JWT'
-            },
-            WorkspaceHeader: {
-                type: 'apiKey',
-                in: 'header',
-                name: 'x-workspace-id',
-                description: 'ID do workspace ativo no qual a operacao sera executada.'
             }
         },
         schemas: {
@@ -124,15 +118,6 @@ const doc = {
         }
     }
 };
-
-Object.assign(doc.components.securitySchemes, {
-    WebhookAuthorization: {
-        type: 'apiKey',
-        in: 'header',
-        name: 'authorization',
-        description: 'Token compartilhado com o provedor Open Finance para autenticar o webhook.'
-    }
-});
 
 Object.assign(doc.components.schemas, {
     MessageResponse: {
@@ -179,8 +164,19 @@ const queryParam = (name, description, schema) => ({
     schema
 });
 
+const headerParam = (name, description, required = true) => ({
+    in: 'header',
+    name,
+    required,
+    description,
+    schema: { type: 'string' }
+});
+
+const workspaceHeader = headerParam('x-workspace-id', 'ID do workspace ativo no qual a operacao sera executada.');
+const webhookAuthHeader = headerParam('authorization', 'Token compartilhado com o provedor Open Finance para autenticar o webhook.');
+
 const publicSecurity = [];
-const webhookSecurity = [{ WebhookAuthorization: [] }];
+const webhookSecurity = [];
 
 const PUBLIC_ROUTES = new Set([
     '/auth/register',
@@ -222,18 +218,6 @@ const SECURITY_SCHEMES = {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT'
-    },
-    WorkspaceHeader: {
-        type: 'apiKey',
-        in: 'header',
-        name: 'x-workspace-id',
-        description: 'ID do workspace ativo no qual a operacao sera executada.'
-    },
-    WebhookAuthorization: {
-        type: 'apiKey',
-        in: 'header',
-        name: 'authorization',
-        description: 'Token compartilhado com o provedor Open Finance para autenticar o webhook.'
     }
 };
 
@@ -967,10 +951,20 @@ const routeSecurity = (route) => {
 
 const removeSecurityHeadersFromParameters = (parameters = [], route) => {
     return parameters.filter((parameter) => {
-        if (route !== '/api/webhooks/open-finance' && parameter.in === 'header' && parameter.name.toLowerCase() === 'authorization') {
+        if (parameter.in !== 'header') {
+            return true;
+        }
+        const nameLower = parameter.name.toLowerCase();
+        if (nameLower === 'x-workspace-id' && parameter._explicit) {
+            return true;
+        }
+        if (nameLower === 'authorization' && parameter._explicit) {
+            return true;
+        }
+        if (nameLower === 'x-workspace-id') {
             return false;
         }
-        if (parameter.in === 'header' && parameter.name.toLowerCase() === 'x-workspace-id') {
+        if (nameLower === 'authorization' && route !== '/api/webhooks/open-finance') {
             return false;
         }
         return true;
@@ -991,10 +985,17 @@ const applyOperationMetadata = (route, method, operation) => {
     }
 
     operation.security = routeSecurity(route);
-    operation.parameters = removeSecurityHeadersFromParameters(
-        mergeParameters(operation.parameters, parameters),
-        route
-    );
+
+    let explicitHeaders = [];
+    if (WORKSPACE_ROUTES.has(route)) {
+        explicitHeaders.push({ ...workspaceHeader, _explicit: true });
+    }
+    if (route === '/api/webhooks/open-finance') {
+        explicitHeaders.push({ ...webhookAuthHeader, _explicit: true });
+    }
+
+    const cleanedExisting = removeSecurityHeadersFromParameters(operation.parameters || [], route);
+    operation.parameters = mergeParameters(cleanedExisting, [...explicitHeaders, ...(parameters || [])]);
 
     if (requestBody) {
         operation.requestBody = requestBody;
@@ -1027,6 +1028,15 @@ const postProcessSwagger = (swaggerDoc) => {
                 continue;
             }
             applyOperationMetadata(route, method, pathItem[method]);
+        }
+    }
+
+    for (const pathItem of Object.values(swaggerDoc.paths)) {
+        for (const method of Object.keys(pathItem)) {
+            const operation = pathItem[method];
+            if (operation.parameters) {
+                operation.parameters = operation.parameters.map(({ _explicit, ...param }) => param);
+            }
         }
     }
 

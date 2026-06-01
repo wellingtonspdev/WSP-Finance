@@ -125,6 +125,20 @@ export const test = base.extend<AuthFixture & IsolatedAuthFixture & AccountantFi
       });
     });
 
+    // Mock do endpoint /auth/me
+    await context.route('**/auth/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        json: {
+          id: 1,
+          name: 'Contador E2E',
+          email: 'contador@wspfinance.com',
+          type: 'ACCOUNTANT',
+          memberships: [{ id: 1, name: 'Workspace Teste', type: 'BUSINESS', role: 'ACCOUNTANT' }],
+        },
+      });
+    });
+
     await context.addInitScript(({ tokenVal, wsId }) => {
       window.localStorage.setItem('wsp_refresh_token', tokenVal);
       window.localStorage.setItem('wsp_finance.auth.token', tokenVal);

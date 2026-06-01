@@ -1,4 +1,4 @@
-import { Home, Receipt, Plus, BarChart2, User, LogOut, ArrowLeftCircle, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, Receipt, Plus, BarChart2, User, LogOut, ArrowLeftCircle, FileText, ChevronLeft, ChevronRight, MessageCircle, WalletCards } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '../../../app/AuthProvider';
 import { useUI } from '../../../shared/context/useUI';
@@ -26,7 +26,11 @@ export function Sidebar({ isCollapsed = false, onToggle }: SidebarProps) {
         ? 'documents'
         : location.pathname.includes('/analises')
           ? 'analytics'
-          : 'home';
+          : location.pathname.includes('/telegram')
+            ? 'telegram'
+            : location.pathname.includes('/pro-labore')
+              ? 'pro-labore'
+              : 'home';
   const isAccountant = activeMembership?.role === 'ACCOUNTANT';
 
   const navItems = [
@@ -34,6 +38,8 @@ export function Sidebar({ isCollapsed = false, onToggle }: SidebarProps) {
     { id: 'extract', icon: Receipt, label: 'Extrato', action: () => navigate(`/${activeMembership?.id || ''}/transactions`) },
     { id: 'documents', icon: FileText, label: 'Documentos', action: () => navigate(`/${activeMembership?.id || ''}/documents`) },
     { id: 'team', icon: User, label: 'Equipe', action: () => navigate(`/${activeMembership?.id || ''}/team`) },
+    { id: 'telegram', icon: MessageCircle, label: 'Telegram', action: () => navigate(`/${activeMembership?.id || ''}/telegram`) },
+    { id: 'pro-labore', icon: WalletCards, label: 'Pro-labore', action: () => navigate(`/${activeMembership?.id || ''}/pro-labore`) },
     { id: 'analytics', icon: BarChart2, label: 'Análises', action: () => navigate(`/${activeMembership?.id || ''}/analises`) },
   ];
 

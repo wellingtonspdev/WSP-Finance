@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   mockWorkspaceMemberFindMany: vi.fn(),
   mockCategoryFindFirst: vi.fn(),
   mockPrismaTransaction: vi.fn(),
-  mockAccountFindByIdAndWorkspace: vi.fn(),
+  mockFindDefaultByWorkspace: vi.fn(),
   mockTxTransactionCreate: vi.fn(),
   mockTxAccountUpdate: vi.fn(),
   mockAuditLogSync: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock('../../src/lib/prisma', () => ({
 
 vi.mock('../../src/repositories/AccountRepository', () => ({
   AccountRepository: class {
-    findByIdAndWorkspace = mocks.mockAccountFindByIdAndWorkspace;
+    findDefaultByWorkspace = mocks.mockFindDefaultByWorkspace;
   },
 }));
 
@@ -36,6 +36,14 @@ vi.mock('../../src/services/AuditLogService', () => ({
     logAsync: vi.fn(),
   },
 }));
+
+const baseDto = {
+  fromWorkspaceId: 1,
+  toWorkspaceId: 2,
+  amount: 300,
+  description: 'Bridge audit test',
+  date: new Date('2026-03-20T12:00:00Z'),
+};
 
 describe('BridgeService balance audit', () => {
   let service: BridgeService;
@@ -52,8 +60,8 @@ describe('BridgeService balance audit', () => {
       },
       {
         workspaceId: 2,
-        role: 'ACCOUNTANT',
-        workspace: { id: 2, type: 'BUSINESS', closedUntil: null },
+        role: 'OWNER',
+        workspace: { id: 2, type: 'PERSONAL', closedUntil: null },
       },
     ]);
 
@@ -61,9 +69,9 @@ describe('BridgeService balance audit', () => {
       .mockResolvedValueOnce({ id: 11 })
       .mockResolvedValueOnce({ id: 22 });
 
-    mocks.mockAccountFindByIdAndWorkspace
-      .mockResolvedValueOnce({ id: 10, balance: new Decimal('1000.0000') })
-      .mockResolvedValueOnce({ id: 20, balance: new Decimal('250.0000') });
+    mocks.mockFindDefaultByWorkspace
+      .mockResolvedValueOnce({ id: 10, name: 'Conta Empresa', balance: new Decimal('1000.0000') })
+      .mockResolvedValueOnce({ id: 20, name: 'Conta Pessoal', balance: new Decimal('250.0000') });
 
     mocks.mockTxTransactionCreate
       .mockResolvedValueOnce({ id: 'bridge-debit-tx' })
@@ -79,15 +87,36 @@ describe('BridgeService balance audit', () => {
     }));
   });
 
-  it('deve registrar duas linhas estruturadas de auditoria com deltas opostos para a ponte', async () => {
-    await service.executeTransfer(99, {
-      fromWorkspaceId: 1,
-      toWorkspaceId: 2,
-      fromAccountId: 10,
-      toAccountId: 20,
-      amount: 300,
-      description: 'Bridge audit test',
-      date: new Date('2026-03-20T12:00:00Z'),
+  it('resolve contas padrao e registra auditoria com IDs resolvidos', async () => {
+    await service.executeTransfer(99, baseDto);
+
+    expect(mocks.mockFindDefaultByWorkspace).toHaveBeenNthCalledWith(1, 1, 'BUSINESS');
+    expect(mocks.mockFindDefaultByWorkspace).toHaveBeenNthCalledWith(2, 2, 'PERSONAL');
+
+    expect(mocks.mockTxTransactionCreate).toHaveBeenNthCalledWith(1, {
+      data: expect.objectContaining({
+        workspaceId: 1,
+        accountId: 10,
+        categoryId: 11,
+        type: 'EXPENSE',
+      }),
+    });
+    expect(mocks.mockTxTransactionCreate).toHaveBeenNthCalledWith(2, {
+      data: expect.objectContaining({
+        workspaceId: 2,
+        accountId: 20,
+        categoryId: 22,
+        type: 'INCOME',
+      }),
+    });
+
+    expect(mocks.mockTxAccountUpdate).toHaveBeenNthCalledWith(1, {
+      where: { id: 10 },
+      data: { balance: { decrement: expect.any(Decimal) } },
+    });
+    expect(mocks.mockTxAccountUpdate).toHaveBeenNthCalledWith(2, {
+      where: { id: 20 },
+      data: { balance: { increment: expect.any(Decimal) } },
     });
 
     expect(mocks.mockAuditLogSync).toHaveBeenCalledTimes(2);
@@ -103,6 +132,7 @@ describe('BridgeService balance audit', () => {
       action: 'BRIDGE_TRANSFER',
       fromAccount: 10,
       toAccount: 20,
+      oldState: { accountId: 10, balance: '1000' },
     });
     expect(creditAudit).toMatchObject({
       userId: 99,
@@ -110,8 +140,83 @@ describe('BridgeService balance audit', () => {
       action: 'BRIDGE_TRANSFER',
       fromAccount: 10,
       toAccount: 20,
+      oldState: { accountId: 20, balance: '250' },
     });
     expect(debitAudit.delta.toString()).toBe('-300');
     expect(creditAudit.delta.toString()).toBe('300');
+  });
+
+  it('bloqueia saldo insuficiente antes de criar transacoes', async () => {
+    mocks.mockFindDefaultByWorkspace
+      .mockReset()
+      .mockResolvedValueOnce({ id: 10, name: 'Conta Empresa', balance: new Decimal('100.0000') })
+      .mockResolvedValueOnce({ id: 20, name: 'Conta Pessoal', balance: new Decimal('250.0000') });
+
+    await expect(service.executeTransfer(99, baseDto))
+      .rejects.toMatchObject({ statusCode: 400, message: 'Saldo insuficiente na conta de origem.' });
+
+    expect(mocks.mockPrismaTransaction).not.toHaveBeenCalled();
+    expect(mocks.mockTxTransactionCreate).not.toHaveBeenCalled();
+    expect(mocks.mockAuditLogSync).not.toHaveBeenCalled();
+  });
+
+  it('bloqueia usuario sem permissao em um dos workspaces antes de resolver contas', async () => {
+    mocks.mockWorkspaceMemberFindMany.mockResolvedValueOnce([
+      {
+        workspaceId: 1,
+        role: 'OWNER',
+        workspace: { id: 1, type: 'BUSINESS', closedUntil: null },
+      },
+    ]);
+
+    await expect(service.executeTransfer(99, baseDto))
+      .rejects.toMatchObject({ statusCode: 403 });
+
+    expect(mocks.mockFindDefaultByWorkspace).not.toHaveBeenCalled();
+    expect(mocks.mockPrismaTransaction).not.toHaveBeenCalled();
+  });
+
+  it('bloqueia periodo fechado antes de resolver contas', async () => {
+    mocks.mockWorkspaceMemberFindMany.mockResolvedValueOnce([
+      {
+        workspaceId: 1,
+        role: 'OWNER',
+        workspace: { id: 1, type: 'BUSINESS', closedUntil: new Date('2026-03-31T00:00:00Z') },
+      },
+      {
+        workspaceId: 2,
+        role: 'OWNER',
+        workspace: { id: 2, type: 'PERSONAL', closedUntil: null },
+      },
+    ]);
+
+    await expect(service.executeTransfer(99, baseDto))
+      .rejects.toMatchObject({ statusCode: 403 });
+
+    expect(mocks.mockFindDefaultByWorkspace).not.toHaveBeenCalled();
+    expect(mocks.mockPrismaTransaction).not.toHaveBeenCalled();
+  });
+
+  it('bloqueia quando conta padrao de origem nao existe', async () => {
+    mocks.mockFindDefaultByWorkspace
+      .mockReset()
+      .mockResolvedValueOnce(null);
+
+    await expect(service.executeTransfer(99, baseDto))
+      .rejects.toMatchObject({ statusCode: 404 });
+
+    expect(mocks.mockPrismaTransaction).not.toHaveBeenCalled();
+  });
+
+  it('bloqueia quando conta padrao de destino nao existe', async () => {
+    mocks.mockFindDefaultByWorkspace
+      .mockReset()
+      .mockResolvedValueOnce({ id: 10, name: 'Conta Empresa', balance: new Decimal('1000.0000') })
+      .mockResolvedValueOnce(null);
+
+    await expect(service.executeTransfer(99, baseDto))
+      .rejects.toMatchObject({ statusCode: 404 });
+
+    expect(mocks.mockPrismaTransaction).not.toHaveBeenCalled();
   });
 });
