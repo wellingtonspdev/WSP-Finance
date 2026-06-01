@@ -19,6 +19,7 @@ import { AccountantCacheService } from './services/AccountantCacheService';
 import { AdminController } from './controllers/AdminController';
 import { ExportController } from './controllers/ExportController';
 import { ExportDownloadController } from './controllers/ExportDownloadController';
+import { ExportHistoryController } from './controllers/ExportHistoryController';
 import { AiInsightController } from './controllers/AiInsightController';
 import { TelegramIntegrationController } from './controllers/TelegramIntegrationController';
 import { RecurringProLaboreController } from './controllers/RecurringProLaboreController';
@@ -636,6 +637,21 @@ router.post('/export/generate', AuthMiddleware, WorkspaceMiddleware, RbacMiddlew
 });
 
 const exportDownloadController = new ExportDownloadController();
+const exportHistoryController = new ExportHistoryController();
+
+router.get(
+    '/workspaces/:workspaceId/exports',
+    AuthMiddleware,
+    WorkspaceRouteParamGuard,
+    WorkspaceMiddleware,
+    RbacMiddleware('ACCOUNTANT'),
+    (req, res) => {
+        /* #swagger.tags = ['ExportaÃ§Ã£o ContÃ¡bil']
+           #swagger.summary = 'Listar histÃ³rico de exportaÃ§Ãµes contÃ¡beis'
+           #swagger.description = 'Lista metadados seguros das exportaÃ§Ãµes arquivadas do workspace.' */
+        return exportHistoryController.list(req, res);
+    }
+);
 
 router.get(
     '/workspaces/:workspaceId/exports/:archiveId/download',

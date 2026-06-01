@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: Manual Transaction MVP Stabilization
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-31T20:55:33.010Z"
-last_activity: 2026-05-31 -- Phase 04 planning complete
+last_updated: "2026-06-01T05:53:00.000Z"
+last_activity: 2026-06-01 -- Phase S5-014 execution and verification complete
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 0
   total_plans: 9
-  completed_plans: 1
+  completed_plans: 4
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: `.planning/PROJECT.md`
 Phase: 6
 Plan: 06-01-PLAN.md
 Status: Ready to execute
-Last activity: 2026-05-31 -- Phase 04 planning complete
+Last activity: 2026-06-01 -- Phase S5-014 execution and verification complete
 
 ## Session Log
 
@@ -37,6 +37,7 @@ Last activity: 2026-05-31 -- Phase 04 planning complete
 - 2026-05-31: Phase 3 discussed and planned. Decision: use existing `AccountRepository.findDefaultByWorkspace` instead of introducing `DefaultAccountService`.
 - 2026-05-31: Phase 6 registered for frontend simplification discussion before research.
 - 2026-05-31: Phase 6 research and plan created. Decision: frontend-only simplification with no backend, recurrence, pending, cron, or broad dashboard changes.
+- 2026-06-01: Phase S5-014 executed and verified. Export history now lists existing ExportArchive records with RBAC/RLS backend coverage and inline frontend history cards.
 
 ## Blockers
 

@@ -25,3 +25,38 @@ export type ExportValidateResponse = {
         blockersCount?: number;
     };
 };
+
+export type ExportHistoryItem = {
+    id: string;
+    workspaceId: number;
+    layoutId: string;
+    targetSystem: string;
+    periodStart: string;
+    periodEnd: string;
+    fileName: string;
+    hash: string;
+    sizeBytes: number;
+    recordCount: number;
+    contentType: string;
+    encoding: string;
+    warningsCount: number;
+    retentionUntil: string;
+    createdAt: string;
+    status: 'AVAILABLE';
+    createdByUser: {
+        id: number;
+        name: string | null;
+        email: string;
+    };
+};
+
+export type ExportHistoryResponse = {
+    data: ExportHistoryItem[];
+};
+
+export type ExportDownloadResponse = {
+    url: string;
+    expiresInSeconds: number;
+    fileName: string;
+    contentType: string;
+};
