@@ -176,6 +176,18 @@ describe('BridgeService balance audit', () => {
     expect(mocks.mockPrismaTransaction).not.toHaveBeenCalled();
   });
 
+  it('bloqueia ACCOUNTANT antes de resolver contas e nao altera saldo', async () => {
+    mocks.mockWorkspaceMemberFindMany.mockResolvedValueOnce([]);
+
+    await expect(service.executeTransfer(99, baseDto))
+      .rejects.toMatchObject({ statusCode: 403 });
+
+    expect(mocks.mockFindDefaultByWorkspace).not.toHaveBeenCalled();
+    expect(mocks.mockPrismaTransaction).not.toHaveBeenCalled();
+    expect(mocks.mockTxTransactionCreate).not.toHaveBeenCalled();
+    expect(mocks.mockTxAccountUpdate).not.toHaveBeenCalled();
+  });
+
   it('bloqueia periodo fechado antes de resolver contas', async () => {
     mocks.mockWorkspaceMemberFindMany.mockResolvedValueOnce([
       {

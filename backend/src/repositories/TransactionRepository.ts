@@ -68,15 +68,28 @@ export class TransactionRepository {
   }
 
   async findManyByUserId(userId: number): Promise<Transaction[]> {
+    const memberships = await prisma.workspaceMember.findMany({
+      where: { userId },
+      select: {
+        role: true,
+        workspaceId: true,
+        workspace: {
+          select: { type: true },
+        },
+      },
+    });
+
+    const readableWorkspaceIds = memberships
+      .filter((membership) => !(membership.role === 'ACCOUNTANT' && membership.workspace.type === 'PERSONAL'))
+      .map((membership) => membership.workspaceId);
+
+    if (readableWorkspaceIds.length === 0) {
+      return [];
+    }
+
     return await prisma.transaction.findMany({
       where: {
-        workspace: {
-          members: {
-            some: {
-              userId: userId
-            }
-          }
-        }
+        workspaceId: { in: readableWorkspaceIds },
       },
       orderBy: { date: 'desc' },
       include: {
