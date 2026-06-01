@@ -1,12 +1,14 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { useTransactions } from '../hooks/useTransactions';
 import { TransactionAccordionItem } from '../components/TransactionAccordionItem';
-import { ArrowLeft, Filter, Loader2, FileText } from 'lucide-react';
+import { ArrowLeft, Filter, Loader2, FileText, History } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAttachment } from '../hooks/useAttachment';
 import { AttachmentPreview } from '../components/AttachmentPreview';
 import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 import { ExportDominioModal } from '../components/ExportDominioModal';
+import { ExportHistoryList } from '../components/ExportHistoryList';
+import { useExportHistory } from '../hooks/useExportHistory';
 import { dismissAIInsight } from '../api/aiInsightApi';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../../config/queryKeys';
@@ -27,20 +29,20 @@ export function TransactionHistoryPage() {
 
     const activeMembership = useWorkspaceStore(state => state.activeMembership);
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+    const [isExportHistoryOpen, setIsExportHistoryOpen] = useState(false);
     const queryClient = useQueryClient();
+    const canUseExports = activeMembership?.type === 'BUSINESS' && (activeMembership.role === 'OWNER' || activeMembership.role === 'ACCOUNTANT');
+    const exportHistory = useExportHistory(workspaceId, isExportHistoryOpen && !!canUseExports);
 
-    // Flatten pages into single array
     const transactions = useMemo(
         () => data?.pages.flatMap((page) => page.data) ?? [],
         [data]
     );
 
-    // Estado do Visualizador
     const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
     const { getSignedUrl, isLoading: isAttachmentLoading, error: attachmentError, clearError } = useAttachment();
     const [previewData, setPreviewData] = useState<{ url: string, headers?: Record<string, string> } | null>(null);
 
-    // Infinite scroll sentinel
     const observer = useRef<IntersectionObserver | null>(null);
     const lastItemRef = useCallback(
         (node: HTMLDivElement | null) => {
@@ -71,19 +73,13 @@ export function TransactionHistoryPage() {
         clearError();
     };
 
-    /**
-     * Dismiss an AI Insight: calls PATCH /ai-insights/:id/dismiss,
-     * then invalidates the transaction list cache.
-     */
     const handleDismissInsight = useCallback(async (insightId: string) => {
         await dismissAIInsight(insightId);
-        // Invalidate transaction list cache to refetch fresh data
         queryClient.invalidateQueries({
             queryKey: queryKeys.transactions.all(workspaceId || 'null'),
         });
     }, [queryClient, workspaceId]);
 
-    // 1. Skeleton Loaders em Tema Escuro
     if (isLoading) {
         return (
             <AppLayout>
@@ -117,12 +113,11 @@ export function TransactionHistoryPage() {
     if (isError) {
         return (
             <AppLayout>
-                <div className="p-8 text-center text-red-500 w-full">Erro ao carregar transações. Verifique sua conexão.</div>
+                <div className="p-8 text-center text-red-500 w-full">Erro ao carregar transacoes. Verifique sua conexao.</div>
             </AppLayout>
         );
     }
 
-    // Filtragem MOCK visual
     const filteredTransactions = transactions.filter(t => {
         if (filterMode === 'PACT') return t.grossAmount !== undefined && t.grossAmount !== null && t.grossAmount > 0;
         return true;
@@ -132,7 +127,6 @@ export function TransactionHistoryPage() {
         <AppLayout>
             <div className="flex flex-col relative w-full h-full text-white">
                 <div className="relative z-10 flex flex-col h-full lg:pt-4">
-                    {/* Header Subido - condicionado ao mobile */}
                     <header className="lg:hidden px-6 pt-6 pb-4 flex items-center justify-between z-20 sticky top-0 bg-[#11051f]/60 backdrop-blur-xl border-b border-white/5">
                         <button
                             onClick={() => navigate(`/${workspaceId}/dashboard`)}
@@ -146,93 +140,106 @@ export function TransactionHistoryPage() {
                         </button>
                     </header>
 
-                    {/* Desktop header title */}
                     <div className="hidden lg:flex items-center justify-between mb-6 px-1">
                         <h1 className="text-2xl font-bold text-white">Extrato</h1>
                     </div>
 
                     <main className="flex-1 pb-16 lg:pb-8">
-                    {/* Filtros em Pílula */}
-                    <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2 px-1">
-                        <button
-                            onClick={() => setFilterMode('ALL')}
-                            className={`px-4 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap transition-transform active:scale-95 ${filterMode === 'ALL' ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-purple-500/50 text-white' : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'}`}
-                        >
-                            Todos
-                        </button>
-                        <button
-                            onClick={() => setFilterMode('PACT')}
-                            className={`px-4 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap transition-transform active:scale-95 ${filterMode === 'PACT' ? 'bg-brand-gradient text-white border-transparent shadow-lg shadow-purple-500/20' : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'}`}
-                        >
-                            Marketplace
-                        </button>
-
-                        {activeMembership?.type === 'BUSINESS' && (activeMembership.role === 'OWNER' || activeMembership.role === 'ACCOUNTANT') && (
+                        <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2 px-1">
                             <button
-                                onClick={() => setIsExportModalOpen(true)}
-                                className="px-4 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap transition-transform active:scale-95 bg-white/5 text-purple-400 border-purple-500/30 hover:bg-purple-500/10 flex items-center gap-2"
+                                onClick={() => setFilterMode('ALL')}
+                                className={`px-4 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap transition-transform active:scale-95 ${filterMode === 'ALL' ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-purple-500/50 text-white' : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'}`}
                             >
-                                <FileText className="w-4 h-4" />
-                                Exportar Domínio
+                                Todos
                             </button>
-                        )}
-                    </div>
+                            <button
+                                onClick={() => setFilterMode('PACT')}
+                                className={`px-4 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap transition-transform active:scale-95 ${filterMode === 'PACT' ? 'bg-brand-gradient text-white border-transparent shadow-lg shadow-purple-500/20' : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'}`}
+                            >
+                                Marketplace
+                            </button>
 
-                    {/* Date Headers & Saldo do Dia */}
-                    <div className="flex items-center justify-between mb-3 px-2">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Todo o Período</h3>
-                        <span className="text-xs text-slate-500">
-                            Total exibido: {filteredTransactions.length}
-                        </span>
-                    </div>
-
-                    {/* Transaction Items */}
-                    <div className="space-y-4">
-                        {filteredTransactions.length === 0 ? (
-                            <div className="text-center py-10 text-slate-400">Nenhuma transação encontrada.</div>
-                        ) : (
-                            filteredTransactions.map((transaction, index) => (
-                                <div
-                                    key={transaction.id}
-                                    ref={index === filteredTransactions.length - 1 ? lastItemRef : undefined}
-                                >
-                                    <TransactionAccordionItem
-                                        transaction={transaction}
-                                        onEdit={(id) => console.log('Edit', id)}
-                                        onDelete={(id) => console.log('Delete', id)}
-                                        onPreviewAttachment={(id) => handlePreviewAttachment(id)}
-                                        onDismissInsight={handleDismissInsight}
-                                    />
-                                </div>
-                            ))
-                        )}
-                    </div>
-
-                    {/* Loading more indicator */}
-                    {isFetchingNextPage && (
-                        <div className="flex items-center justify-center py-8 gap-2">
-                            <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
-                            <span className="text-sm text-slate-400">Carregando mais transações...</span>
+                            {canUseExports && (
+                                <>
+                                    <button
+                                        onClick={() => setIsExportModalOpen(true)}
+                                        className="px-4 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap transition-transform active:scale-95 bg-white/5 text-purple-400 border-purple-500/30 hover:bg-purple-500/10 flex items-center gap-2"
+                                    >
+                                        <FileText className="w-4 h-4" />
+                                        Exportar Dominio
+                                    </button>
+                                    <button
+                                        onClick={() => setIsExportHistoryOpen(value => !value)}
+                                        className={`px-4 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap transition-transform active:scale-95 flex items-center gap-2 ${isExportHistoryOpen ? 'bg-purple-500/20 text-white border-purple-500/50' : 'bg-white/5 text-purple-400 border-purple-500/30 hover:bg-purple-500/10'}`}
+                                    >
+                                        <History className="w-4 h-4" />
+                                        Historico
+                                    </button>
+                                </>
+                            )}
                         </div>
-                    )}
 
-                    {/* End of list */}
-                    {!hasNextPage && filteredTransactions.length > 0 && (
-                        <div className="text-center py-8">
-                            <span className="text-xs text-slate-600">Todas as transações foram carregadas</span>
+                        {isExportHistoryOpen && canUseExports && (
+                            <ExportHistoryList
+                                items={exportHistory.items}
+                                isLoading={exportHistory.isLoading}
+                                errorMessage={exportHistory.errorMessage}
+                                onEmptyExport={() => setIsExportModalOpen(true)}
+                                onDownload={(archiveId) => exportHistory.downloadArchive(archiveId)}
+                            />
+                        )}
+
+                        <div className="flex items-center justify-between mb-3 px-2">
+                            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Todo o Periodo</h3>
+                            <span className="text-xs text-slate-500">
+                                Total exibido: {filteredTransactions.length}
+                            </span>
                         </div>
-                    )}
-                </main>
-            </div>
 
-            <AttachmentPreview
-                isOpen={selectedTxId !== null}
-                onClose={closePreview}
-                downloadUrl={previewData?.url || null}
-                headers={previewData?.headers}
-                isLoadingUrl={isAttachmentLoading}
-                errorUrl={attachmentError}
-            />
+                        <div className="space-y-4">
+                            {filteredTransactions.length === 0 ? (
+                                <div className="text-center py-10 text-slate-400">Nenhuma transacao encontrada.</div>
+                            ) : (
+                                filteredTransactions.map((transaction, index) => (
+                                    <div
+                                        key={transaction.id}
+                                        ref={index === filteredTransactions.length - 1 ? lastItemRef : undefined}
+                                    >
+                                        <TransactionAccordionItem
+                                            transaction={transaction}
+                                            onEdit={(id) => console.log('Edit', id)}
+                                            onDelete={(id) => console.log('Delete', id)}
+                                            onPreviewAttachment={(id) => handlePreviewAttachment(id)}
+                                            onDismissInsight={handleDismissInsight}
+                                        />
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {isFetchingNextPage && (
+                            <div className="flex items-center justify-center py-8 gap-2">
+                                <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                                <span className="text-sm text-slate-400">Carregando mais transacoes...</span>
+                            </div>
+                        )}
+
+                        {!hasNextPage && filteredTransactions.length > 0 && (
+                            <div className="text-center py-8">
+                                <span className="text-xs text-slate-600">Todas as transacoes foram carregadas</span>
+                            </div>
+                        )}
+                    </main>
+                </div>
+
+                <AttachmentPreview
+                    isOpen={selectedTxId !== null}
+                    onClose={closePreview}
+                    downloadUrl={previewData?.url || null}
+                    headers={previewData?.headers}
+                    isLoadingUrl={isAttachmentLoading}
+                    errorUrl={attachmentError}
+                />
 
                 <ExportDominioModal
                     isOpen={isExportModalOpen}
