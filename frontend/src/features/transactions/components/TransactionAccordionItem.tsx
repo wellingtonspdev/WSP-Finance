@@ -43,6 +43,15 @@ function selectTopInsight(insights?: AIInsightForTransaction[]): AIInsightForTra
     })[0];
 }
 
+function formatTransactionDate(date: string) {
+    return new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC',
+    }).format(new Date(date));
+}
+
 export function TransactionAccordionItem({ transaction, onEdit, onDelete, onPreviewAttachment, onDismissInsight, defaultExpanded = false }: TransactionAccordionItemProps) {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     const { canEdit, activeRole } = useCapabilities();
@@ -110,6 +119,7 @@ export function TransactionAccordionItem({ transaction, onEdit, onDelete, onPrev
                             )}
                         </div>
                         <p className="text-xs text-slate-400 mt-0.5 break-words">Categoria: {transaction.category?.name || transaction.categoryId}</p>
+                        <p className="text-xs text-slate-500 mt-1">{formatTransactionDate(transaction.date)}</p>
                     </div>
                 </div>
                 <div className="text-right shrink-0 ml-3 whitespace-nowrap">

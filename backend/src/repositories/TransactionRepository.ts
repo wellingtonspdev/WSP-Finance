@@ -17,6 +17,7 @@ export class TransactionRepository {
       accountId?: number;
       categoryId?: number;
       type?: 'INCOME' | 'EXPENSE';
+      sortDirection?: 'asc' | 'desc';
       cursor?: string;
       limit?: number;
     }
@@ -36,6 +37,8 @@ export class TransactionRepository {
       if (filters.type) where.type = filters.type;
     }
 
+    const sortDirection = filters?.sortDirection ?? 'desc';
+
     return await prisma.transaction.findMany({
       where,
       take: filters?.limit || 21,
@@ -43,7 +46,7 @@ export class TransactionRepository {
         cursor: { id: filters.cursor },
         skip: 1,
       }),
-      orderBy: { date: 'desc' },
+      orderBy: [{ date: sortDirection }, { id: sortDirection }],
       include: {
         category: { select: { name: true, icon: true, color: true } },
         account: { select: { name: true } },

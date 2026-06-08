@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { useTransactions } from '../hooks/useTransactions';
 import { TransactionAccordionItem } from '../components/TransactionAccordionItem';
-import { ArrowLeft, Filter, Loader2, FileText } from 'lucide-react';
+import { ArrowDownUp, ArrowLeft, Filter, Loader2, FileText } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAttachment } from '../hooks/useAttachment';
 import { AttachmentPreview } from '../components/AttachmentPreview';
@@ -14,6 +14,7 @@ import { AppLayout } from '../../../shared/components/layout/AppLayout';
 
 export function TransactionHistoryPage() {
     const [filterMode, setFilterMode] = useState<'ALL' | 'PACT' | 'SERVICES' | 'SUBS'>('ALL');
+    const [sortDirection, setSortDirection] = useState<'desc' | 'asc'>('desc');
     const {
         data,
         isLoading,
@@ -21,7 +22,7 @@ export function TransactionHistoryPage() {
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
-    } = useTransactions();
+    } = useTransactions({ sortDirection });
     const navigate = useNavigate();
     const { workspaceId } = useParams<{ workspaceId: string }>();
 
@@ -82,6 +83,10 @@ export function TransactionHistoryPage() {
             queryKey: queryKeys.transactions.all(workspaceId || 'null'),
         });
     }, [queryClient, workspaceId]);
+
+    const handleToggleSortDirection = () => {
+        setSortDirection(current => current === 'desc' ? 'asc' : 'desc');
+    };
 
     // 1. Skeleton Loaders em Tema Escuro
     if (isLoading) {
@@ -165,6 +170,15 @@ export function TransactionHistoryPage() {
                             className={`px-4 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap transition-transform active:scale-95 ${filterMode === 'PACT' ? 'bg-brand-gradient text-white border-transparent shadow-lg shadow-purple-500/20' : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'}`}
                         >
                             Marketplace
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleToggleSortDirection}
+                            aria-label={sortDirection === 'desc' ? 'Ordenar por data mais antiga' : 'Ordenar por data mais recente'}
+                            className="px-4 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap transition-transform active:scale-95 bg-white/5 text-slate-300 border-white/5 hover:bg-white/10 flex items-center gap-2"
+                        >
+                            <ArrowDownUp className="w-4 h-4" />
+                            {sortDirection === 'desc' ? 'Mais recentes' : 'Mais antigas'}
                         </button>
 
                         {activeMembership?.type === 'BUSINESS' && (activeMembership.role === 'OWNER' || activeMembership.role === 'ACCOUNTANT') && (

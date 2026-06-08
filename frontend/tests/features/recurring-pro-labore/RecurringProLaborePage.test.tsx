@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { RecurringProLaborePage } from '../../../src/features/recurring-pro-labore/routes/RecurringProLaborePage';
@@ -23,17 +23,19 @@ describe('RecurringProLaborePage', () => {
   const deactivateMutate = vi.fn();
   const confirmMutate = vi.fn();
   const cancelMutate = vi.fn();
+  let workspaceStoreState: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.mocked(useWorkspaceStore).mockReturnValue({
+    workspaceStoreState = {
       activeMembership: { id: 10, name: 'Empresa WSP', type: 'BUSINESS', role: 'OWNER' },
       memberships: [
         { id: 10, name: 'Empresa WSP', type: 'BUSINESS', role: 'OWNER' },
         { id: 20, name: 'Wellington Pessoal', type: 'PERSONAL', role: 'OWNER' },
       ],
-    } as any);
+    };
+    vi.mocked(useWorkspaceStore).mockImplementation(() => workspaceStoreState);
 
     vi.mocked(useRecurringProLabore).mockReturnValue({
       schedules: {
@@ -113,6 +115,41 @@ describe('RecurringProLaborePage', () => {
       description: 'Retirada mensal',
     });
     expect(screen.queryByText(/Conta bancaria|Conta bancária|Imposto/i)).not.toBeInTheDocument();
+  });
+
+  it('preenche origem e destino quando memberships carregam apos o primeiro render', async () => {
+    workspaceStoreState = {
+      activeMembership: { id: 10, name: 'Empresa WSP', type: 'BUSINESS', role: 'OWNER' },
+      memberships: [],
+    };
+    createMutateAsync.mockResolvedValue({ id: 'schedule-new' });
+
+    const { rerender } = renderPage();
+    expect(screen.getByRole('button', { name: /Criar agendamento/i })).toBeDisabled();
+
+    workspaceStoreState = {
+      activeMembership: { id: 10, name: 'Empresa WSP', type: 'BUSINESS', role: 'OWNER' },
+      memberships: [
+        { id: 10, name: 'Empresa WSP', type: 'BUSINESS', role: 'OWNER' },
+        { id: 20, name: 'Wellington Pessoal', type: 'PERSONAL', role: 'OWNER' },
+      ],
+    };
+
+    rerender(
+      <MemoryRouter>
+        <RecurringProLaborePage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Criar agendamento/i })).not.toBeDisabled());
+
+    fireEvent.change(screen.getByLabelText(/Valor/i), { target: { value: '2500' } });
+    fireEvent.click(screen.getByRole('button', { name: /Criar agendamento/i }));
+
+    await waitFor(() => expect(createMutateAsync).toHaveBeenCalledWith(expect.objectContaining({
+      sourceWorkspaceId: 10,
+      destinationWorkspaceId: 20,
+    })));
   });
 
   it('usuario ve pendencias e confirma manualmente', () => {

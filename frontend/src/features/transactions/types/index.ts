@@ -122,4 +122,5 @@ export interface TransactionFilters {
     type?: 'INCOME' | 'EXPENSE';
     accountId?: number;
     categoryId?: number;
+    sortDirection?: 'asc' | 'desc';
 }

@@ -9,6 +9,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { UIProvider } from '../../../src/shared/context/UIProvider';
 
+const transactionHookMocks = vi.hoisted(() => ({
+    useTransactions: vi.fn(),
+}));
+
 // Mocks
 vi.mock('framer-motion', () => ({
     motion: {
@@ -20,14 +24,7 @@ vi.mock('framer-motion', () => ({
 vi.mock('../../../src/shared/stores/useWorkspaceStore');
 vi.mock('../../../src/features/transactions/api/exportDominio');
 vi.mock('../../../src/features/transactions/hooks/useTransactions', () => ({
-    useTransactions: () => ({
-        data: { pages: [] },
-        isLoading: false,
-        isError: false,
-        fetchNextPage: vi.fn(),
-        hasNextPage: false,
-        isFetchingNextPage: false,
-    })
+    useTransactions: transactionHookMocks.useTransactions,
 }));
 vi.mock('../../../src/features/transactions/hooks/useAttachment', () => ({
     useAttachment: () => ({
@@ -44,6 +41,14 @@ vi.mock('../../../src/features/workspaces/context/useWorkspace', () => ({
 describe('ExportDominioModal & TransactionHistoryPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        transactionHookMocks.useTransactions.mockReturnValue({
+            data: { pages: [] },
+            isLoading: false,
+            isError: false,
+            fetchNextPage: vi.fn(),
+            hasNextPage: false,
+            isFetchingNextPage: false,
+        });
         // Reset window.URL methods
         global.URL.createObjectURL = vi.fn(() => 'mock-url');
         global.URL.revokeObjectURL = vi.fn();
@@ -116,6 +121,22 @@ describe('ExportDominioModal & TransactionHistoryPage', () => {
         });
         renderPage();
         expect(screen.queryByRole('button', { name: /Exportar Domínio/i })).not.toBeInTheDocument();
+    });
+
+    it('T05.1 - Alterna ordenacao do extrato por data e refaz a query', () => {
+        vi.mocked(useWorkspaceStore).mockImplementation((selector?: any) => {
+            const state = { activeMembership: { type: 'BUSINESS', role: 'OWNER' } };
+            return selector ? selector(state) : state;
+        });
+
+        renderPage();
+
+        expect(transactionHookMocks.useTransactions).toHaveBeenLastCalledWith({ sortDirection: 'desc' });
+
+        fireEvent.click(screen.getByRole('button', { name: /Ordenar por data mais antiga/i }));
+
+        expect(screen.getByRole('button', { name: /Ordenar por data mais recente/i })).toBeInTheDocument();
+        expect(transactionHookMocks.useTransactions).toHaveBeenLastCalledWith({ sortDirection: 'asc' });
     });
 
     describe('Modal Behavior', () => {

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { recurringProLaboreApi, type CreateRecurringProLaboreScheduleDTO } from '../api/recurringProLabore';
+import { queryKeys } from '../../../config/queryKeys';
 
 const recurringProLaboreKeys = {
   all: ['recurring-pro-labore'] as const,
@@ -36,12 +37,23 @@ export function useRecurringProLabore(workspaceId?: number) {
 
   const confirmPending = useMutation({
     mutationFn: (id: string) => recurringProLaboreApi.confirmPending(id),
-    onSuccess: () => {
+    onSuccess: async (pending) => {
       invalidateRecurring();
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
+
+      const workspaceIds = Array.from(new Set([
+        Number(pending.schedule.sourceWorkspaceId),
+        Number(pending.schedule.destinationWorkspaceId),
+      ].filter((id) => Number.isInteger(id) && id > 0)));
+
+      await Promise.all(workspaceIds.map((id) => {
+        const dashboardQueryKey = queryKeys.dashboard.metrics(id);
+        queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
+        return queryClient.refetchQueries({ queryKey: dashboardQueryKey });
+      }));
     },
   });
 
