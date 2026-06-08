@@ -1,120 +1,145 @@
 # WSP Finance
 
-**WSP Finance** e um SaaS de gestao financeira multi-tenant robusto, projetado para oferecer seguranca, escalabilidade e conformidade com a LGPD.
+[![CI](https://github.com/wellingtonspdev/WSP-Finance/actions/workflows/ci.yml/badge.svg)](https://github.com/wellingtonspdev/WSP-Finance/actions/workflows/ci.yml)
 
-## Visao Geral e Objetivo
+**WSP Finance** e um SaaS de gestao financeira multi-tenant projetado para organizar operacoes financeiras de empresas, pessoas fisicas e contadores, com isolamento por workspace, RBAC, RLS, auditoria e fluxos de conciliacao antes do lancamento definitivo no ledger.
 
-O objetivo do WSP Finance e resolver o problema de gestao financeira pulverizada enfrentado por pequenas e medias empresas, alem de profissionais independentes. O sistema oferece uma visao unificada e segura do fluxo de caixa, permitindo nao so o registro do que foi gasto ou recebido, mas tambem facilitando a conciliacao bancaria atraves de uma area de *staging* (BankMovement) antes do lancamento definitivo (Transaction).
+## Visao Geral
+
+O objetivo do WSP Finance e resolver o problema de gestao financeira pulverizada enfrentado por pequenas e medias empresas, profissionais independentes e escritorios contabeis. O sistema oferece uma visao unificada do fluxo de caixa, permite registrar receitas e despesas, e separa movimentos bancarios crus em uma camada de staging (`BankMovement`) antes de transforma-los em lancamentos definitivos (`Transaction`).
 
 ## Publico-Alvo
 
-- **Pequenas e Medias Empresas (PMEs):** que necessitam organizar financas em workspaces do tipo `BUSINESS`.
-- **Profissionais Autonomos/Pessoas Fisicas:** que utilizam a plataforma para gerenciar suas contas e recebiveis em workspaces `PERSONAL`.
-- **Contadores e Auditores:** profissionais que recebem acesso externo (tipo `ACCOUNTANT`) para consultar e exportar informacoes de multiplos workspaces sem poder modificar os dados primarios.
+- **Pequenas e medias empresas:** organizam financas em workspaces do tipo `BUSINESS`.
+- **Profissionais autonomos e pessoas fisicas:** gerenciam contas e recebiveis em workspaces `PERSONAL`.
+- **Contadores e auditores:** recebem acesso delegado como `ACCOUNTANT` para consultar, validar, aprovar fluxos permitidos e exportar informacoes contabeis de multiplos workspaces.
 
 ## Principais Funcionalidades
 
-- **Autenticacao:** Login seguro via JWT.
-- **Usuarios Demo:** Seed preparado com usuarios simulados para facilitar validacao (ver secao *Credenciais Demo*).
-- **Workspaces:** Separacao rigida de dados usando os perfis `PERSONAL` e `BUSINESS`.
-- **Acesso para Contador:** Perfil especifico (`ACCOUNTANT`) para facilitar a exportacao de dados contabeis.
-- **Dashboard Financeiro:** Visao consolidada de saldo, despesas e receitas.
-- **Transacoes (Ledger Definitivo):** Registro consolidado de entradas e saidas.
-- **BankMovement (Staging):** Camada temporaria para movimentos bancarios crus aguardando categorizacao ou aprovacao antes de virarem *Transactions*.
-- **Controle de Acesso Baseado em Funcao (RBAC):** Controle de privilegios (`ADMIN`, `MEMBER`, `VIEWER`, `ACCOUNTANT`) em nivel de workspace.
-- **Seguranca em Nivel de Linha (RLS):** Isolamento total dos dados no banco PostgreSQL; tenants nao conseguem enxergar dados alheios mesmo em falhas de aplicacao.
-- **Auditoria:** Rastreio imutavel de eventos sensiveis (criacao/modificacao).
-- **Exportacao Contabil:** Geracao de planilhas e relatorios estruturados para contadores.
-- **Anexos / Certificado A1:** Upload seguro de arquivos criptografados via envelope de seguranca para o provedor R2/S3.
-- **AI Insights:** Fake/Local provider para demonstracao de IA na categorizacao e analise.
-- **OCR / Telegram:** Fake/Local providers para extracao de dados via recibos e interacao inicial do chatbot.
-- **Pro-Labore Recorrente:** Logica para provisionar automaticamente pagamentos fixos.
+- **Autenticacao:** login com JWT e refresh token.
+- **Usuarios demo:** seed com usuarios simulados para validacao local.
+- **Workspaces:** separacao de dados entre `PERSONAL` e `BUSINESS`.
+- **RBAC:** permissoes de workspace com `OWNER`, `EDITOR`, `VIEWER` e `ACCOUNTANT`; permissao de plataforma com `systemRole` `USER` ou `ADMIN`.
+- **RLS:** isolamento em nivel de banco PostgreSQL para reduzir risco de acesso cruzado entre tenants.
+- **Dashboard financeiro:** saldo, entradas, saidas e atividade recente baseados nos dados do workspace ativo.
+- **Transactions:** ledger definitivo de entradas e saidas financeiras.
+- **BankMovement:** staging de movimentos bancarios pendentes antes de aprovacao, rejeicao ou consolidacao.
+- **Extrato:** listagem e filtros de transacoes, incluindo ordenacao por data.
+- **Bridge / Pro-labore:** transferencia entre workspace PJ e PF com transacoes cruzadas e auditoria.
+- **Pro-labore recorrente:** agenda recorrencias e gera pendencias; a movimentacao financeira acontece somente apos confirmacao manual.
+- **Exportacao contabil:** validacao e geracao de exportacao TXT Dominio para contadores.
+- **Anexos e certificado A1:** suporte a upload e armazenamento seguro via provider S3/R2 quando configurado.
+- **AI Insights:** provider fake/local para demonstracao de alertas e analises pedagogicas.
+- **OCR / Telegram:** POC para ingestao via Telegram/OCR, mantendo movimentos como `BankMovement` pendente.
+- **Open Finance:** webhook/mock local para simulacao de recebimento de lotes bancarios.
+- **Auditoria:** registro de acoes sensiveis sem gravar PII, OCR bruto, certificados ou payloads sensiveis em logs.
 
 ## Arquitetura
 
-O projeto e uma aplicacao fullstack organizada em duas pastas principais (`backend/` e `frontend/`) dentro de um unico repositorio:
+O projeto e uma aplicacao fullstack em um unico repositorio, com `backend/` e `frontend/` como raizes independentes. Nao ha `package.json` raiz.
 
-- **Backend:** Express em Node.js com TypeScript, organizado em rotas, controladores, servicos e repositorios (padrao MVC/Service).
-- **ORM:** Prisma para tipagem segura, geracao de *queries* otimizadas e gerenciamento de *migrations*.
-- **Banco de Dados:** PostgreSQL 15+, com regras de isolamento RLS e extensoes essenciais como `pg_trgm` para buscas textuais.
-- **Seguranca Nativa:** RLS/RBAC gerenciado por middleware customizado e Prisma Client Extensions no backend.
-- **Frontend:** React com Vite, Tailwind CSS, gerenciamento de estado e requisicoes otimizadas (ex: React Query/Zustand), oferecendo uma SPA moderna e responsiva.
+- **Backend:** Node.js, Express e TypeScript, organizado em controllers, services, repositories, middlewares e rotas.
+- **ORM:** Prisma para schema, migrations, client tipado e seed.
+- **Banco de dados:** PostgreSQL 15+ com RLS, migrations Prisma e extensao `pg_trgm`.
+- **Seguranca:** middlewares de autenticacao, workspace, RBAC e uso de contexto tenant no Prisma.
+- **Frontend:** React, Vite, TypeScript, Tailwind CSS, React Query e Zustand.
+- **Documentacao:** `_reversa_sdd/`, `.planning/`, `documentacao/`, `PRODUCT_SCOPE_MASTER.md`, `BACKEND_GUIDELINES.md` e `FRONTEND_GUIDELINES.md`.
 
 ## Estrutura de Pastas
 
-- **`/backend`**: Codigo do servidor da API Node.js/Express.
-- **`/backend/prisma`**: Esquema do banco de dados (schema.prisma), scripts de seed e *migrations*.
-- **`/backend/tests`**: Suite de testes automatizados unitarios e de integracao do backend.
-- **`/frontend`**: Aplicacao SPA em React/Vite.
-- **`/_reversa_sdd`**: Documentacao tecnica continua focada em design de software estruturado (Processos, Identidade, Entidade-Relacionamento, Permissoes).
-- **`/.planning`**: Arquivos de ciclo de vida do projeto (Project, Roadmap, Requisitos) baseados no framework GSD.
-- **`/documentacao`**: Documentacoes historicas, ADRs (Architecture Decision Records) e fluxos gerais do negocio.
+```text
+backend/                 API Node.js/Express
+backend/prisma/          schema.prisma, migrations e seed
+backend/src/             controllers, services, repositories, middlewares e rotas
+backend/tests/           testes backend unitarios e de integracao
+frontend/                SPA React/Vite
+frontend/src/            features, componentes, hooks, stores e clients
+frontend/tests/          testes frontend
+_reversa_sdd/            documentacao tecnica e processo Reversa
+.planning/               artefatos GSD de projeto, requisitos e roadmap
+documentacao/            ADRs e documentacao historica
+```
 
-## Stack e Versoes Homologadas
+## Stack e Versoes
 
-- **Node.js**: `v22.16.0`
-- **pnpm**: `10.27.0`
-- **PostgreSQL**: `15+`
-- **Prisma**: `6+`
-- **React / Vite**: Versoes atuais homologadas nos arquivos `package.json`.
-- **TypeScript**: Para consistencia fullstack.
+- **Node.js:** homologado localmente em `v22.16.0`.
+- **pnpm:** homologado localmente em `10.27.0`.
+- **PostgreSQL:** `15+`.
+- **Prisma:** `6+`.
+- **Backend:** Express, TypeScript, Zod, Vitest.
+- **Frontend:** React, Vite, TypeScript, Tailwind CSS, React Query, Zustand.
+
+As versoes exatas de bibliotecas ficam nos arquivos `backend/package.json` e `frontend/package.json`.
 
 ## Setup do Zero
 
-### 1. Clone do repositorio
+### 1. Clone o repositorio
 
 ```bash
 git clone <URL_DO_REPOSITORIO>
 cd WSP-Finance
 ```
 
-### 2. Instalacao de dependencias
+### 2. Instale as dependencias
 
 ```bash
-# Backend
 cd backend
 pnpm install
 
-# Frontend
 cd ../frontend
 pnpm install
 ```
 
-### 3. Criacao dos bancos de dados
-
-Acesse seu SGBD local PostgreSQL e crie os bancos:
+### 3. Crie os bancos PostgreSQL
 
 ```sql
 CREATE DATABASE wsp_finance;
-CREATE DATABASE wsp_finance_test;  -- necessario para rodar a suite de testes
+CREATE DATABASE wsp_finance_test;
 ```
 
-> **Importante:** O usuario PostgreSQL configurado nas variaveis de ambiente precisa ter
-> privilegio de `CREATE EXTENSION` para que o Prisma Migrate instale a extensao `pg_trgm`
-> na primeira execucao. Normalmente o usuario `postgres` ja possui essa permissao.
+O usuario PostgreSQL usado nas variaveis de ambiente precisa conseguir executar `CREATE EXTENSION`, pois as migrations instalam `pg_trgm`.
 
-### 4. Variaveis de ambiente
-
-O projeto usa dois arquivos de ambiente no backend:
-
-| Arquivo      | Finalidade                                       | Banco alvo          |
-|--------------|--------------------------------------------------|---------------------|
-| `.env`       | Execucao local (dev) e migrations/seed           | `wsp_finance`       |
-| `.env.test`  | Suite de testes Vitest (backend)                  | `wsp_finance_test`  |
+### 4. Configure o backend
 
 ```bash
 cd backend
-
-# Ambiente de desenvolvimento/runtime
 cp .env.example .env
-# Edite .env substituindo LOCAL_PASSWORD pela senha real do seu PostgreSQL local.
-
-# Ambiente de teste
-cp .env.test.example .env.test
-# Edite .env.test substituindo LOCAL_PASSWORD pela senha real do seu PostgreSQL local.
 ```
 
-### 5. Setup do banco principal (desenvolvimento)
+Edite `backend/.env` com as credenciais reais do seu PostgreSQL local.
+
+O `.env.example` do backend tambem documenta configuracoes opcionais de R2, Telegram, OCR, AI provider e integracoes. Em desenvolvimento local direto, aponte `DATABASE_URL` e `DIRECT_URL` para o banco local. Se estiver usando pooler, `DATABASE_URL` pode apontar para o pool e `DIRECT_URL` deve apontar diretamente para o PostgreSQL.
+
+Exemplo local direto:
+
+```env
+DATABASE_URL="postgresql://postgres:SUA_SENHA@localhost:5432/wsp_finance?schema=public"
+DIRECT_URL="postgresql://postgres:SUA_SENHA@localhost:5432/wsp_finance?schema=public"
+JWT_SECRET="troque-por-um-segredo-local"
+JWT_REFRESH_SECRET="troque-por-outro-segredo-local"
+APP_URL="http://localhost:3333"
+```
+
+Secrets locais podem ser gerados com:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+### 5. Configure o frontend
+
+```bash
+cd frontend
+cp .env.example .env
+```
+
+Valor local esperado:
+
+```env
+VITE_API_URL="http://localhost:3333"
+```
+
+### 6. Rode migrations e seed do banco principal
 
 ```bash
 cd backend
@@ -123,82 +148,142 @@ pnpm exec prisma migrate dev
 pnpm exec prisma db seed
 ```
 
-> **O que cada comando faz:**
-> - `prisma:generate` — Gera o Prisma Client a partir do schema.
-> - `prisma migrate dev` — Aplica todas as migrations pendentes (inclui `CREATE EXTENSION IF NOT EXISTS pg_trgm`).
-> - `prisma db seed` — Popula o banco com dados de demonstracao. **Nao rode em producao.**
+O seed recria dados de demonstracao e pode limpar dados locais. Nao rode seed em producao.
 
-### 6. Setup do banco de teste
+### 7. Configure o banco de teste
 
-O banco `wsp_finance_test` tambem precisa receber migrations e seed antes de rodar a suite completa. Alguns testes DB-backed validam o estado demo (`joao@wsp.finance`, `auditoria@wsp.finance`, configuracoes de exportacao e dashboard), entao um banco de teste vazio nao e suficiente.
+O repositorio possui `backend/.env.example`, mas pode nao possuir `backend/.env.test.example` em todas as branches. Se o arquivo de exemplo de teste nao existir, crie `backend/.env.test` manualmente com as mesmas chaves minimas do `.env`, apontando para `wsp_finance_test`.
 
-```bash
+Exemplo:
+
+```env
+DATABASE_URL="postgresql://postgres:SUA_SENHA@localhost:5432/wsp_finance_test?schema=public"
+DIRECT_URL="postgresql://postgres:SUA_SENHA@localhost:5432/wsp_finance_test?schema=public"
+JWT_SECRET="segredo-de-teste"
+JWT_REFRESH_SECRET="refresh-de-teste"
+APP_URL="http://localhost:3333"
+```
+
+Em maquina limpa, aplique migrations e seed tambem no banco de teste:
+
+```powershell
 cd backend
-
-# Aponte temporariamente para o banco de teste para rodar as migrations:
-# No Windows PowerShell:
 $env:DATABASE_URL="postgresql://postgres:SUA_SENHA@localhost:5432/wsp_finance_test?schema=public"
 $env:DIRECT_URL="postgresql://postgres:SUA_SENHA@localhost:5432/wsp_finance_test?schema=public"
 pnpm exec prisma migrate dev
 pnpm exec prisma db seed
-
-# Depois limpe as variaveis para voltar ao .env padrao:
 Remove-Item Env:DATABASE_URL
 Remove-Item Env:DIRECT_URL
 ```
 
-> **Alternativa:** Se preferir, edite temporariamente o `.env` para apontar para
-> `wsp_finance_test`, rode `pnpm exec prisma migrate dev` e `pnpm exec prisma db seed`, e depois reverta.
+O `globalSetup` do Vitest (`backend/src/test/setup-test-role.ts`) carrega o `.env.test` e prepara a role restrita de teste. Ele nao substitui migrations e seed em um banco vazio.
 
-O `globalSetup` do Vitest (`src/test/setup-test-role.ts`) carrega o `.env.test` automaticamente
-e cria a role restrita de teste no PostgreSQL. Ele nao executa migrations nem seed automaticamente; esses passos precisam ser feitos antes de `pnpm test` em uma maquina limpa.
+## Execucao Local
 
-### 7. Execucao local
+Terminal 1:
 
 ```bash
-# Terminal 1 (backend)
 cd backend
 pnpm run dev
-# Aguarde iniciar na porta 3333
-
-# Terminal 2 (frontend)
-cd frontend
-pnpm run dev
-# Aguarde iniciar na porta 5173
 ```
 
-- **URL Frontend:** http://localhost:5173
-- **URL Backend API:** http://localhost:3333
-- **Swagger/Documentacao da API:** http://localhost:3333/docs
-- **Healthcheck:** `curl http://localhost:3333/health`
+Terminal 2:
+
+```bash
+cd frontend
+pnpm run dev
+```
+
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:3333
+- Swagger/API docs: http://localhost:3333/docs
+
+## Execucao Local Com Docker
+
+Esta stack Docker e apenas para desenvolvimento/demo local. O backend aplica migrations e roda o seed automaticamente no startup; o seed pode recriar dados locais e nao deve ser usado em producao.
+
+Servicos:
+
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:3333
+- Swagger/API docs: http://localhost:3333/docs
+- Adminer: http://localhost:8081
+- PostgreSQL no host: `localhost:6543`
+- PostgreSQL dentro do Docker: `db:5432`
+
+Subir tudo:
+
+```powershell
+docker compose up -d --build
+```
+
+Verificar estado e logs:
+
+```powershell
+docker compose ps
+docker compose logs -f backend
+docker compose logs -f frontend
+```
+
+Validar o banco:
+
+```powershell
+docker compose exec db pg_isready -U wsp_admin -d wsp_finance
+```
+
+Credenciais padrao de desenvolvimento ficam em `.env.docker.example`. Para customizar localmente sem versionar segredos, copie para `.env.docker` e rode o compose com `--env-file`:
+
+```powershell
+Copy-Item .env.docker.example .env.docker
+docker compose --env-file .env.docker up -d --build
+```
+
+O backend usa duas conexoes:
+
+- `DIRECT_URL`: usuario admin local para migrations, seed e preparacao da role.
+- `DATABASE_URL`: usuario restrito de runtime, sem `SUPERUSER` e sem `BYPASSRLS`.
+
+Adminer:
+
+- Sistema: `PostgreSQL`
+- Servidor: `db`
+- Usuario: `wsp_admin`
+- Senha: `wsp_admin_dev_password`
+- Banco: `wsp_finance`
+
+Resetar completamente o banco Docker remove o volume e apaga os dados locais. Execute somente quando quiser recriar tudo do zero:
+
+```powershell
+docker compose down -v
+docker compose up -d --build
+```
 
 ## Credenciais Demo
 
-Apos rodar o seed (`pnpm exec prisma db seed`), os seguintes usuarios ficam disponiveis:
+Apos rodar `pnpm exec prisma db seed`, estes usuarios ficam disponiveis:
 
-| Papel                | Email                     | Senha        | Descricao                          |
-|----------------------|---------------------------|--------------|------------------------------------|
-| Contador Senior      | `auditoria@wsp.finance`   | `password123`| 10 clientes na Torre de Comando    |
-| Contadora Junior     | `fernanda@contabil.com`   | `password123`| 0 clientes (1 convite PENDING)     |
-| Cliente              | `joao@wsp.finance`        | `password123`| Dropshipping - perfil saudavel     |
-| Cliente              | `maria@wsp.finance`       | `password123`| Tech - perfil de risco             |
-| Cliente              | `pedro@wsp.finance`       | `password123`| Logistics - perfil transicao       |
-| Cliente              | `ana@wsp.finance`         | `password123`| Cafe Gourmet - perfil saudavel     |
-| Cliente              | `lucas@wsp.finance`       | `password123`| Dev Studio - perfil saudavel       |
+| Papel | Email | Senha | Descricao |
+| --- | --- | --- | --- |
+| Admin de plataforma | `admin@wsp.finance` | `password123` | Backoffice/admin isolado |
+| Contador senior | `auditoria@wsp.finance` | `password123` | Torre de comando com clientes |
+| Contadora junior | `fernanda@contabil.com` | `password123` | Contadora sem clientes ativos |
+| Cliente | `joao@wsp.finance` | `password123` | Perfil demo com PF e PJ |
+| Cliente | `maria@wsp.finance` | `password123` | Perfil demo empresarial |
+| Cliente | `pedro@wsp.finance` | `password123` | Perfil demo empresarial |
+| Cliente | `ana@wsp.finance` | `password123` | Perfil demo empresarial |
+| Cliente | `lucas@wsp.finance` | `password123` | Perfil demo empresarial |
 
-**Fluxo de demonstracao sugerido:**
+Fluxo sugerido:
 
-1. Acesse o Frontend em http://localhost:5173.
-2. Faca login como `joao@wsp.finance` / `password123`.
-3. Visualize o Dashboard com os dados criados pelo seed.
-4. Explore a area de Movimentacoes Bancarias.
-5. Faca login como `auditoria@wsp.finance` para verificar a visao de Contador.
+1. Acesse http://localhost:5173.
+2. Entre como `joao@wsp.finance` / `password123`.
+3. Verifique Dashboard, Extrato, Nova Transacao e Pro-labore.
+4. Entre como `auditoria@wsp.finance` / `password123`.
+5. Verifique a visao de contador, clientes, pendencias e exportacao contabil.
 
 ## Testes e Qualidade
 
-O repositorio esta equipado com validacoes profundas. Sempre rode a suite antes de commits:
-
-**Backend:**
+Backend:
 
 ```bash
 cd backend
@@ -207,7 +292,7 @@ pnpm exec tsc --noEmit
 pnpm test
 ```
 
-**Frontend:**
+Frontend:
 
 ```bash
 cd frontend
@@ -216,66 +301,85 @@ pnpm test
 pnpm run build
 ```
 
-## Variaveis de Ambiente (`.env`)
+Validacoes Git recomendadas antes de finalizar uma fase:
 
-- **Obrigatorias minimas:** `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `APP_URL`.
-- **Opcionais/Mocadas:** Chaves de R2 (`R2_ACCOUNT_ID`), Integracoes (`RECEITA_WS_TOKEN`), e mocks de Inteligencia (`AI_PROVIDER="fake"`, `OCR_PROVIDER="fake"`).
-- **Gerando secrets localmente:**
-  ```bash
-  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-  ```
+```bash
+git branch --show-current
+git status --short -uall
+git diff --stat
+git diff --check
+```
 
 ## Banco de Dados
 
-- **`DATABASE_URL`**: Conexao primaria do banco de dados local. Caso haja um pooler em producao, isso geralmente aponta para ele. Localmente, aponta diretamente para o banco (porta `5432`).
-- **`DIRECT_URL`**: Usado pelo Prisma para gerenciar *migrations* e *schema changes*. Sempre deve apontar diretamente para a porta do PostgreSQL.
-- **Extensao `pg_trgm`**: Utilizada para pesquisa por similaridade/fuzzy match. Instalada automaticamente pela migration `20260412021800_enable_pg_trgm_fuzzy_index`. Requer que o usuario PostgreSQL tenha privilegio de `CREATE EXTENSION`.
-- **Aviso de Seed**: O script `pnpm exec prisma db seed` destroi o estado local (cleanup agressivo) e recria dados para demonstracao. Nao rode em bancos de producao.
+- `Account` e infraestrutura interna para saldo e origem de dinheiro.
+- `Transaction` e o ledger definitivo.
+- `BankMovement` e staging de movimentos pendentes.
+- `Workspace.id` e `Account.id` sao numericos.
+- `Transaction.id` e UUID/string.
+- `DATABASE_URL` e a conexao principal do runtime.
+- `DIRECT_URL` deve apontar diretamente para o PostgreSQL para migrations.
+- `pg_trgm` e habilitado por migration para busca fuzzy.
+
+## Regras de Seguranca e Produto
+
+- Preserve RLS/RBAC em qualquer alteracao.
+- Nao use `sysPrisma` por conveniencia em fluxos tenant.
+- Nao crie `Transaction` diretamente a partir de OCR/Telegram; use `BankMovement`.
+- Nao grave PII, OCR bruto, TXT bruto, base64 de certificado ou payload sensivel em `AuditLog`.
+- Nao automatize movimentacao financeira de pro-labore recorrente por cron. O cron gera pendencias; a confirmacao manual executa a transferencia.
+- Nao rode seed em producao.
+- Nao comite `.env`, certificados, anexos reais ou segredos.
 
 ## Integracoes e Mocks
 
-- **AI & OCR:** O sistema permite a configuracao de provedores falsos (`"fake"`) no arquivo `.env` para fins de desenvolvimento. Isso simula inferencia local sem custos ou chamadas externas.
-- **Telegram:** A integracao do Bot e via POC S5-012. Mantem-se inativa (`TELEGRAM_BOT_ENABLED="false"`) por padrao para nao travar builds locais sem tokens reais.
-- **Armazenamento de Arquivos:** Compativel com AWS S3 / Cloudflare R2, mas inteiramente opcional na fase atual.
-- **Open Finance:** Mock de Webhooks locais para simulacao de recebimentos de lotes bancarios.
-
-## Seguranca e Conformidade (LGPD)
-
-- **Dados Ficticios:** O Seed so gera informacoes *mock*, sem vazamento de dados reais.
-- **Manejo de Segredos:** O arquivo `.env` jamais deve ser comitado. Use `.env.example` sem credenciais veridicas.
-- **Auditoria de Logs:** Transacoes criptografadas. Nunca logue Informacoes Pessoalmente Identificaveis (PII), textos *raw* de OCR ou strings base64 de Certificados no AuditLog.
-- **Defesa de Dados (RLS):** Garantido pelo bloqueio em nivel de banco que nenhum workspace tenha visualizacao cruzada de registros.
+- `AI_PROVIDER="fake"` permite insights locais sem chamadas externas.
+- `OCR_PROVIDER="fake"` permite validar OCR sem provider real.
+- `TELEGRAM_BOT_ENABLED="false"` mantem a POC Telegram desativada por padrao.
+- R2/S3 e opcional para desenvolvimento local.
+- Open Finance pode ser simulado via webhook/mock local.
 
 ## Troubleshooting
 
-- **Erro de Conexao PostgreSQL (ECONNREFUSED):** Verifique se o servico/docker do banco esta de pe na porta apontada em `DATABASE_URL`.
-- **Banco nao criado:** Crie-o manualmente (`CREATE DATABASE wsp_finance`). O Prisma Migrate nao cria a *database* automaticamente.
-- **Erro de `pg_trgm`:** Verifique se o seu usuario PostgreSQL tem permissoes de `CREATE EXTENSION` (superusuario ou proprietario do banco).
-- **Erro `DIRECT_URL` no Vercel/Ambiente Nuvem:** Em producao, se utilizar pgBouncer para o pool, o `DIRECT_URL` precisa apontar para a porta 5432 fisica do banco, desviando do PgBouncer.
-- **Token Invalido / JWT_SECRET:** Confirme se copiou corretamente as variaveis `.env.example` e substituiu `CHANGE_ME...` por strings de 32 bytes geradas de forma aleatoria.
-- **Portas Ocupadas:** O backend roda nativamente na `3333` e o frontend na `5173`. Finalize processos suspensos com `npx kill-port 3333 5173`.
-- **Prisma generate com EPERM no Windows:** Erro com lock de `.dll.node`. Feche os processos Node, Vitest ou TS-Server/Vite, aguarde alguns segundos e repita `pnpm run prisma:generate`.
-- **Frontend nao chama Backend:** Verifique o `.env.local` (ou arquivo equivalente do Vite) em `frontend` apontando para `VITE_API_URL=http://localhost:3333`.
-- **Suite de testes backend serial (`fileParallelism: false`):** A suite de testes do backend roda arquivos de forma serial para evitar corrida em fixtures compartilhadas no banco de dados. Isso e intencional e configurado em `vitest.config.ts`.
-- **Diferenca entre `.env` e `.env.test`:** O `.env` e usado para execucao local (dev server, migrations, seed). O `.env.test` e carregado pelo `globalSetup` do Vitest e aponta para o banco `wsp_finance_test`, garantindo isolamento total dos testes automatizados.
+- **PostgreSQL `ECONNREFUSED`:** confirme host, porta e se o servico esta rodando.
+- **Banco inexistente:** crie `wsp_finance` e `wsp_finance_test` manualmente.
+- **Erro em `pg_trgm`:** use usuario com permissao de `CREATE EXTENSION`.
+- **`DIRECT_URL` em ambiente com pooler:** mantenha `DIRECT_URL` direto no banco, sem PgBouncer/pooler.
+- **JWT invalido:** gere novos valores para `JWT_SECRET` e `JWT_REFRESH_SECRET`.
+- **Portas ocupadas:** backend usa `3333`; frontend usa `5173`.
+- **Prisma generate com `EPERM` no Windows:** feche processos Node/Vite/Vitest/TS Server que estejam segurando a DLL e rode novamente.
+- **Frontend nao chama backend:** confira `frontend/.env` e `VITE_API_URL`.
+- **Testes DB-backed falhando em maquina limpa:** aplique migrations e seed no banco de teste antes de `pnpm test`.
 
 ## Documentacao Complementar
 
-O ecossistema WSP Finance documenta decisoes essenciais e definicoes de forma estruturada:
+- `PRODUCT_SCOPE_MASTER.md`
+- `BACKEND_GUIDELINES.md`
+- `FRONTEND_GUIDELINES.md`
+- `.planning/PROJECT.md`
+- `.planning/REQUIREMENTS.md`
+- `.planning/ROADMAP.md`
+- `_reversa_sdd/architecture.md`
+- `_reversa_sdd/domain.md`
+- `_reversa_sdd/erd-complete.md`
+- `_reversa_sdd/permissions.md`
+- `_reversa_sdd/deployment.md`
+- `documentacao/ADR_001_justificativa_refatoracao_pr1_pr4.md`
 
-- **Guias Tecnicos:**
-  - `BACKEND_GUIDELINES.md`
-  - `FRONTEND_GUIDELINES.md`
-- **Escopo e Planejamento:**
-  - `PRODUCT_SCOPE_MASTER.md`
-  - `.planning/PROJECT.md`
-  - `.planning/REQUIREMENTS.md`
-  - `.planning/ROADMAP.md`
-- **Engenharia Reversa / Documentacao Tecnica (`_reversa_sdd/`):**
-  - `_reversa_sdd/architecture.md` (Arquitetura macro do projeto)
-  - `_reversa_sdd/domain.md` (Design de Dominio Central)
-  - `_reversa_sdd/erd-complete.md` (Diagrama Entidade-Relacionamento e Regras RLS)
-  - `_reversa_sdd/permissions.md` (Regras de RBAC e Controle de Acesso)
-  - `_reversa_sdd/deployment.md` (Estrategia de Infra/Deploy)
-- **Historico e Decisoes:**
-  - `documentacao/ADR_001_justificativa_refatoracao_pr1_pr4.md` (Justificativas de arquitetura)
+## Plano Seguro Para Substituir a `main` Remota
+
+Como a branch atual e a funcional e a `main` remota esta quebrada, a forma mais segura e preservar historico e publicar um commit em `main` que substitua o conteudo pelo estado validado desta branch, sem force push inicialmente.
+
+Plano recomendado:
+
+1. Fechar e validar esta branch funcional, incluindo este README.
+2. Commitar seletivamente apenas os arquivos aprovados da branch funcional.
+3. Fazer push da branch funcional para o remoto.
+4. Criar uma referencia de backup da `main` remota antes da troca.
+5. Atualizar a branch local `main` a partir de `origin/main`.
+6. Substituir o conteudo da `main` pelo conteudo da branch funcional.
+7. Gerar um commit convencional na `main`, por exemplo `chore: substitui main pelo estado funcional`.
+8. Rodar validacoes minimas antes do push.
+9. Fazer push normal para `origin main`.
+
+Use force push apenas se houver decisao explicita de reescrever historico remoto.

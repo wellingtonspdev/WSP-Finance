@@ -11,15 +11,20 @@ export class BridgeController {
 
   async transfer(req: Request, res: Response) {
     const transferSchema = z.object({
-      fromWorkspaceId: z.number().int().positive(),
-      toWorkspaceId: z.number().int().positive(),
-      amount: z.number().positive('O valor deve ser positivo'),
+      fromWorkspaceId: z.coerce.number().int().positive(),
+      toWorkspaceId: z.coerce.number().int().positive(),
+      amount: z.coerce.number().positive('O valor deve ser positivo'),
       description: z.string().default('Transferência entre Workspaces'),
       date: z.coerce.date().default(() => new Date()),
     });
 
     // Validação de Input
-    const dto = transferSchema.parse(req.body);
+    const parsed = transferSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: 'Payload invalido.', issues: parsed.error.issues });
+    }
+
+    const dto = parsed.data;
     const userId = req.user.id;
 
     // Validação Lógica Básica

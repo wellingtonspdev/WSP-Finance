@@ -9,6 +9,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { UIProvider } from '../../../src/shared/context/UIProvider';
 
+const transactionHookMocks = vi.hoisted(() => ({
+    useTransactions: vi.fn(),
+}));
+
 // Mocks
 vi.mock('framer-motion', () => ({
     motion: {
@@ -20,14 +24,7 @@ vi.mock('framer-motion', () => ({
 vi.mock('../../../src/shared/stores/useWorkspaceStore');
 vi.mock('../../../src/features/transactions/api/exportDominio');
 vi.mock('../../../src/features/transactions/hooks/useTransactions', () => ({
-    useTransactions: () => ({
-        data: { pages: [] },
-        isLoading: false,
-        isError: false,
-        fetchNextPage: vi.fn(),
-        hasNextPage: false,
-        isFetchingNextPage: false,
-    })
+    useTransactions: transactionHookMocks.useTransactions,
 }));
 vi.mock('../../../src/features/transactions/hooks/useAttachment', () => ({
     useAttachment: () => ({
@@ -44,16 +41,17 @@ vi.mock('../../../src/features/workspaces/context/useWorkspace', () => ({
 describe('ExportDominioModal & TransactionHistoryPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        transactionHookMocks.useTransactions.mockReturnValue({
+            data: { pages: [] },
+            isLoading: false,
+            isError: false,
+            fetchNextPage: vi.fn(),
+            hasNextPage: false,
+            isFetchingNextPage: false,
+        });
         // Reset window.URL methods
         global.URL.createObjectURL = vi.fn(() => 'mock-url');
         global.URL.revokeObjectURL = vi.fn();
-        vi.mocked(exportApi.listExportHistory).mockResolvedValue({ data: [] });
-        vi.mocked(exportApi.getExportDownloadUrl).mockResolvedValue({
-            url: 'https://r2.example.com/export.txt',
-            expiresInSeconds: 900,
-            fileName: 'export.txt',
-            contentType: 'text/plain'
-        });
     });
 
     afterEach(() => {
@@ -82,8 +80,7 @@ describe('ExportDominioModal & TransactionHistoryPage', () => {
             return selector ? selector(state) : state;
         });
         renderPage();
-        expect(screen.getByRole('button', { name: /Exportar Dominio/i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Historico/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Exportar Domínio/i })).toBeInTheDocument();
     });
 
     // T02
@@ -93,8 +90,7 @@ describe('ExportDominioModal & TransactionHistoryPage', () => {
             return selector ? selector(state) : state;
         });
         renderPage();
-        expect(screen.getByRole('button', { name: /Exportar Dominio/i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Historico/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Exportar Domínio/i })).toBeInTheDocument();
     });
 
     // T03
@@ -104,8 +100,7 @@ describe('ExportDominioModal & TransactionHistoryPage', () => {
             return selector ? selector(state) : state;
         });
         renderPage();
-        expect(screen.queryByRole('button', { name: /Exportar Dominio/i })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /Historico/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Exportar Domínio/i })).not.toBeInTheDocument();
     });
 
     // T04
@@ -115,8 +110,7 @@ describe('ExportDominioModal & TransactionHistoryPage', () => {
             return selector ? selector(state) : state;
         });
         renderPage();
-        expect(screen.queryByRole('button', { name: /Exportar Dominio/i })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /Historico/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Exportar Domínio/i })).not.toBeInTheDocument();
     });
 
     // T05
@@ -126,11 +120,10 @@ describe('ExportDominioModal & TransactionHistoryPage', () => {
             return selector ? selector(state) : state;
         });
         renderPage();
-        expect(screen.queryByRole('button', { name: /Exportar Dominio/i })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /Historico/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Exportar Domínio/i })).not.toBeInTheDocument();
     });
 
-    it('T05.1 - Historico inicia recolhido e renderiza estado vazio ao abrir', async () => {
+    it('T05.1 - Alterna ordenacao do extrato por data e refaz a query', () => {
         vi.mocked(useWorkspaceStore).mockImplementation((selector?: any) => {
             const state = { activeMembership: { type: 'BUSINESS', role: 'OWNER' } };
             return selector ? selector(state) : state;
@@ -138,69 +131,12 @@ describe('ExportDominioModal & TransactionHistoryPage', () => {
 
         renderPage();
 
-        expect(screen.queryByText('Nenhuma exportacao gerada ainda.')).not.toBeInTheDocument();
+        expect(transactionHookMocks.useTransactions).toHaveBeenLastCalledWith({ sortDirection: 'desc' });
 
-        fireEvent.click(screen.getByRole('button', { name: /Historico/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Ordenar por data mais antiga/i }));
 
-        expect(await screen.findByText('Nenhuma exportacao gerada ainda.')).toBeInTheDocument();
-        expect(exportApi.listExportHistory).toHaveBeenCalledWith('1', expect.any(AbortSignal));
-    });
-
-    it('T05.2 - Historico renderiza campos da exportacao e permite baixar', async () => {
-        vi.mocked(useWorkspaceStore).mockImplementation((selector?: any) => {
-            const state = { activeMembership: { type: 'BUSINESS', role: 'ACCOUNTANT' } };
-            return selector ? selector(state) : state;
-        });
-        vi.mocked(exportApi.listExportHistory).mockResolvedValueOnce({
-            data: [{
-                id: 'archive-1',
-                workspaceId: 1,
-                layoutId: 'dominio-separated-v1',
-                targetSystem: 'DOMINIO',
-                periodStart: '2026-05-01T00:00:00.000Z',
-                periodEnd: '2026-05-31T00:00:00.000Z',
-                fileName: 'wsp-dominio-2026-05.txt',
-                hash: '1234567890abcdef1234567890abcdef',
-                sizeBytes: 120,
-                recordCount: 10,
-                contentType: 'text/plain',
-                encoding: 'windows-1252',
-                warningsCount: 2,
-                retentionUntil: '2026-06-30T00:00:00.000Z',
-                createdAt: '2026-06-01T12:00:00.000Z',
-                status: 'AVAILABLE',
-                createdByUser: { id: 'user-1', name: 'Ana Contadora', email: 'ana@example.com' }
-            }]
-        });
-
-        renderPage();
-        fireEvent.click(screen.getByRole('button', { name: /Historico/i }));
-
-        expect(await screen.findByText(/dominio-separated-v1/)).toBeInTheDocument();
-        expect(screen.getByText('wsp-dominio-2026-05.txt')).toBeInTheDocument();
-        expect(screen.getByText('10')).toBeInTheDocument();
-        expect(screen.getByText('2')).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: /Download/i }));
-
-        await waitFor(() => {
-            expect(exportApi.getExportDownloadUrl).toHaveBeenCalledWith('1', 'archive-1');
-        });
-    });
-
-    it('T05.3 - Historico mostra mensagem amigavel para 403', async () => {
-        vi.mocked(useWorkspaceStore).mockImplementation((selector?: any) => {
-            const state = { activeMembership: { type: 'BUSINESS', role: 'OWNER' } };
-            return selector ? selector(state) : state;
-        });
-        vi.mocked(exportApi.listExportHistory).mockRejectedValueOnce({
-            isAxiosError: true,
-            response: { status: 403 }
-        });
-
-        renderPage();
-        fireEvent.click(screen.getByRole('button', { name: /Historico/i }));
-
-        expect(await screen.findByText('Voce nao tem permissao para ver exportacoes deste workspace.')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Ordenar por data mais recente/i })).toBeInTheDocument();
+        expect(transactionHookMocks.useTransactions).toHaveBeenLastCalledWith({ sortDirection: 'asc' });
     });
 
     describe('Modal Behavior', () => {

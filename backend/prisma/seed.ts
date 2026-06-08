@@ -21,14 +21,14 @@ const prisma = directUrl
 async function earthquakeReset() {
   console.log('🧹 Protocolo Earthquake — Reset Determinístico...');
   try {
-    const tables = [
-      'Notification', 'AuditLog', 'Transaction', 'BankMovement', 'Account',
-      'Category', 'WorkspaceInvite', 'WorkspaceMember',
-      'RefreshToken', 'PasswordResetToken', 'AccountVerificationToken',
-      'Workspace', 'User', 'AccountantDashboardCache'
-    ];
+    const tables = await prisma.$queryRaw<Array<{ tablename: string }>>`
+      SELECT tablename
+      FROM pg_tables
+      WHERE schemaname = 'public'
+        AND tablename <> '_prisma_migrations'
+    `;
     for (const table of tables) {
-      await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE;`);
+      await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table.tablename}" RESTART IDENTITY CASCADE;`);
     }
     console.log('  ✅ Ground Zero. Todos os IDs resetados.\n');
   } catch (err) {
@@ -147,7 +147,7 @@ async function main() {
 
   const startTime = Date.now();
 
-  // await earthquakeReset();
+  await earthquakeReset();
 
   // ── FASE 0: MACRO CATEGORIAS ──
   await seedMacroCategories(prisma);

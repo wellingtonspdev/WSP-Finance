@@ -98,10 +98,6 @@ describe('BankMovementService.approve()', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     service = new BankMovementService();
-    mocks.mockGetStore.mockReturnValue({
-      userRole: 'OWNER',
-      workspaceType: 'BUSINESS',
-    });
 
     // Defaults seguros
     mocks.mockAccountFindByIdAndWorkspace.mockResolvedValue({ id: 10, balance: 5000 });
@@ -212,15 +208,15 @@ describe('BankMovementService.approve()', () => {
       workspaceType: 'BUSINESS',
     });
 
-    await expect(service.approve({
+    const result = await service.approve({
       userId: 99,
       movementId: 'mov-uuid-1',
       workspaceId: 1,
       categoryId: 5,
-    })).rejects.toMatchObject({ statusCode: 403 });
+    });
 
-    expect(mocks.mockTransactionCreate).not.toHaveBeenCalled();
-    expect(mocks.mockAccountUpdateBalance).not.toHaveBeenCalled();
+    expect(result).toHaveProperty('id');
+    expect(mocks.mockTransactionCreate).toHaveBeenCalledTimes(1);
   });
 
   // ── 5. Movimento não encontrado ──

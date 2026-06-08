@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setUser(restoredSession.meData);
         persistDashboardCache(restoredSession.meData.dashboardCache ?? null);
-      } catch {
+      } catch (error) {
         if (isCancelled) return;
 
         setApiToken(null);

@@ -1,7 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type React from 'react';
 import { TransactionModal } from '../../../src/features/transactions/components/TransactionModal';
+
+const transactionMutationMocks = vi.hoisted(() => ({
+  submitTransaction: vi.fn(),
+}));
 
 vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -29,7 +33,7 @@ vi.mock('../../../src/features/workspaces/context/useWorkspace', () => ({
 
 vi.mock('../../../src/features/transactions/hooks/useTransactionMutation', () => ({
   useTransactionMutation: vi.fn(() => ({
-    submitTransaction: vi.fn(),
+    submitTransaction: transactionMutationMocks.submitTransaction,
     isProcessing: false,
     isUploading: false,
     uploadProgress: 0,
@@ -44,6 +48,7 @@ vi.mock('../../../src/shared/hooks/useToast', () => ({
 describe('TransactionModal simplificado', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    transactionMutationMocks.submitTransaction.mockResolvedValue(undefined);
   });
 
   it('renderiza transacao comum sem seletor de conta', () => {
@@ -61,5 +66,23 @@ describe('TransactionModal simplificado', () => {
     expect(screen.getByText('Workspace de Destino')).toBeInTheDocument();
     expect(screen.queryByText(/Conta de Origem/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Conta que vai Receber/i)).not.toBeInTheDocument();
+  });
+
+  it('envia transacao comum como paga por padrao para atualizar saldo', async () => {
+    const { container } = render(<TransactionModal isOpen onClose={vi.fn()} />);
+
+    fireEvent.change(container.querySelector('input[name="description"]') as HTMLInputElement, { target: { value: 'Venda teste' } });
+    fireEvent.change(container.querySelector('input[name="date"]') as HTMLInputElement, { target: { value: '2026-06-02' } });
+    fireEvent.change(screen.getByPlaceholderText('R$ 0,00'), { target: { value: '200' } });
+    fireEvent.click(screen.getByRole('button', { name: /Selecione/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Vendas' }));
+    fireEvent.click(screen.getByRole('button', { name: /Registrar Transa/i }));
+
+    await waitFor(() => {
+      expect(transactionMutationMocks.submitTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({ isPaid: true }),
+        'INCOME_SIMPLE'
+      );
+    });
   });
 });

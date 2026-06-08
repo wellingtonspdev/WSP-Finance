@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { AlertCircle, CalendarDays, CheckCircle2, PauseCircle, RefreshCw, WalletCards, XCircle } from 'lucide-react';
 import { AppLayout } from '../../../shared/components/layout/AppLayout';
 import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
@@ -137,12 +137,35 @@ export function RecurringProLaborePage() {
   const [dayOfMonth, setDayOfMonth] = useState('5');
   const [description, setDescription] = useState('Pro-labore mensal');
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const actionError = createSchedule.error || deactivateSchedule.error || confirmPending.error || cancelPending.error;
+  const hasValidSourceWorkspace = businessWorkspaces.some((workspace) => workspace.id === sourceWorkspaceId);
+  const hasValidDestinationWorkspace = personalWorkspaces.some((workspace) => workspace.id === destinationWorkspaceId);
+  const canSubmitSchedule = hasValidSourceWorkspace && hasValidDestinationWorkspace;
+
+  useEffect(() => {
+    if (!hasValidSourceWorkspace && businessWorkspaces[0]?.id) {
+      setSourceWorkspaceId(businessWorkspaces[0].id);
+    }
+  }, [businessWorkspaces, hasValidSourceWorkspace]);
+
+  useEffect(() => {
+    if (!hasValidDestinationWorkspace && personalWorkspaces[0]?.id) {
+      setDestinationWorkspaceId(personalWorkspaces[0].id);
+    }
+  }, [hasValidDestinationWorkspace, personalWorkspaces]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setFeedback(null);
+    setLocalError(null);
+
+    if (!canSubmitSchedule) {
+      setLocalError('Selecione uma origem empresa e um destino pessoal validos.');
+      return;
+    }
+
     await createSchedule.mutateAsync({
       sourceWorkspaceId,
       destinationWorkspaceId,
@@ -165,9 +188,9 @@ export function RecurringProLaborePage() {
           <p className="mt-1 text-sm text-slate-400">Agende a recorrencia mensal e confirme manualmente cada pendencia.</p>
         </header>
 
-        {(actionError || feedback) && (
-          <div className={`rounded-lg border p-3 text-sm ${actionError ? 'border-red-500/30 bg-red-500/10 text-red-200' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'}`}>
-            {actionError ? getErrorMessage(actionError) : feedback}
+        {(actionError || localError || feedback) && (
+          <div className={`rounded-lg border p-3 text-sm ${actionError || localError ? 'border-red-500/30 bg-red-500/10 text-red-200' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'}`}>
+            {actionError ? getErrorMessage(actionError) : localError || feedback}
           </div>
         )}
 
@@ -244,7 +267,7 @@ export function RecurringProLaborePage() {
               <div className="md:col-span-2 xl:col-span-5">
                 <button
                   type="submit"
-                  disabled={createSchedule.isPending || businessWorkspaces.length === 0 || personalWorkspaces.length === 0}
+                  disabled={createSchedule.isPending || !canSubmitSchedule}
                   className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-400 disabled:opacity-50"
                 >
                   <RefreshCw className="h-4 w-4" />

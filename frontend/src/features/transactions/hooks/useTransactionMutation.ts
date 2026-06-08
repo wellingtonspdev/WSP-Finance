@@ -4,6 +4,7 @@ import { useCreateTransaction } from './useCreateTransaction';
 import { useCreateBridge } from '../../workspaces/hooks/useCreateBridge';
 import { useWorkspace } from '../../workspaces/context/useWorkspace';
 import { useToast } from '../../../shared/hooks/useToast';
+import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 import type { CreateTransactionDTO } from '../types';
 import { requestCloudflareUpload } from '../../../services/uploadCloudflare';
 import { buildBridgePayload, buildTransactionPayload } from '../buildTransactionPayload';
@@ -13,6 +14,7 @@ export type TransCategory = 'INCOME_SIMPLE' | 'INCOME_MARKETPLACE' | 'EXPENSE' |
 export function useTransactionMutation(onSuccessCallback?: () => void) {
     const { success, error: toastError } = useToast();
     const { activeWorkspace } = useWorkspace();
+    const activeWorkspaceId = useWorkspaceStore((state) => state.activeWorkspaceId);
 
     const { mutate: createTransaction, isPending: isCreating } = useCreateTransaction();
     const { mutate: createBridge, isPending: isBridging } = useCreateBridge();
@@ -33,7 +35,9 @@ export function useTransactionMutation(onSuccessCallback?: () => void) {
     const submitTransaction = async (data: CreateTransactionDTO, transCategory: TransCategory) => {
         // 1. Fluxo Dedicado Pró-labore (Bridge Transfer)
         if (transCategory === 'BRIDGE') {
-            if (!activeWorkspace) {
+            const fromWorkspaceId = activeWorkspaceId ?? activeWorkspace?.id;
+
+            if (!fromWorkspaceId) {
                 toastError('Workspace ativo não encontrado.');
                 return;
             }
@@ -43,7 +47,12 @@ export function useTransactionMutation(onSuccessCallback?: () => void) {
                 return;
             }
 
-            const dto = buildBridgePayload(data, activeWorkspace.id);
+            if (Number(data.toWorkspaceId) === Number(fromWorkspaceId)) {
+                toastError('A transferÃªncia deve ser entre workspaces diferentes.');
+                return;
+            }
+
+            const dto = buildBridgePayload(data, fromWorkspaceId);
 
             createBridge(dto, {
                 onSuccess: () => {
@@ -51,7 +60,8 @@ export function useTransactionMutation(onSuccessCallback?: () => void) {
                     if (onSuccessCallback) onSuccessCallback();
                 },
                 onError: (err: Error) => {
-                    const axiosError = err as unknown as { response?: { data?: { message?: string } } };
+                    const axiosError = err as unknown as { response?: { data?: { message?: string; issues?: Array<{ path: (string | number)[]; message: string }> } } };
+                    console.error('[Bridge Error] Detalhes:', axiosError?.response?.data || err);
                     toastError(axiosError?.response?.data?.message || 'Falha ao executar Pró-labore.');
                 }
             });

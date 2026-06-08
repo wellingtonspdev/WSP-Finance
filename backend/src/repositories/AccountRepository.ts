@@ -20,21 +20,25 @@ export class AccountRepository {
     });
   }
 
-  async findDefaultByWorkspace(workspaceId: number, workspaceType: WorkspaceType): Promise<Account | null> {
+  async findDefaultByWorkspace(
+    workspaceId: number,
+    workspaceType: WorkspaceType,
+    client: ExtendedTransactionClient = prisma
+  ): Promise<Account | null> {
     const defaultName = workspaceType === 'PERSONAL' ? 'Conta PF Principal' : 'Conta PJ Principal';
 
-    const namedAccount = await prisma.account.findFirst({
+    const namedAccount = await client.account.findFirst({
       where: { workspaceId, name: defaultName }
     });
     if (namedAccount) return namedAccount;
 
-    const checkingAccount = await prisma.account.findFirst({
+    const checkingAccount = await client.account.findFirst({
       where: { workspaceId, type: 'CHECKING' },
       orderBy: { name: 'asc' }
     });
     if (checkingAccount) return checkingAccount;
 
-    return await prisma.account.findFirst({
+    return await client.account.findFirst({
       where: { workspaceId },
       orderBy: { name: 'asc' }
     });

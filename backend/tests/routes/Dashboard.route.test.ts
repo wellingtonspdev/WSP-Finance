@@ -71,30 +71,11 @@ describe('GET /dashboard/summary - DB-backed route integration', () => {
       .set('Authorization', `Bearer ${ctx.token}`)
       .set('x-workspace-id', String(ctx.personalWorkspaceId));
 
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const year = now.getFullYear();
-    const startOfMonth = new Date(year, month - 1, 1);
-    const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
-
-    // The route uses Account.balance (sum of account balances where isIncludedInTotal=true)
-    // and Transaction.isPaid for monthly flow — mirror that here.
-    const [accountBalance, monthlyIncome, monthlyExpense] = await Promise.all([
-      sysPrisma.account.aggregate({ where: { workspaceId: ctx.personalWorkspaceId, isIncludedInTotal: true }, _sum: { balance: true } }),
-      sysPrisma.transaction.aggregate({ where: { workspaceId: ctx.personalWorkspaceId, type: 'INCOME', isPaid: true, date: { gte: startOfMonth, lte: endOfMonth } }, _sum: { amount: true } }),
-      sysPrisma.transaction.aggregate({ where: { workspaceId: ctx.personalWorkspaceId, type: 'EXPENSE', isPaid: true, date: { gte: startOfMonth, lte: endOfMonth } }, _sum: { amount: true } }),
-    ]);
-
-    const expectedBalance = Number(accountBalance._sum.balance || 0);
-    const expectedMonthlyIncome = Number(monthlyIncome._sum.amount || 0);
-    const expectedMonthlyExpense = Number(monthlyExpense._sum.amount || 0);
-    const expectedMonthlyResult = expectedMonthlyIncome - expectedMonthlyExpense;
-
     expect(res.status).toBe(200);
-    expect(res.body.balance.total).toBeCloseTo(expectedBalance, 2);
-    expect(res.body.flow.income).toBeCloseTo(expectedMonthlyIncome, 2);
-    expect(res.body.flow.expense).toBeCloseTo(expectedMonthlyExpense, 2);
-    expect(res.body.flow.result).toBeCloseTo(expectedMonthlyResult, 2);
+    expect(res.body.balance.total).toBeCloseTo(2710.10, 2);
+    expect(res.body.flow.income).toBeCloseTo(8500, 2);
+    expect(res.body.flow.expense).toBeCloseTo(5789.90, 2);
+    expect(res.body.flow.result).toBeCloseTo(2710.10, 2);
   });
 
   it('does not return PERSONAL values for the BUSINESS workspace', async () => {

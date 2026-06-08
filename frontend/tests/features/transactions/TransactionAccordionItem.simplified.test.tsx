@@ -42,6 +42,7 @@ describe('TransactionAccordionItem simplificado', () => {
     render(<TransactionAccordionItem transaction={transaction} />);
 
     expect(screen.getByText('Categoria: Vendas')).toBeInTheDocument();
+    expect(screen.getByText(/31 de mai\. de 2026/i)).toBeInTheDocument();
     expect(screen.queryByText(/Conta:/i)).not.toBeInTheDocument();
   });
 
