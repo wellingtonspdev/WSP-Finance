@@ -56,6 +56,7 @@ export class TransactionController {
       accountId: z.coerce.number().optional(),
       categoryId: z.coerce.number().optional(),
       type: z.nativeEnum(TransactionType).optional(),
+      sortDirection: z.enum(['asc', 'desc']).default('desc').optional(),
       cursor: z.string().optional(),
       limit: z.coerce.number().min(1).max(100).default(20).optional(),
     });

@@ -30,13 +30,6 @@ app.use(cors({
 
 app.use(express.json());
 
-app.get('/health', (_req: Request, res: Response) => {
-  res.status(200).json({
-    status: 'ok',
-    service: 'wsp-finance-backend',
-  });
-});
-
 // Servir arquivos estáticos (Uploads)
 app.use('/files', express.static(path.resolve(__dirname, '..', 'uploads')));
 

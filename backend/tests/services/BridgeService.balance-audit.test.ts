@@ -4,9 +4,12 @@ import { BridgeService } from '../../src/services/BridgeService';
 
 const mocks = vi.hoisted(() => ({
   mockWorkspaceMemberFindMany: vi.fn(),
+  mockPrismaTransactionFindFirst: vi.fn(),
   mockCategoryFindFirst: vi.fn(),
   mockPrismaTransaction: vi.fn(),
   mockFindDefaultByWorkspace: vi.fn(),
+  mockTxExecuteRaw: vi.fn(),
+  mockTxTransactionFindFirst: vi.fn(),
   mockTxTransactionCreate: vi.fn(),
   mockTxAccountUpdate: vi.fn(),
   mockAuditLogSync: vi.fn(),
@@ -15,6 +18,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../src/lib/prisma', () => ({
   prisma: {
     workspaceMember: { findMany: mocks.mockWorkspaceMemberFindMany },
+    transaction: { findFirst: mocks.mockPrismaTransactionFindFirst },
     category: { findFirst: mocks.mockCategoryFindFirst },
     $transaction: mocks.mockPrismaTransaction,
   },
@@ -65,6 +69,10 @@ describe('BridgeService balance audit', () => {
       },
     ]);
 
+    mocks.mockPrismaTransactionFindFirst.mockResolvedValue(null);
+    mocks.mockTxExecuteRaw.mockResolvedValue(1);
+    mocks.mockTxTransactionFindFirst.mockResolvedValue(null);
+
     mocks.mockCategoryFindFirst
       .mockResolvedValueOnce({ id: 11 })
       .mockResolvedValueOnce({ id: 22 });
@@ -82,7 +90,11 @@ describe('BridgeService balance audit', () => {
       .mockResolvedValueOnce({ balance: new Decimal('550.0000') });
 
     mocks.mockPrismaTransaction.mockImplementation(async (callback: any) => callback({
-      transaction: { create: mocks.mockTxTransactionCreate },
+      $executeRaw: mocks.mockTxExecuteRaw,
+      transaction: {
+        findFirst: mocks.mockTxTransactionFindFirst,
+        create: mocks.mockTxTransactionCreate,
+      },
       account: { update: mocks.mockTxAccountUpdate },
     }));
   });
@@ -176,16 +188,16 @@ describe('BridgeService balance audit', () => {
     expect(mocks.mockPrismaTransaction).not.toHaveBeenCalled();
   });
 
-  it('bloqueia ACCOUNTANT antes de resolver contas e nao altera saldo', async () => {
-    mocks.mockWorkspaceMemberFindMany.mockResolvedValueOnce([]);
+  it('bloqueia workspace vazio antes de consultar o Prisma', async () => {
+    await expect(service.executeTransfer(99, {
+      ...baseDto,
+      fromWorkspaceId: '' as any,
+    }))
+      .rejects.toMatchObject({ statusCode: 400, message: 'Workspace de origem invalido para transferencia.' });
 
-    await expect(service.executeTransfer(99, baseDto))
-      .rejects.toMatchObject({ statusCode: 403 });
-
+    expect(mocks.mockWorkspaceMemberFindMany).not.toHaveBeenCalled();
     expect(mocks.mockFindDefaultByWorkspace).not.toHaveBeenCalled();
     expect(mocks.mockPrismaTransaction).not.toHaveBeenCalled();
-    expect(mocks.mockTxTransactionCreate).not.toHaveBeenCalled();
-    expect(mocks.mockTxAccountUpdate).not.toHaveBeenCalled();
   });
 
   it('bloqueia periodo fechado antes de resolver contas', async () => {

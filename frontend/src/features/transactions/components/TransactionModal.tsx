@@ -7,6 +7,7 @@ import type { CreateTransactionDTO } from '../types';
 import { useCategories } from '../hooks/useCategories';
 import { useWorkspace } from '../../workspaces/context/useWorkspace';
 import { useTransactionMutation, type TransCategory } from '../hooks/useTransactionMutation';
+import { useWorkspaceStore } from '../../../shared/stores/useWorkspaceStore';
 import { MoneyInput } from '../../../shared/components/ui/MoneyInput';
 import { Input } from '../../../shared/components/ui/Input';
 import { Button } from '../../../shared/components/ui/Button';
@@ -31,6 +32,8 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
 
     // Contexto Global
     const { activeWorkspace, workspaces } = useWorkspace();
+    const activeWorkspaceId = useWorkspaceStore((state) => state.activeWorkspaceId);
+    const sourceWorkspaceId = activeWorkspaceId ?? activeWorkspace?.id;
 
     // Custom Hook Híbrido (Desacoplamento SoC)
     const { submitTransaction, isProcessing, isUploading, uploadProgress, abortUpload } = useTransactionMutation(() => {
@@ -190,10 +193,23 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
                                         {transCategory !== 'BRIDGE' && (
                                             <div>
                                                 <label className="block text-xs font-medium text-slate-400 mb-2 ml-1">Status</label>
-                                                <select {...register('isPaid', { setValueAs: (v: string) => v === 'true' })} className={`w-full bg-white/5 border rounded-xl text-white px-3 py-2.5 outline-none focus:ring-1 focus:ring-purple-500 ${errors.isPaid ? 'border-red-500' : 'border-white/10'}`}>
-                                                    <option value="true" className="text-black">Pago / Recebido</option>
-                                                    <option value="false" className="text-black">Pendente</option>
-                                                </select>
+                                                <Controller
+                                                    control={control}
+                                                    name="isPaid"
+                                                    render={({ field }) => (
+                                                        <select
+                                                            value={String(field.value ?? true)}
+                                                            onChange={(event) => field.onChange(event.target.value === 'true')}
+                                                            onBlur={field.onBlur}
+                                                            name={field.name}
+                                                            ref={field.ref}
+                                                            className={`w-full bg-white/5 border rounded-xl text-white px-3 py-2.5 outline-none focus:ring-1 focus:ring-purple-500 ${errors.isPaid ? 'border-red-500' : 'border-white/10'}`}
+                                                        >
+                                                            <option value="true" className="text-black">Pago / Recebido</option>
+                                                            <option value="false" className="text-black">Pendente</option>
+                                                        </select>
+                                                    )}
+                                                />
                                                 {errors.isPaid?.message && <p className="text-red-500 text-xs mt-1 ml-1">{errors.isPaid.message}</p>}
                                             </div>
                                         )}
@@ -352,7 +368,7 @@ export function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
                                                             <CustomSelect
                                                                 value={field.value}
                                                                 onChange={field.onChange}
-                                                                options={workspaces.filter(w => w.id !== activeWorkspace?.id).map(w => ({
+                                                                options={workspaces.filter(w => w.id !== sourceWorkspaceId).map(w => ({
                                                                     value: w.id,
                                                                     label: `${w.type === 'BUSINESS' ? 'Empresa' : 'Pessoal'} - ${w.name}`
                                                                 }))}

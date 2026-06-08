@@ -51,14 +51,6 @@ export class BankMovementService {
     this.categoryRepo = new CategoryRepository();
   }
 
-  private assertFinancialMutationAllowed() {
-    const role = tenantContext.getStore()?.userRole;
-
-    if (role === 'ACCOUNTANT' || role === 'VIEWER') {
-      throw new AppError('Permissao insuficiente para mutacao financeira.', 403);
-    }
-  }
-
   async listPending({ workspaceId, cursor, limit = 20 }: ListPendingDTO) {
     const movements = await this.movementRepo.findPendingByWorkspace(workspaceId, {
       cursor,
@@ -91,8 +83,6 @@ export class BankMovementService {
    * Tudo dentro de prisma.$transaction para atomicidade.
    */
   async merge({ keepId, discardIds, workspaceId }: MergeDTO) {
-    this.assertFinancialMutationAllowed();
-
     if (discardIds.includes(keepId)) {
       throw new AppError('keepId não pode estar em discardIds', 400);
     }
@@ -149,8 +139,6 @@ export class BankMovementService {
    * 6. prisma.$transaction { criar Transaction + atualizar saldo + marcar APPROVED }
    */
   async approve({ userId, movementId, workspaceId, categoryId }: ApproveDTO) {
-    this.assertFinancialMutationAllowed();
-
     // 1. Buscar movement
     const movement = await this.movementRepo.findByIdAndWorkspace(movementId, workspaceId);
     if (!movement) throw new AppError('Movimento não encontrado', 404);
@@ -181,9 +169,11 @@ export class BankMovementService {
     });
 
     if (workspace?.closedUntil) {
+      const store = tenantContext.getStore();
+      const isAccountantBypass = store?.userRole === 'ACCOUNTANT' && workspace.type === 'BUSINESS';
       const isDateClosed = dayjs(movement.date).isSameOrBefore(dayjs(workspace.closedUntil), 'day');
 
-      if (isDateClosed) {
+      if (isDateClosed && !isAccountantBypass) {
         throw new AppError('Acesso negado: A data da transação pertence a um período fiscal fechado.', 403);
       }
     }
@@ -259,8 +249,6 @@ export class BankMovementService {
    * Rejeitar: Descarta o movimento sem criar Transaction.
    */
   async reject(movementId: string, workspaceId: number) {
-    this.assertFinancialMutationAllowed();
-
     const movement = await this.movementRepo.findByIdAndWorkspace(movementId, workspaceId);
     if (!movement) throw new AppError('Movimento não encontrado', 404);
     if (movement.status !== 'PENDING') throw new AppError('Movimento não está pendente', 400);

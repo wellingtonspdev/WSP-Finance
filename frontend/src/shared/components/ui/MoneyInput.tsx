@@ -20,7 +20,7 @@ export function MoneyInput({ value, onChange, error, icon, className, ...props }
     }, [value]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const raw = e.target.value;
+        let raw = e.target.value;
 
         // Convert current string to number
         const num = formatBrlToNumber(raw);

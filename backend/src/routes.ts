@@ -19,11 +19,9 @@ import { AccountantCacheService } from './services/AccountantCacheService';
 import { AdminController } from './controllers/AdminController';
 import { ExportController } from './controllers/ExportController';
 import { ExportDownloadController } from './controllers/ExportDownloadController';
-import { ExportHistoryController } from './controllers/ExportHistoryController';
 import { AiInsightController } from './controllers/AiInsightController';
 import { TelegramIntegrationController } from './controllers/TelegramIntegrationController';
 import { RecurringProLaboreController } from './controllers/RecurringProLaboreController';
-import { TaxGuideController } from './controllers/TaxGuideController';
 import { sysPrisma } from './lib/prisma';
 
 // Middlewares
@@ -31,7 +29,6 @@ import { AuthMiddleware } from './middlewares/AuthMiddleware';
 import { WorkspaceMiddleware } from './middlewares/WorkspaceMiddleware';
 import { WorkspaceRouteParamGuard } from './middlewares/WorkspaceRouteParamGuard';
 import { RbacMiddleware } from './middlewares/RbacMiddleware';
-import { FinancialMutationRbacMiddleware } from './middlewares/FinancialMutationRbacMiddleware';
 import { AdminMiddleware } from './middlewares/AdminMiddleware';
 import rateLimit from 'express-rate-limit';
 import multer from 'multer';
@@ -48,11 +45,6 @@ const certUpload = multer({
             cb(new Error('Extensão inválida. Apenas arquivos .p12 e .pfx são aceitos.'));
         }
     }
-});
-
-const taxGuideUpload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 const router = Router();
@@ -86,7 +78,6 @@ const adminController = new AdminController();
 const aiInsightController = new AiInsightController();
 const telegramIntegrationController = new TelegramIntegrationController();
 const recurringProLaboreController = new RecurringProLaboreController();
-const taxGuideController = new TaxGuideController();
 
 // ==============================================================================
 // AUTENTICAÇÃO & IDENTIDADE
@@ -426,14 +417,14 @@ router.get('/transactions/:id', AuthMiddleware, WorkspaceMiddleware, (req, res, 
     return transactionController.getById(req, res);
 });
 
-router.post('/transactions', AuthMiddleware, WorkspaceMiddleware, FinancialMutationRbacMiddleware(), (req, res, next) => {
+router.post('/transactions', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
     /* #swagger.tags = ['Transações']
        #swagger.summary = 'Criar Movimentação Financeira'
        #swagger.description = 'Faz a inserção formal de Receitas/Despesas operacionais impactando de forma viva a contabilidade central.' */
     return transactionController.create(req, res);
 });
 
-router.delete('/transactions/:id', AuthMiddleware, WorkspaceMiddleware, FinancialMutationRbacMiddleware(), (req, res, next) => {
+router.delete('/transactions/:id', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
     /* #swagger.tags = ['Transações']
        #swagger.summary = 'Deletar Lançamento e Limpar Cota R2'
        #swagger.description = 'Realiza o Rollback do Saldo Bancário, extingue o registro fiscal e dispara a Faxina do Cloudflare para recuperar a cota.' */
@@ -445,35 +436,6 @@ router.get('/transactions/:id/attachment', AuthMiddleware, WorkspaceMiddleware, 
        #swagger.summary = 'Visualizar Anexo (Assinatura de 5 min)'
        #swagger.description = 'Retorna a URL pré-assinada (S3 V4) efêmera para visualização temporária do comprovante, com as chaves SSE-C necessárias caso seja vault.' */
     return uploadController.getAttachmentUrl(req, res);
-});
-
-// --- TAX GUIDES ---
-router.get('/tax-guides', AuthMiddleware, WorkspaceMiddleware, (req, res) => {
-    return taxGuideController.list(req, res);
-});
-
-router.post('/tax-guides', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('ACCOUNTANT'), (req, res) => {
-    return taxGuideController.create(req, res);
-});
-
-router.get('/tax-guides/:id', AuthMiddleware, WorkspaceMiddleware, (req, res) => {
-    return taxGuideController.getById(req, res);
-});
-
-router.patch('/tax-guides/:id/paid', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('OWNER'), (req, res) => {
-    return taxGuideController.markPaid(req, res);
-});
-
-router.patch('/tax-guides/:id/cancel', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('OWNER'), (req, res) => {
-    return taxGuideController.cancel(req, res);
-});
-
-router.post('/tax-guides/:id/guide-pdf', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('ACCOUNTANT'), taxGuideUpload.single('file'), (req, res) => {
-    return taxGuideController.uploadGuidePdf(req, res);
-});
-
-router.post('/tax-guides/:id/payment-proof', AuthMiddleware, WorkspaceMiddleware, RbacMiddleware('OWNER'), taxGuideUpload.single('file'), (req, res) => {
-    return taxGuideController.uploadPaymentProof(req, res);
 });
 
 // --- DASHBOARD ---
@@ -533,7 +495,7 @@ router.post('/recurring-pro-labore/pending/:id/cancel', AuthMiddleware, (req, re
 });
 
 // --- IMPORTAÇÃO ---
-router.post('/transactions/import', AuthMiddleware, WorkspaceMiddleware, FinancialMutationRbacMiddleware(), (req, res, next) => {
+router.post('/transactions/import', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
     /* #swagger.tags = ['Importação']
        #swagger.summary = 'Decodificar OFX Bancário'
        #swagger.description = 'Lê e traduz blocos de dados transacionais gerados por sistemas bancários antigos e transforma instantaneamente em Json compatível PACT.' */
@@ -581,21 +543,21 @@ router.get('/bank-movements', AuthMiddleware, WorkspaceMiddleware, (req, res, ne
     return bankMovementController.listPending(req, res);
 });
 
-router.post('/bank-movements/:id/merge', AuthMiddleware, WorkspaceMiddleware, FinancialMutationRbacMiddleware(), (req, res, next) => {
+router.post('/bank-movements/:id/merge', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
     /* #swagger.tags = ['Inbox Aprovação']
        #swagger.summary = 'Mesclar Movimentos Duplicados'
        #swagger.description = 'Combina rawPayload de 2+ movimentos no keepId e deleta os discardIds. Operação atômica via prisma.$transaction.' */
     return bankMovementController.merge(req, res);
 });
 
-router.post('/bank-movements/:id/approve', AuthMiddleware, WorkspaceMiddleware, FinancialMutationRbacMiddleware(), (req, res, next) => {
+router.post('/bank-movements/:id/approve', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
     /* #swagger.tags = ['Inbox Aprovação']
        #swagger.summary = 'Aprovar Movimento → Transaction'
        #swagger.description = 'Converte um BankMovement PENDING em Transaction real, atualizando saldo da conta e marcando o movimento como APPROVED.' */
     return bankMovementController.approve(req, res);
 });
 
-router.post('/bank-movements/:id/reject', AuthMiddleware, WorkspaceMiddleware, FinancialMutationRbacMiddleware(), (req, res, next) => {
+router.post('/bank-movements/:id/reject', AuthMiddleware, WorkspaceMiddleware, (req, res, next) => {
     /* #swagger.tags = ['Inbox Aprovação']
        #swagger.summary = 'Rejeitar Movimento'
        #swagger.description = 'Marca o movimento como REJECTED sem criar Transaction.' */
@@ -673,21 +635,6 @@ router.post('/export/generate', AuthMiddleware, WorkspaceMiddleware, RbacMiddlew
 });
 
 const exportDownloadController = new ExportDownloadController();
-const exportHistoryController = new ExportHistoryController();
-
-router.get(
-    '/workspaces/:workspaceId/exports',
-    AuthMiddleware,
-    WorkspaceRouteParamGuard,
-    WorkspaceMiddleware,
-    RbacMiddleware('ACCOUNTANT'),
-    (req, res) => {
-        /* #swagger.tags = ['ExportaÃ§Ã£o ContÃ¡bil']
-           #swagger.summary = 'Listar histÃ³rico de exportaÃ§Ãµes contÃ¡beis'
-           #swagger.description = 'Lista metadados seguros das exportaÃ§Ãµes arquivadas do workspace.' */
-        return exportHistoryController.list(req, res);
-    }
-);
 
 router.get(
     '/workspaces/:workspaceId/exports/:archiveId/download',

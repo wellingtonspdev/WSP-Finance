@@ -136,10 +136,7 @@ describe('PersonalDemoSeed — Fase 1', () => {
 
   it('todas têm hashDeduplication estável (sem YYYY_MM)', async () => {
     const txns = await prisma.transaction.findMany({
-      where: {
-        workspaceId: personalWorkspaceId,
-        hashDeduplication: { startsWith: 'DEMO_PERSONAL_JOAO_' }
-      },
+      where: { workspaceId: personalWorkspaceId },
     });
     for (const tx of txns) {
       expect(tx.hashDeduplication).toBeTruthy();
