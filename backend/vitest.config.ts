@@ -5,6 +5,5 @@ export default defineConfig({
     exclude: ['node_modules', 'dist', '.idea', '.git', '.cache'],
     globalSetup: ['./src/test/setup-test-role.ts'],
     testTimeout: 15000,
-    fileParallelism: false,
   },
 });

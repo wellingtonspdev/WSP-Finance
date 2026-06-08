@@ -59,14 +59,6 @@ export class TransactionService {
     return account;
   }
 
-  private assertFinancialMutationAllowed() {
-    const role = tenantContext.getStore()?.userRole;
-
-    if (role === 'ACCOUNTANT' || role === 'VIEWER') {
-      throw new AppError('Permissao insuficiente para mutacao financeira.', 403);
-    }
-  }
-
   async create({
     userId,
     description,
@@ -85,8 +77,6 @@ export class TransactionService {
     attachmentUrl,
     attachmentSize
   }: CreateTransactionDTO) {
-    this.assertFinancialMutationAllowed();
-
     const category = await this.categoryRepository.findByIdAndWorkspace(categoryId, workspaceId);
     if (!category) throw new Error('Category not found or access denied');
 
@@ -96,9 +86,11 @@ export class TransactionService {
     const resolvedAccount = await this.resolveAccount(accountId, workspaceId, workspace.type);
 
     if (workspace.closedUntil) {
+      const store = tenantContext.getStore();
+      const isAccountantBypass = store?.userRole === 'ACCOUNTANT' && workspace.type === 'BUSINESS';
       const isTargetDateClosed = dayjs(date).isSameOrBefore(dayjs(workspace.closedUntil), 'day');
 
-      if (isTargetDateClosed) {
+      if (isTargetDateClosed && !isAccountantBypass) {
         throw new AppError('Acesso negado: A data da transacao pertence a um periodo fiscal fechado.', 403);
       }
     }
@@ -207,17 +199,17 @@ export class TransactionService {
   }
 
   async delete(id: string, workspaceId: number, userId: number): Promise<void> {
-    this.assertFinancialMutationAllowed();
-
     const transaction = await this.transactionRepository.findByIdAndWorkspace(id, workspaceId);
     if (!transaction) throw new AppError('Transaction not found or access denied', 404);
 
     const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: { closedUntil: true, type: true } });
 
     if (workspace?.closedUntil) {
+      const store = tenantContext.getStore();
+      const isAccountantBypass = store?.userRole === 'ACCOUNTANT' && workspace.type === 'BUSINESS';
       const isTargetDateClosed = dayjs(transaction.date).isSameOrBefore(dayjs(workspace.closedUntil), 'day');
 
-      if (isTargetDateClosed) {
+      if (isTargetDateClosed && !isAccountantBypass) {
         throw new AppError('Acesso negado: A transacao pertence a um periodo fiscal fechado e nao pode ser deletada.', 403);
       }
     }

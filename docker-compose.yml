@@ -1,0 +1,88 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: wsp_finance_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_ADMIN_USER:-wsp_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:-wsp_admin_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-wsp_finance}
+    ports:
+      - "${POSTGRES_PORT:-6543}:5432"
+    volumes:
+      - wsp_finance_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -p 5432 -U ${POSTGRES_ADMIN_USER:-wsp_admin} -d ${POSTGRES_DB:-wsp_finance}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wsp_finance_backend
+    env_file:
+      - ./.env.docker.example
+    environment:
+      NODE_ENV: development
+      PORT: 3333
+      APP_URL: http://localhost:${BACKEND_PORT:-3333}
+      FRONTEND_URL: http://localhost:${FRONTEND_PORT:-5173}
+      DATABASE_URL: postgresql://${APP_DATABASE_USER:-wsp_app}:${APP_DATABASE_PASSWORD:-wsp_app_dev_password}@db:5432/${POSTGRES_DB:-wsp_finance}?schema=public
+      DIRECT_URL: postgresql://${POSTGRES_ADMIN_USER:-wsp_admin}:${POSTGRES_ADMIN_PASSWORD:-wsp_admin_dev_password}@db:5432/${POSTGRES_DB:-wsp_finance}?schema=public
+    ports:
+      - "${BACKEND_PORT:-3333}:3333"
+    volumes:
+      - ./backend:/app
+      - backend_node_modules_dev:/app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend_net
+      - frontend_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: wsp_finance_frontend
+    environment:
+      VITE_API_URL: http://localhost:${BACKEND_PORT:-3333}
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - frontend_net
+
+  adminer:
+    image: adminer:latest
+    container_name: wsp_finance_adminer
+    ports:
+      - "${ADMINER_PORT:-8081}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend_net
+
+networks:
+  backend_net:
+    driver: bridge
+  frontend_net:
+    driver: bridge
+
+volumes:
+  wsp_finance_pg_data:
+  backend_node_modules_dev:
+  frontend_node_modules:

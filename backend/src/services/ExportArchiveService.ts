@@ -8,29 +8,6 @@ import { ServiceUnavailableError } from '../errors/ServiceUnavailableError';
 
 const CANONICAL_OBJECT_KEY_REGEX = /^workspaces\/\d+\/exports\/[a-f0-9-]+\.txt$/;
 
-export interface ExportArchiveHistoryItem {
-  id: string;
-  workspaceId: number;
-  layoutId: string;
-  targetSystem: string;
-  periodStart: string;
-  periodEnd: string;
-  fileName: string;
-  hash: string;
-  sizeBytes: number;
-  recordCount: number;
-  contentType: string;
-  encoding: string;
-  warningsCount: number;
-  retentionUntil: string;
-  createdAt: string;
-  status: 'AVAILABLE';
-  createdByUser: {
-    id: number;
-    name: string | null;
-    email: string;
-  };
-}
 
 interface ArchiveAndLogDTO {
   workspaceId: number;
@@ -50,57 +27,6 @@ interface ArchiveAndLogDTO {
 
 export class ExportArchiveService {
   constructor(private readonly storageProvider: IStorageProvider) {}
-
-  async listByWorkspace(workspaceId: number): Promise<ExportArchiveHistoryItem[]> {
-    const archives = await prisma.exportArchive.findMany({
-      where: { workspaceId },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        workspaceId: true,
-        layoutId: true,
-        targetSystem: true,
-        periodStart: true,
-        periodEnd: true,
-        fileName: true,
-        sha256: true,
-        sizeBytes: true,
-        recordCount: true,
-        contentType: true,
-        encoding: true,
-        warningsCount: true,
-        retentionUntil: true,
-        createdAt: true,
-        createdByUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    return archives.map((archive) => ({
-      id: archive.id,
-      workspaceId: archive.workspaceId,
-      layoutId: archive.layoutId,
-      targetSystem: archive.targetSystem,
-      periodStart: archive.periodStart.toISOString(),
-      periodEnd: archive.periodEnd.toISOString(),
-      fileName: archive.fileName,
-      hash: archive.sha256,
-      sizeBytes: archive.sizeBytes,
-      recordCount: archive.recordCount,
-      contentType: archive.contentType,
-      encoding: archive.encoding,
-      warningsCount: archive.warningsCount,
-      retentionUntil: archive.retentionUntil.toISOString(),
-      createdAt: archive.createdAt.toISOString(),
-      status: 'AVAILABLE',
-      createdByUser: archive.createdByUser,
-    }));
-  }
 
   /**
    * Uploads an export file to storage (R2/S3/Local) and transactionally records
